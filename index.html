@@ -757,6 +757,10 @@ select option { background: var(--surface); }
     ⚠️ PAR CHECK — ALL CREWS REPORT — <span id="par-countdown">2:00</span>
   </div>
 
+  <!-- Sync Status Banner -->
+
+  <div id="sync-banner" style="display:none;background:#1a1a2e;border-bottom:1px solid var(--border);padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;"></div>
+
   <!-- Top Bar -->
 
   <div class="topbar">
@@ -1261,24 +1265,31 @@ function joinExistingIncident() {
   });
 }
 
+function setSyncBanner(msg, color) {
+  const b = document.getElementById('sync-banner');
+  if (!b) return;
+  if (!msg) { b.style.display = 'none'; return; }
+  b.style.display = 'block';
+  b.style.color = color || '#8a95a3';
+  b.textContent = msg;
+}
+
 function initFirebase(dbUrl, callback) {
   const { initializeApp, getDatabase, ref, set, onValue, get } = window._firebaseModules;
+  setSyncBanner('Connecting to Firebase...', '#eab308');
   try {
     const app = initializeApp({ databaseURL: dbUrl }, `app-${Date.now()}`);
     db = getDatabase(app);
     dbRef = ref(db, 'fireboard');
-    // Load existing state
     get(dbRef).then(snapshot => {
       if (snapshot.exists()) {
         const remote = snapshot.val();
         STATE = Object.assign(STATE, remote);
         if (!STATE.apparatus || Object.keys(STATE.apparatus).length === 0) {
           STATE.apparatus = {};
-          DEFAULT_APPARATUS.forEach(a => { STATE.apparatus[a.id] = {...a}; });
         }
         if (!STATE.mutualAid || Object.keys(STATE.mutualAid).length === 0) {
           STATE.mutualAid = {};
-          DEFAULT_MUTUAL_AID.forEach(m => { STATE.mutualAid[m.id] = {...m}; });
         }
       }
       // Start live listener
@@ -1288,13 +1299,20 @@ function initFirebase(dbUrl, callback) {
           STATE = Object.assign(STATE, remote);
           renderAll();
           updateSyncIndicator(true);
+          setSyncBanner(null);
         }
+      }, (err) => {
+        setSyncBanner('⚠ Sync error: ' + err.message + ' — Check Firebase rules', '#ef4444');
+        updateSyncIndicator(false);
       });
+      setSyncBanner(null);
       if (callback) callback();
     }).catch(e => {
-      alert('Could not connect to Firebase. Check the URL and try again.\n' + e.message);
+      setSyncBanner('⚠ Cannot connect — ' + e.message, '#ef4444');
+      alert('Could not connect to Firebase.\n\nMost likely cause: your Firebase rules have expired (30-day test mode).\n\nFix: Go to Firebase Console → Realtime Database → Rules → change the expiry date → Publish.\n\nError: ' + e.message);
     });
   } catch(e) {
+    setSyncBanner('⚠ Firebase error: ' + e.message, '#ef4444');
     alert('Firebase init failed: ' + e.message);
   }
 }
@@ -1378,7 +1396,16 @@ function loginCaptain() {
 function enterApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  if (currentUser.isCaptain) document.body.classList.add('is-captain');
+  if (currentUser.isCaptain) {
+    document.body.classList.add('is-captain');
+    // Force all captain toolbars visible directly
+    document.querySelectorAll('.captain-add-toolbar, .captain-only').forEach(el => {
+      el.style.cssText = 'display:flex !important';
+    });
+    document.querySelectorAll('.captain-only-block').forEach(el => {
+      el.style.cssText = 'display:block !important';
+    });
+  }
   document.getElementById('topbar-user-chip').textContent = currentUser.isCaptain ? `IC: ${currentUser.name}` : currentUser.name;
   document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
   document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
