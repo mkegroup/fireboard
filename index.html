@@ -395,10 +395,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .apparatus-info { flex: 1; }
 .apparatus-name { font-family: var(--font-head); font-size: 18px; font-weight: 800; }
 .apparatus-station { font-size: 11px; color: var(--text2); }
-.apparatus-status-btn {
+.apparatus-status-select {
   border-radius: 8px; padding: 6px 10px; font-family: var(--font-head); font-size: 11px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.5px; border: none; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.5px; border: none; cursor: pointer; outline: none;
 }
+.apparatus-status-select.app-available { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.apparatus-status-select.app-enroute { background: var(--blue); color: white; }
+.apparatus-status-select.app-onscene { background: var(--green); color: white; }
+.apparatus-status-select.app-staged { background: var(--yellow); color: #1a1a1a; }
+.apparatus-status-select.app-returning { background: var(--text2); color: var(--bg); }
+.apparatus-status-select option { background: var(--surface2); color: var(--text); font-size: 13px; text-transform: none; }
 .app-enroute { background: var(--blue); color: white; }
 .app-onscene { background: var(--green); color: white; }
 .app-staged { background: var(--yellow); color: #1a1a1a; }
@@ -1216,16 +1222,30 @@ const STATUS_DESC = {
 // SETUP
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
-  // Check URL params for auto-join
+  // Check URL params first (shared link)
   const params = new URLSearchParams(window.location.search);
   const dbUrl = params.get('db');
   const pin = params.get('pin');
+
   if (dbUrl) {
+    // Shared link — go straight to join
     document.getElementById('join-db-url').value = decodeURIComponent(dbUrl);
-    if (pin) {
-      document.getElementById('login-pin').value = pin;
-    }
+    if (pin) document.getElementById('login-pin').value = pin;
+    // Save to session so refresh works
+    sessionStorage.setItem('fgb_db', decodeURIComponent(dbUrl));
     joinExistingIncident();
+  } else {
+    // Check if we were already connected this session (page refresh)
+    const savedDb = sessionStorage.getItem('fgb_db');
+    if (savedDb) {
+      // Was connected — reconnect and go to login screen
+      document.getElementById('join-db-url').value = savedDb;
+      initFirebase(savedDb, () => {
+        document.getElementById('setup-screen').classList.add('hidden');
+        showLoginScreen();
+      });
+    }
+    // Otherwise show setup screen as normal
   }
 });
 
@@ -1250,6 +1270,7 @@ function startNewIncident() {
   STATE.log = [];
 
   initFirebase(dbUrl, () => {
+    sessionStorage.setItem('fgb_db', dbUrl);
     saveFullState();
     document.getElementById('setup-screen').classList.add('hidden');
     showLoginScreen();
@@ -1259,6 +1280,7 @@ function startNewIncident() {
 function joinExistingIncident() {
   const dbUrl = document.getElementById('join-db-url').value.trim();
   if (!dbUrl) { alert('Please enter the Firebase Database URL from your captain.'); return; }
+  sessionStorage.setItem('fgb_db', dbUrl);
   initFirebase(dbUrl, () => {
     document.getElementById('setup-screen').classList.add('hidden');
     showLoginScreen();
@@ -1546,7 +1568,28 @@ function renderApparatus() {
   if (emptyEl) emptyEl.style.display = 'none';
 
   apparatus.forEach(app => {
-    const statusClass = 'app-' + app.status.toLowerCase().replace(/ /g,'');
+    const statusClass = getAppStatusClass(app.status);
+    const canEdit = currentUser && currentUser.isCaptain;
+    const isCrewMember = currentUser && (app.crew||[]).includes(currentUser.name);
+    const canChangeStatus = canEdit || isCrewMember;
+
+    // Build status selector
+    const statusOptions = APP_STATUSES.map(s =>
+      `<option value="${s}" ${s === app.status ? 'selected' : ''}>${s}</option>`
+    ).join('');
+
+    // Build crew list with their current PAR status
+    const crewHtml = (app.crew||[]).map(name => {
+      const member = Object.values(STATE.personnel||{}).find(m => m.name === name);
+      const memberStatus = member ? member.status : '';
+      const statusColor = STATUS_COLORS[memberStatus] || '#8a95a3';
+      return `<div class="apparatus-crew-chip">
+        <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;flex-shrink:0;"></span>
+        ${name}${memberStatus ? `<span style="font-size:10px;color:${statusColor};margin-left:2px;">${memberStatus}</span>` : ''}
+        ${canEdit ? `<span class="remove-crew" onclick="removeCrewFromApp('${app.id}','${name}')">✕</span>` : ''}
+      </div>`;
+    }).join('');
+
     const card = document.createElement('div');
     card.className = 'apparatus-card';
     card.innerHTML = `
@@ -1556,18 +1599,18 @@ function renderApparatus() {
           <div class="apparatus-name">${app.name}</div>
           <div class="apparatus-station">${app.station}</div>
         </div>
-        <button class="apparatus-status-btn ${statusClass}" onclick="cycleAppStatus('${app.id}')">${app.status}</button>
+        ${canChangeStatus ? `
+          <select class="apparatus-status-select ${statusClass}" onchange="setAppStatus('${app.id}', this.value)">
+            ${statusOptions}
+          </select>
+        ` : `<span class="apparatus-status-btn ${statusClass}">${app.status}</span>`}
       </div>
       <div class="apparatus-body">
         <div class="apparatus-crew-title">Crew on this unit</div>
         <div class="apparatus-crew-list">
-          ${(app.crew||[]).map(name => `
-            <div class="apparatus-crew-chip">
-              ${name}
-              ${currentUser && currentUser.isCaptain ? `<span class="remove-crew" onclick="removeCrewFromApp('${app.id}','${name}')">✕</span>` : ''}
-            </div>
-          `).join('')}
-          ${currentUser && currentUser.isCaptain ? `<button class="apparatus-assign-btn" onclick="showAssignModal('${app.id}')">+ Assign</button>` : ''}
+          ${crewHtml}
+          ${canEdit ? `<button class="apparatus-assign-btn" onclick="showAssignModal('${app.id}')">+ Assign</button>` : ''}
+          ${!canEdit && crewHtml === '' ? '<span style="font-size:12px;color:var(--text2);">No crew assigned</span>' : ''}
         </div>
       </div>
     `;
@@ -1739,15 +1782,19 @@ function closeAddMemberModalDirect() { document.getElementById('add-member-modal
 // ============================================================
 // APPARATUS
 // ============================================================
-const APP_STATUS_CYCLE = ['Available', 'En Route', 'On Scene', 'Staged', 'Returning'];
-function cycleAppStatus(appId) {
-  if (!currentUser || !currentUser.isCaptain) return;
+const APP_STATUSES = ['Available', 'En Route', 'On Scene', 'Staged', 'Returning'];
+
+function setAppStatus(appId, status) {
   const app = STATE.apparatus[appId];
-  const idx = APP_STATUS_CYCLE.indexOf(app.status);
-  app.status = APP_STATUS_CYCLE[(idx + 1) % APP_STATUS_CYCLE.length];
-  addLog(`${app.name} → ${app.status}`);
+  app.status = status;
+  addLog(`${app.name} → ${status}`);
   saveFullState();
   renderApparatus();
+}
+
+function getAppStatusClass(status) {
+  const map = { 'Available':'app-available','En Route':'app-enroute','On Scene':'app-onscene','Staged':'app-staged','Returning':'app-returning' };
+  return map[status] || 'app-available';
 }
 
 function showAssignModal(appId) {
@@ -2082,11 +2129,49 @@ function signOut() {
 }
 
 function endIncident() {
-  if (!confirm('End this incident? This will export the log and mark the incident closed. The data stays in Firebase.')) return;
+  if (!confirm('End this incident? The log will be exported and the board will be cleared for a new incident.')) return;
   addLog(`--- INCIDENT CLOSED by ${currentUser.name} ---`);
   saveFullState();
   exportLog(true);
+
+  // Clear incident data but preserve roster, dept name, pin, and db connection
+  const savedRoster = STATE.roster || [];
+  const savedDept = STATE.deptName || '';
+  const savedPin = STATE.captainPin || '';
+
+  STATE.personnel = {};
+  STATE.apparatus = {};
+  STATE.mutualAid = {};
+  STATE.log = [];
+  STATE.parActive = false;
+  STATE.parStart = null;
+  STATE.iocanc = {};
+  STATE.incidentName = '';
+  STATE.incidentAddr = '';
+  STATE.incidentClosed = true;
+
+  saveFullState();
+
+  // Hide app, show new incident form
   document.getElementById('menu-modal').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.body.classList.remove('is-captain');
+  ['add-member-btn-main','add-apparatus-btn-main','add-mutual-btn-main','par-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Pre-fill new incident form with saved values
+  document.getElementById('setup-dept-name').value = savedDept;
+  document.getElementById('setup-db-url').value = db ? db.app.options.databaseURL : '';
+  document.getElementById('setup-pin').value = savedPin;
+  document.getElementById('setup-incident-name').value = '';
+  document.getElementById('setup-incident-addr').value = '';
+  document.getElementById('setup-screen').classList.remove('hidden');
+
+  currentUser = null;
+  if (parInterval) { clearInterval(parInterval); parInterval = null; }
+  document.getElementById('par-banner').classList.add('hidden');
 }
 
 function exportLog(isEndOfIncident = false) {
