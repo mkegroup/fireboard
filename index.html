@@ -1381,7 +1381,7 @@ function startNewIncident() {
     saveFullState();
     document.getElementById('setup-screen').classList.add('hidden');
     showLoginScreen();
-  });
+  }, null, true); // skipMerge = true, captain is setting fresh state
 }
 
 function joinExistingIncident() {
@@ -1407,29 +1407,19 @@ function setSyncBanner(msg, color) {
   b.textContent = msg;
 }
 
-function initFirebase(dbUrl, callback) {
+function initFirebase(dbUrl, callback, onError, skipMerge) {
   const { initializeApp, getDatabase, ref, set, onValue, get } = window._firebaseModules;
   setSyncBanner('Connecting to Firebase...', '#eab308');
   try {
     const app = initializeApp({ databaseURL: dbUrl }, `app-${Date.now()}`);
     db = getDatabase(app);
     dbRef = ref(db, 'fireboard');
-    get(dbRef).then(snapshot => {
-      if (snapshot.exists()) {
-        const remote = snapshot.val();
-        STATE = Object.assign(STATE, remote);
-        if (!STATE.apparatus || Object.keys(STATE.apparatus).length === 0) {
-          STATE.apparatus = {};
-        }
-        if (!STATE.mutualAid || Object.keys(STATE.mutualAid).length === 0) {
-          STATE.mutualAid = {};
-        }
-      }
-      // Start live listener
+
+    // If skipMerge (captain starting fresh), don't load existing data
+    const proceed = () => {
       onValue(dbRef, (snap) => {
         if (snap.exists()) {
           const remote = snap.val();
-          // If incident was ended by captain, push crew to standby screen
           if (remote.boardStatus === 'standby' && currentUser && !currentUser.isCaptain) {
             STATE = Object.assign(STATE, remote);
             showStandbyScreen();
@@ -1443,16 +1433,33 @@ function initFirebase(dbUrl, callback) {
       }, (err) => {
         setSyncBanner('⚠ Sync error: ' + err.message + ' — Check Firebase rules', '#ef4444');
         updateSyncIndicator(false);
+        if (onError) onError(err);
       });
       setSyncBanner(null);
       if (callback) callback();
-    }).catch(e => {
-      setSyncBanner('⚠ Cannot connect — ' + e.message, '#ef4444');
-      alert('Could not connect to Firebase.\n\nMost likely cause: your Firebase rules have expired (30-day test mode).\n\nFix: Go to Firebase Console → Realtime Database → Rules → change the expiry date → Publish.\n\nError: ' + e.message);
-    });
+    };
+
+    if (skipMerge) {
+      proceed();
+    } else {
+      get(dbRef).then(snapshot => {
+        if (snapshot.exists()) {
+          const remote = snapshot.val();
+          STATE = Object.assign(STATE, remote);
+          if (!STATE.apparatus) STATE.apparatus = {};
+          if (!STATE.mutualAid) STATE.mutualAid = {};
+        }
+        proceed();
+      }).catch(e => {
+        setSyncBanner('⚠ Cannot connect — ' + e.message, '#ef4444');
+        alert('Could not connect to Firebase.\n\nMost likely cause: Firebase rules have expired.\n\nFix: Firebase Console → Realtime Database → Rules → update expiry date → Publish.\n\nError: ' + e.message);
+        if (onError) onError(e);
+      });
+    }
   } catch(e) {
     setSyncBanner('⚠ Firebase error: ' + e.message, '#ef4444');
     alert('Firebase init failed: ' + e.message);
+    if (onError) onError(e);
   }
 }
 
