@@ -594,6 +594,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   max-height: 70vh; overflow-y: auto;
 }
 
+/* History */
+.history-card { background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden; }
+.history-card-header { padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer; }
+.history-card-header:active { background:var(--surface2); }
+.history-card-name { font-family:var(--font-head);font-size:17px;font-weight:800; }
+.history-card-meta { font-size:12px;color:var(--text2);margin-top:2px; }
+.history-chevron { color:var(--text2);font-size:12px;flex-shrink:0;margin-left:8px; }
+.history-detail { padding:0 14px 14px;border-top:1px solid var(--border); }
+.history-section-title { font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin:12px 0 6px; }
+.history-row { display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;gap:8px; }
+.history-row:last-child { border-bottom:none; }
+.history-log { background:var(--bg);border-radius:8px;padding:8px 10px;max-height:180px;overflow-y:auto; }
+.history-log-entry { font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border);line-height:1.4; }
+.history-log-entry:last-child { border-bottom:none; }
+.history-log-time { color:var(--accent2);font-weight:600;margin-right:6px; }
+
 /* Menu items */
 .menu-item {
   display: flex; align-items: center; gap: 14px; padding: 13px 14px;
@@ -987,6 +1003,48 @@ select option { background: var(--surface); }
 
 <!-- ============================================================ -->
 
+<!-- CALL ENDED SCREEN -->
+
+<!-- ============================================================ -->
+
+<div id="call-ended-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:20px;">
+  <div style="font-size:48px;">✅</div>
+  <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;line-height:1.1;">Call Ended</div>
+  <div style="font-size:14px;color:var(--text2);text-align:center;line-height:1.5;max-width:300px;">The board has been cleared and this call has been saved to history.</div>
+  <button onclick="startNewCallFromEnded()" style="background:var(--accent);color:white;border:none;border-radius:10px;padding:14px 24px;font-family:var(--font-head);font-size:17px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;width:100%;max-width:360px;">🔴 Start New Call</button>
+  <button onclick="showHistoryFromEnded()" style="background:var(--surface);color:var(--text2);border:1px solid var(--border);border-radius:10px;padding:12px 24px;font-family:var(--font-head);font-size:16px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;width:100%;max-width:360px;">📂 View Call History</button>
+  <input type="hidden" id="history-back-target" value="">
+</div>
+
+<!-- ============================================================ -->
+
+<!-- STANDBY SCREEN (shown to crew when call ends) -->
+
+<!-- ============================================================ -->
+
+<div id="standby-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;">
+  <div style="font-size:48px;">🟡</div>
+  <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;">Call Ended</div>
+  <div style="font-size:14px;color:var(--text2);text-align:center;line-height:1.5;max-width:300px;">The IC has closed this incident. Stand by for the next call.</div>
+  <div style="font-size:12px;color:var(--text2);margin-top:8px;">When a new call starts, your captain will share a new link.</div>
+</div>
+
+<!-- ============================================================ -->
+
+<!-- HISTORY SCREEN -->
+
+<!-- ============================================================ -->
+
+<div id="history-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:960;display:flex;flex-direction:column;">
+  <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <button onclick="closeHistoryScreen()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
+    <div style="font-family:var(--font-head);font-size:20px;font-weight:800;">📂 Call History</div>
+  </div>
+  <div id="history-list" style="flex:1;overflow-y:auto;padding:8px;"></div>
+</div>
+
+<!-- ============================================================ -->
+
 <!-- MODALS -->
 
 <!-- ============================================================ -->
@@ -1108,6 +1166,9 @@ select option { background: var(--surface); }
     </div>
     <div class="menu-item" onclick="exportLog();document.getElementById('menu-modal').classList.add('hidden')">
       <span>📤</span><div><div class="menu-item-label">Export Log</div><div class="menu-item-desc">Download incident report as text file</div></div>
+    </div>
+    <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');loadAndShowHistory()">
+      <span>📂</span><div><div class="menu-item-label">Call History</div><div class="menu-item-desc">View all past incidents</div></div>
     </div>
     <div class="menu-item" id="menu-end-incident" style="display:none;" onclick="endIncident()">
       <span>🔴</span><div><div class="menu-item-label" style="color:var(--red);">End Incident</div><div class="menu-item-desc">Mark incident closed and export final log</div></div>
@@ -1268,6 +1329,7 @@ function startNewIncident() {
   STATE.personnel = {};
   STATE.roster = [];
   STATE.log = [];
+  STATE.boardStatus = 'active';
 
   initFirebase(dbUrl, () => {
     sessionStorage.setItem('fgb_db', dbUrl);
@@ -1318,6 +1380,12 @@ function initFirebase(dbUrl, callback) {
       onValue(dbRef, (snap) => {
         if (snap.exists()) {
           const remote = snap.val();
+          // If incident was ended by captain, push crew to standby screen
+          if (remote.boardStatus === 'standby' && currentUser && !currentUser.isCaptain) {
+            STATE = Object.assign(STATE, remote);
+            showStandbyScreen();
+            return;
+          }
           STATE = Object.assign(STATE, remote);
           renderAll();
           updateSyncIndicator(true);
@@ -1343,6 +1411,17 @@ function saveFullState() {
   if (!dbRef) return;
   const { set } = window._firebaseModules;
   set(dbRef, JSON.parse(JSON.stringify(STATE))).catch(e => console.error('Save error:', e));
+}
+
+function archiveCurrentIncident() {
+  if (!db) return Promise.resolve();
+  const { ref, set } = window._firebaseModules;
+  const archiveId = 'call_' + Date.now();
+  const archiveRef = ref(db, 'history/' + archiveId);
+  const snapshot = JSON.parse(JSON.stringify(STATE));
+  snapshot.archivedAt = Date.now();
+  snapshot.closedBy = currentUser ? currentUser.name : 'Unknown';
+  return set(archiveRef, snapshot);
 }
 
 function updateSyncIndicator(live) {
@@ -1434,6 +1513,11 @@ function loginCaptain() {
 }
 
 function enterApp() {
+  // If board is in standby and this is crew, show standby screen
+  if (STATE.boardStatus === 'standby' && !currentUser.isCaptain) {
+    showStandbyScreen();
+    return;
+  }
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   if (currentUser.isCaptain) {
@@ -2129,30 +2213,41 @@ function signOut() {
 }
 
 function endIncident() {
-  if (!confirm('End this incident? The log will be exported and the board will be cleared for a new incident.')) return;
-  addLog(`--- INCIDENT CLOSED by ${currentUser.name} ---`);
-  saveFullState();
+  if (!confirm('End this incident? The board will be cleared for everyone and this call will be saved to history.')) return;
+
+  addLog(`--- INCIDENT CLOSED by ${currentUser.name} at ${new Date().toLocaleTimeString()} ---`);
   exportLog(true);
 
-  // Clear incident data but preserve roster, dept name, pin, and db connection
-  const savedRoster = STATE.roster || [];
   const savedDept = STATE.deptName || '';
   const savedPin = STATE.captainPin || '';
+  const savedRoster = JSON.parse(JSON.stringify(STATE.roster || []));
+  const dbUrl = db ? db.app.options.databaseURL : '';
 
-  STATE.personnel = {};
-  STATE.apparatus = {};
-  STATE.mutualAid = {};
-  STATE.log = [];
-  STATE.parActive = false;
-  STATE.parStart = null;
-  STATE.iocanc = {};
-  STATE.incidentName = '';
-  STATE.incidentAddr = '';
-  STATE.incidentClosed = true;
+  // Archive first, then wipe live board
+  archiveCurrentIncident().then(() => {
+    const { set } = window._firebaseModules;
+    // Write a cleared state — all connected devices will see this via onValue
+    const clearedState = {
+      deptName: savedDept,
+      captainPin: savedPin,
+      roster: savedRoster,
+      incidentName: '',
+      incidentAddr: '',
+      personnel: {},
+      apparatus: {},
+      mutualAid: {},
+      log: [],
+      parActive: false,
+      parStart: null,
+      iocanc: {},
+      boardStatus: 'standby' // signals all devices to go to standby
+    };
+    set(dbRef, clearedState).then(() => {
+      STATE = clearedState;
+    });
+  });
 
-  saveFullState();
-
-  // Hide app, show new incident form
+  // Hide app immediately for captain
   document.getElementById('menu-modal').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.body.classList.remove('is-captain');
@@ -2160,18 +2255,141 @@ function endIncident() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-
-  // Pre-fill new incident form with saved values
-  document.getElementById('setup-dept-name').value = savedDept;
-  document.getElementById('setup-db-url').value = db ? db.app.options.databaseURL : '';
-  document.getElementById('setup-pin').value = savedPin;
-  document.getElementById('setup-incident-name').value = '';
-  document.getElementById('setup-incident-addr').value = '';
-  document.getElementById('setup-screen').classList.remove('hidden');
-
-  currentUser = null;
   if (parInterval) { clearInterval(parInterval); parInterval = null; }
   document.getElementById('par-banner').classList.add('hidden');
+
+  currentUser = null;
+
+  // Show "call ended" screen with option to start new or view history
+  showCallEndedScreen(savedDept, savedPin, dbUrl);
+}
+
+function showStandbyScreen() {
+  // Hide everything, show standby
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('call-ended-screen').classList.add('hidden');
+  document.getElementById('standby-screen').classList.remove('hidden');
+  currentUser = null;
+  document.body.classList.remove('is-captain');
+}
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('call-ended-screen').classList.remove('hidden');
+  // Pre-fill new incident form for when they tap "Start New Call"
+  document.getElementById('setup-dept-name').value = dept;
+  document.getElementById('setup-db-url').value = dbUrl;
+  document.getElementById('setup-pin').value = pin;
+  document.getElementById('setup-incident-name').value = '';
+  document.getElementById('setup-incident-addr').value = '';
+}
+
+function startNewCallFromEnded() {
+  document.getElementById('call-ended-screen').classList.add('hidden');
+  document.getElementById('setup-screen').classList.remove('hidden');
+}
+
+function showHistoryFromEnded() {
+  document.getElementById('call-ended-screen').classList.add('hidden');
+  loadAndShowHistory(() => {
+    document.getElementById('history-back-target').value = 'ended';
+  });
+}
+
+function loadAndShowHistory(callback) {
+  if (!db) { alert('Not connected to Firebase.'); return; }
+  const { ref, get } = window._firebaseModules;
+  const histRef = ref(db, 'history');
+  document.getElementById('history-screen').classList.remove('hidden');
+  document.getElementById('history-list').innerHTML = '<div style="color:var(--text2);padding:20px;text-align:center;">Loading...</div>';
+
+  get(histRef).then(snapshot => {
+    const historyList = document.getElementById('history-list');
+    if (!snapshot.exists()) {
+      historyList.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="empty-icon">📂</div><div class="empty-title">No Call History</div><div class="empty-desc">Completed calls will appear here.</div></div>';
+      return;
+    }
+    const calls = [];
+    snapshot.forEach(child => { calls.push({ id: child.key, ...child.val() }); });
+    // Sort newest first
+    calls.sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+
+    historyList.innerHTML = '';
+    calls.forEach(call => {
+      const date = call.archivedAt ? new Date(call.archivedAt).toLocaleString() : 'Unknown time';
+      const memberCount = Object.keys(call.personnel || {}).length;
+      const div = document.createElement('div');
+      div.className = 'history-card';
+      div.innerHTML = `
+        <div class="history-card-header" onclick="toggleHistoryDetail('${call.id}')">
+          <div>
+            <div class="history-card-name">${call.incidentName || 'Unnamed Incident'}</div>
+            <div class="history-card-meta">${call.incidentAddr || ''} · ${date}</div>
+            <div class="history-card-meta">${memberCount} personnel · Closed by ${call.closedBy || 'Unknown'}</div>
+          </div>
+          <div class="history-chevron" id="chev-${call.id}">▶</div>
+        </div>
+        <div class="history-detail hidden" id="detail-${call.id}">
+          ${buildHistoryDetail(call)}
+        </div>
+      `;
+      historyList.appendChild(div);
+    });
+    if (callback) callback();
+  }).catch(e => {
+    document.getElementById('history-list').innerHTML = `<div style="color:var(--red);padding:20px;">${e.message}</div>`;
+  });
+}
+
+function buildHistoryDetail(call) {
+  let html = '';
+  const members = Object.values(call.personnel || {});
+  if (members.length > 0) {
+    html += `<div class="history-section-title">Personnel (${members.length})</div>`;
+    members.forEach(m => {
+      html += `<div class="history-row"><span>${m.name}</span><span style="color:var(--text2);font-size:12px;">${m.role} · ${m.team} · ${m.status}${m.noRadio ? ' · NO RADIO' : ''}</span></div>`;
+    });
+  }
+  const apparatus = Object.values(call.apparatus || {});
+  if (apparatus.length > 0) {
+    html += `<div class="history-section-title">Apparatus</div>`;
+    apparatus.forEach(a => {
+      html += `<div class="history-row"><span>${a.name}</span><span style="color:var(--text2);font-size:12px;">${a.status} · ${(a.crew||[]).join(', ') || 'No crew'}</span></div>`;
+    });
+  }
+  const logs = (call.log || []).slice().reverse();
+  if (logs.length > 0) {
+    html += `<div class="history-section-title">Activity Log</div>`;
+    html += `<div class="history-log">`;
+    logs.forEach(e => {
+      html += `<div class="history-log-entry"><span class="history-log-time">${new Date(e.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span> ${e.message}</div>`;
+    });
+    html += `</div>`;
+  }
+  return html || '<div style="color:var(--text2);font-size:13px;padding:8px 0;">No data recorded.</div>';
+}
+
+function toggleHistoryDetail(id) {
+  const detail = document.getElementById('detail-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if (detail.classList.contains('hidden')) {
+    detail.classList.remove('hidden');
+    chev.textContent = '▼';
+  } else {
+    detail.classList.add('hidden');
+    chev.textContent = '▶';
+  }
+}
+
+function closeHistoryScreen() {
+  document.getElementById('history-screen').classList.add('hidden');
+  const backTarget = document.getElementById('history-back-target');
+  if (backTarget && backTarget.value === 'ended') {
+    document.getElementById('call-ended-screen').classList.remove('hidden');
+    if (backTarget) backTarget.value = '';
+  } else {
+    // Back to login
+    showLoginScreen();
+  }
 }
 
 function exportLog(isEndOfIncident = false) {
