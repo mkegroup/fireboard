@@ -729,8 +729,9 @@ select option { background: var(--surface); }
   </div>
   <div class="login-body">
     <div class="login-incident-info" id="login-incident-display">
-      <strong id="login-incident-name-display">Loading...</strong>
-      <span id="login-incident-addr-display"></span>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;font-family:var(--font-head);margin-bottom:4px;">Active Call</div>
+      <strong id="login-incident-name-display" style="font-size:20px;font-family:var(--font-head);font-weight:800;display:block;line-height:1.1;">Loading...</strong>
+      <span id="login-incident-addr-display" style="font-size:13px;color:var(--text2);margin-top:3px;display:block;"></span>
     </div>
 
 ```
@@ -823,6 +824,17 @@ select option { background: var(--surface); }
       <button class="topbar-btn par captain-only" id="par-btn" onclick="triggerParCheck()">PAR</button>
       <button class="topbar-btn" onclick="showMenuModal()">☰</button>
     </div>
+  </div>
+
+  <!-- Call Info Banner -->
+
+  <div id="call-info-banner" style="background:rgba(232,71,26,0.1);border-bottom:1px solid rgba(232,71,26,0.25);padding:8px 14px;display:flex;align-items:center;gap:10px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 2s infinite;"></div>
+    <div style="flex:1;min-width:0;">
+      <div id="banner-incident-name" style="font-family:var(--font-head);font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="banner-incident-addr" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+    </div>
+    <div id="banner-time" style="font-family:var(--font-head);font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0;"></div>
   </div>
 
   <!-- Tabs -->
@@ -1140,10 +1152,15 @@ select option { background: var(--surface); }
       <div class="share-title">📲 Share Board</div>
       <div class="modal-close" onclick="closeShareModalDirect()">✕</div>
     </div>
-    <div class="share-instructions">Crew opens the same URL on their phone to see the live board.</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;width:100%;text-align:center;">
+      <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:4px;">Active Call</div>
+      <div id="share-incident-name" style="font-family:var(--font-head);font-size:18px;font-weight:800;"></div>
+      <div id="share-incident-addr" style="font-size:13px;color:var(--text2);margin-top:2px;"></div>
+    </div>
+    <div class="share-instructions">Scan QR or share the link — crew open it on their phone, no app needed.</div>
     <canvas id="share-qr" width="200" height="200"></canvas>
     <div class="share-url-box" id="share-url-display"></div>
-    <div class="pin-display">Captain PIN: <strong id="share-pin-display"></strong></div>
+    <div id="share-pin-section" class="pin-display" style="display:none;">Captain PIN: <strong id="share-pin-display"></strong></div>
     <button class="share-copy-btn" onclick="copyShareUrl()">Copy Link</button>
     <button class="share-close-btn" onclick="closeShareModalDirect()">Close</button>
   </div>
@@ -1488,7 +1505,23 @@ function archiveCurrentIncident() {
   return set(archiveRef, snapshot);
 }
 
-function updateSyncIndicator(live) {
+function updateCallBanner() {
+  const name = document.getElementById('banner-incident-name');
+  const addr = document.getElementById('banner-incident-addr');
+  if (name) name.textContent = STATE.incidentName || 'Active Incident';
+  if (addr) addr.textContent = STATE.incidentAddr || '';
+  // Show elapsed time if log has start entry
+  const timeEl = document.getElementById('banner-time');
+  if (timeEl && STATE.log && STATE.log.length > 0) {
+    const oldest = STATE.log[STATE.log.length - 1];
+    if (oldest && oldest.time) {
+      const elapsed = Date.now() - oldest.time;
+      const mins = Math.floor(elapsed / 60000);
+      const hrs = Math.floor(mins / 60);
+      timeEl.textContent = hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
+    }
+  }
+}
   const dot = document.getElementById('login-sync-dot');
   const label = document.getElementById('login-sync-label');
   if (dot) { dot.classList.toggle('live', live); }
@@ -1599,6 +1632,7 @@ function enterApp() {
   document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
   const dept = STATE.deptName || 'Fire Ground Board';
   document.getElementById('topbar-dept-label').textContent = dept;
+  updateCallBanner();
   renderAll();
   if (STATE.parActive) startParCountdownDisplay(STATE.parStart);
 }
@@ -1610,6 +1644,7 @@ function renderAll() {
   renderPersonnel();
   renderApparatus();
   renderMutualAid();
+  updateCallBanner();
   // Update incident header
   if (document.getElementById('topbar-incident-view')) {
     document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
@@ -2156,31 +2191,46 @@ function saveAddr() {
 function showShareModal() {
   const modal = document.getElementById('share-modal');
   modal.classList.remove('hidden');
-  const dbUrl = db ? db.app.options.databaseURL : '';
-  const shareUrl = `${window.location.href.split('?')[0]}?db=${encodeURIComponent(dbUrl)}`;
-  document.getElementById('share-url-display').innerHTML = `<strong>${shareUrl}</strong>`;
-  document.getElementById('share-pin-display').textContent = STATE.captainPin;
 
-  // Generate QR
+  const dbUrl = db ? db.app.options.databaseURL : '';
+  // Always use clean base URL — strip any existing query params
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareUrl = `${baseUrl}?db=${encodeURIComponent(dbUrl)}`;
+
+  document.getElementById('share-url-display').innerHTML = `<strong style="word-break:break-all;font-size:12px;">${shareUrl}</strong>`;
+  document.getElementById('share-incident-name').textContent = STATE.incidentName || 'Active Incident';
+  document.getElementById('share-incident-addr').textContent = STATE.incidentAddr || '';
+
+  // Only show PIN to captain
+  const pinSection = document.getElementById('share-pin-section');
+  if (currentUser && currentUser.isCaptain) {
+    pinSection.style.display = 'block';
+    document.getElementById('share-pin-display').textContent = STATE.captainPin;
+  } else {
+    pinSection.style.display = 'none';
+  }
+
+  // Generate QR from clean URL
   const canvas = document.getElementById('share-qr');
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,200,200);
+  ctx.clearRect(0, 0, 200, 200);
   try {
     if (window.QRCode) {
       const temp = document.createElement('div');
       new QRCode(temp, { text: shareUrl, width: 200, height: 200, colorDark: '#000', colorLight: '#fff' });
       setTimeout(() => {
         const img = temp.querySelector('img');
-        if (img) { const i = new Image(); i.onload = () => ctx.drawImage(i,0,0,200,200); i.src = img.src; }
-        else { const c = temp.querySelector('canvas'); if (c) ctx.drawImage(c,0,0,200,200); }
+        if (img) { const i = new Image(); i.onload = () => ctx.drawImage(i, 0, 0, 200, 200); i.src = img.src; }
+        else { const c = temp.querySelector('canvas'); if (c) ctx.drawImage(c, 0, 0, 200, 200); }
       }, 100);
     }
-  } catch(e) { console.log('QR gen error', e); }
+  } catch(e) { console.log('QR error', e); }
 }
 
 function copyShareUrl() {
   const dbUrl = db ? db.app.options.databaseURL : '';
-  const shareUrl = `${window.location.href.split('?')[0]}?db=${encodeURIComponent(dbUrl)}`;
+  const baseUrl = window.location.origin + window.location.pathname;
+  const shareUrl = `${baseUrl}?db=${encodeURIComponent(dbUrl)}`;
   navigator.clipboard.writeText(shareUrl).then(() => {
     document.querySelector('.share-copy-btn').textContent = 'Copied!';
     setTimeout(() => document.querySelector('.share-copy-btn').textContent = 'Copy Link', 2000);
@@ -2494,22 +2544,22 @@ function buildHistoryDetail(call) {
 
 function deleteHistoryCall(callId) {
   if (!currentUser || !currentUser.isCaptain) return;
+  const card = document.getElementById('card-' + callId);
   if (!confirm('Delete this call from history? This cannot be undone.')) {
-    // Reset swipe position
-    const card = document.getElementById('card-' + callId);
     if (card) { card.style.transition = 'transform 0.2s ease'; card.style.transform = 'translateX(0)'; }
     return;
   }
   const { ref, remove } = window._firebaseModules;
+  if (!remove) { alert('Delete not available — reload the page and try again.'); return; }
   const callRef = ref(db, 'history/' + callId);
   remove(callRef).then(() => {
     const wrapper = document.getElementById('wrapper-' + callId);
     if (wrapper) {
-      wrapper.style.transition = 'opacity 0.2s ease, max-height 0.3s ease';
+      wrapper.style.transition = 'opacity 0.25s ease, max-height 0.3s ease';
       wrapper.style.opacity = '0';
-      wrapper.style.maxHeight = '0';
-      wrapper.style.overflow = 'hidden';
-      setTimeout(() => wrapper.remove(), 350);
+      wrapper.style.maxHeight = wrapper.offsetHeight + 'px';
+      requestAnimationFrame(() => { wrapper.style.maxHeight = '0'; wrapper.style.overflow = 'hidden'; });
+      setTimeout(() => wrapper.remove(), 400);
     }
   }).catch(e => alert('Delete failed: ' + e.message));
 }
