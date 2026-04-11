@@ -11,8 +11,8 @@
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-  import { getDatabase, ref, set, onValue, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-  window._firebaseModules = { initializeApp, getDatabase, ref, set, onValue, get };
+  import { getDatabase, ref, set, onValue, get, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+  window._firebaseModules = { initializeApp, getDatabase, ref, set, onValue, get, remove };
 </script>
 
 <style>
@@ -595,7 +595,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 
 /* History */
-.history-card { background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden; }
+.history-swipe-wrapper { position:relative; overflow:hidden; margin-bottom:8px; border-radius:10px; }
+.history-delete-btn {
+  position:absolute; right:0; top:0; bottom:0; width:80px;
+  background:var(--red); color:white; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-head); font-size:13px; font-weight:800; text-transform:uppercase;
+  letter-spacing:0.5px; cursor:pointer; border-radius:0 10px 10px 0;
+}
+.history-delete-btn:active { background:#dc2626; }
+.history-card { position:relative; z-index:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; will-change:transform; }
 .history-card-header { padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer; }
 .history-card-header:active { background:var(--surface2); }
 .history-card-name { font-family:var(--font-head);font-size:17px;font-weight:800; }
@@ -863,7 +871,7 @@ select option { background: var(--surface); }
   <div class="tab-panel" id="tab-apparatus">
     <div class="panel-toolbar">
       <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Units on Scene</div>
-      <button id="add-apparatus-btn-main" onclick="showAddApparatusModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">+ Add</button>
+      <button id="add-apparatus-btn-main" onclick="showAddApparatusModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">+ Add Unit</button>
     </div>
     <div class="apparatus-grid" id="apparatus-grid">
       <div class="empty-state" id="apparatus-empty">
@@ -1578,12 +1586,14 @@ function enterApp() {
   document.getElementById('app').classList.remove('hidden');
   if (currentUser.isCaptain) {
     document.body.classList.add('is-captain');
-    // Show all captain buttons directly by ID - no CSS class dependency
-    ['add-member-btn-main','add-apparatus-btn-main','add-mutual-btn-main','par-btn'].forEach(id => {
+    ['add-member-btn-main','add-mutual-btn-main','par-btn'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'inline-flex';
     });
   }
+  // Apparatus add is open to all logged-in users
+  const appBtn = document.getElementById('add-apparatus-btn-main');
+  if (appBtn) appBtn.style.display = 'inline-flex';
   document.getElementById('topbar-user-chip').textContent = currentUser.isCaptain ? `IC: ${currentUser.name}` : currentUser.name;
   document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
   document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
@@ -1712,6 +1722,8 @@ function renderApparatus() {
     const canEdit = currentUser && currentUser.isCaptain;
     const isCrewMember = currentUser && (app.crew||[]).includes(currentUser.name);
     const canChangeStatus = canEdit || isCrewMember;
+    const isLoggedIn = !!currentUser;
+    const alreadyOnATruck = currentUser && Object.values(STATE.apparatus||{}).some(a => (a.crew||[]).includes(currentUser.name));
 
     // Build status selector
     const statusOptions = APP_STATUSES.map(s =>
@@ -1723,12 +1735,19 @@ function renderApparatus() {
       const member = Object.values(STATE.personnel||{}).find(m => m.name === name);
       const memberStatus = member ? member.status : '';
       const statusColor = STATUS_COLORS[memberStatus] || '#8a95a3';
+      const canRemove = canEdit || (currentUser && currentUser.name === name);
       return `<div class="apparatus-crew-chip">
         <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;flex-shrink:0;"></span>
         ${name}${memberStatus ? `<span style="font-size:10px;color:${statusColor};margin-left:2px;">${memberStatus}</span>` : ''}
-        ${canEdit ? `<span class="remove-crew" onclick="removeCrewFromApp('${app.id}','${name}')">✕</span>` : ''}
+        ${canRemove ? `<span class="remove-crew" onclick="removeCrewFromApp('${app.id}','${name}')">✕</span>` : ''}
       </div>`;
     }).join('');
+
+    // "Assign myself" button for crew not yet on this truck
+    const notOnThisTruck = currentUser && !isCrewMember;
+    const assignMyselfBtn = (isLoggedIn && !canEdit && notOnThisTruck)
+      ? `<button class="apparatus-assign-btn" onclick="assignMyselfToApp('${app.id}')">+ I'm on this truck</button>`
+      : '';
 
     const card = document.createElement('div');
     card.className = 'apparatus-card';
@@ -1748,9 +1767,9 @@ function renderApparatus() {
       <div class="apparatus-body">
         <div class="apparatus-crew-title">Crew on this unit</div>
         <div class="apparatus-crew-list">
-          ${crewHtml}
+          ${crewHtml || '<span style="font-size:12px;color:var(--text2);">No crew assigned</span>'}
           ${canEdit ? `<button class="apparatus-assign-btn" onclick="showAssignModal('${app.id}')">+ Assign</button>` : ''}
-          ${!canEdit && crewHtml === '' ? '<span style="font-size:12px;color:var(--text2);">No crew assigned</span>' : ''}
+          ${assignMyselfBtn}
         </div>
       </div>
     `;
@@ -1924,7 +1943,17 @@ function closeAddMemberModalDirect() { document.getElementById('add-member-modal
 // ============================================================
 const APP_STATUSES = ['Available', 'En Route', 'On Scene', 'Staged', 'Returning'];
 
-function setAppStatus(appId, status) {
+function assignMyselfToApp(appId) {
+  if (!currentUser) return;
+  const app = STATE.apparatus[appId];
+  if (!app.crew) app.crew = [];
+  if (!app.crew.includes(currentUser.name)) {
+    app.crew.push(currentUser.name);
+    addLog(`${currentUser.name} assigned to ${app.name}`);
+    saveFullState();
+    renderApparatus();
+  }
+}
   const app = STATE.apparatus[appId];
   app.status = status;
   addLog(`${app.name} → ${status}`);
@@ -2267,8 +2296,6 @@ function signOut() {
   currentUser = null;
   showLoginScreen();
 }
-
-function endIncident() {
   if (!confirm('End this incident? The board will be cleared for everyone and this call will be saved to history.')) return;
 
   addLog(`--- INCIDENT CLOSED by ${currentUser.name} at ${new Date().toLocaleTimeString()} ---`);
@@ -2373,22 +2400,63 @@ function loadAndShowHistory(callback) {
     calls.forEach(call => {
       const date = call.archivedAt ? new Date(call.archivedAt).toLocaleString() : 'Unknown time';
       const memberCount = Object.keys(call.personnel || {}).length;
-      const div = document.createElement('div');
-      div.className = 'history-card';
-      div.innerHTML = `
-        <div class="history-card-header" onclick="toggleHistoryDetail('${call.id}')">
-          <div>
-            <div class="history-card-name">${call.incidentName || 'Unnamed Incident'}</div>
-            <div class="history-card-meta">${call.incidentAddr || ''} · ${date}</div>
-            <div class="history-card-meta">${memberCount} personnel · Closed by ${call.closedBy || 'Unknown'}</div>
+      const isCaptain = currentUser && currentUser.isCaptain;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'history-swipe-wrapper';
+      wrapper.id = 'wrapper-' + call.id;
+
+      const deleteBtn = isCaptain ? `<div class="history-delete-btn" onclick="deleteHistoryCall('${call.id}')">Delete</div>` : '';
+
+      wrapper.innerHTML = `
+        ${deleteBtn}
+        <div class="history-card" id="card-${call.id}">
+          <div class="history-card-header" onclick="toggleHistoryDetail('${call.id}')">
+            <div>
+              <div class="history-card-name">${call.incidentName || 'Unnamed Incident'}</div>
+              <div class="history-card-meta">${call.incidentAddr || ''} · ${date}</div>
+              <div class="history-card-meta">${memberCount} personnel · Closed by ${call.closedBy || 'Unknown'}</div>
+            </div>
+            <div class="history-chevron" id="chev-${call.id}">▶</div>
           </div>
-          <div class="history-chevron" id="chev-${call.id}">▶</div>
-        </div>
-        <div class="history-detail hidden" id="detail-${call.id}">
-          ${buildHistoryDetail(call)}
+          <div class="history-detail hidden" id="detail-${call.id}">
+            ${buildHistoryDetail(call)}
+          </div>
         </div>
       `;
-      historyList.appendChild(div);
+      historyList.appendChild(wrapper);
+
+      // Add swipe gesture (captain only)
+      if (isCaptain) {
+        const card = wrapper.querySelector('.history-card');
+        let startX = 0, currentX = 0, swiping = false;
+        const THRESHOLD = 80;
+
+        card.addEventListener('touchstart', e => {
+          startX = e.touches[0].clientX;
+          swiping = true;
+          card.style.transition = 'none';
+        }, { passive: true });
+
+        card.addEventListener('touchmove', e => {
+          if (!swiping) return;
+          currentX = e.touches[0].clientX - startX;
+          if (currentX < 0) {
+            card.style.transform = `translateX(${Math.max(currentX, -100)}px)`;
+          }
+        }, { passive: true });
+
+        card.addEventListener('touchend', () => {
+          swiping = false;
+          card.style.transition = 'transform 0.2s ease';
+          if (currentX < -THRESHOLD) {
+            card.style.transform = 'translateX(-80px)';
+          } else {
+            card.style.transform = 'translateX(0)';
+          }
+          currentX = 0;
+        });
+      }
     });
     if (callback) callback();
   }).catch(e => {
@@ -2424,7 +2492,27 @@ function buildHistoryDetail(call) {
   return html || '<div style="color:var(--text2);font-size:13px;padding:8px 0;">No data recorded.</div>';
 }
 
-function toggleHistoryDetail(id) {
+function deleteHistoryCall(callId) {
+  if (!currentUser || !currentUser.isCaptain) return;
+  if (!confirm('Delete this call from history? This cannot be undone.')) {
+    // Reset swipe position
+    const card = document.getElementById('card-' + callId);
+    if (card) { card.style.transition = 'transform 0.2s ease'; card.style.transform = 'translateX(0)'; }
+    return;
+  }
+  const { ref, remove } = window._firebaseModules;
+  const callRef = ref(db, 'history/' + callId);
+  remove(callRef).then(() => {
+    const wrapper = document.getElementById('wrapper-' + callId);
+    if (wrapper) {
+      wrapper.style.transition = 'opacity 0.2s ease, max-height 0.3s ease';
+      wrapper.style.opacity = '0';
+      wrapper.style.maxHeight = '0';
+      wrapper.style.overflow = 'hidden';
+      setTimeout(() => wrapper.remove(), 350);
+    }
+  }).catch(e => alert('Delete failed: ' + e.message));
+}
   const detail = document.getElementById('detail-' + id);
   const chev = document.getElementById('chev-' + id);
   if (detail.classList.contains('hidden')) {
