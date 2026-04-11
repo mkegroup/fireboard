@@ -792,9 +792,6 @@ select option { background: var(--surface); }
   <!-- ---- PERSONNEL TAB ---- -->
 
   <div class="tab-panel active" id="tab-personnel">
-    <div class="panel-toolbar captain-add-toolbar" id="personnel-captain-toolbar">
-      <button class="add-member-btn" onclick="showAddMemberModal()">+ Add Member</button>
-    </div>
     <div class="panel-toolbar">
       <div class="filter-pill all active" onclick="setFilter('all', this)">All</div>
       <div class="filter-pill responding" onclick="setFilter('Responding', this)">Responding</div>
@@ -804,6 +801,7 @@ select option { background: var(--surface); }
       <div class="filter-pill rehab" onclick="setFilter('Rehab', this)">Rehab</div>
       <div class="filter-pill missing" onclick="setFilter('MISSING', this)">MISSING</div>
       <div class="toolbar-count" id="personnel-count">0 on scene</div>
+      <button id="add-member-btn-main" onclick="showAddMemberModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">+ Add</button>
     </div>
 
 ```
@@ -826,8 +824,9 @@ select option { background: var(--surface); }
   <!-- ---- APPARATUS TAB ---- -->
 
   <div class="tab-panel" id="tab-apparatus">
-    <div class="panel-toolbar captain-add-toolbar" id="apparatus-captain-toolbar">
-      <button class="add-member-btn" onclick="showAddApparatusModal()">+ Add Apparatus</button>
+    <div class="panel-toolbar">
+      <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Units on Scene</div>
+      <button id="add-apparatus-btn-main" onclick="showAddApparatusModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">+ Add</button>
     </div>
     <div class="apparatus-grid" id="apparatus-grid">
       <div class="empty-state" id="apparatus-empty">
@@ -965,8 +964,9 @@ select option { background: var(--surface); }
   <!-- ---- MUTUAL AID TAB ---- -->
 
   <div class="tab-panel" id="tab-mutual">
-    <div class="panel-toolbar captain-add-toolbar" id="mutual-captain-toolbar">
-      <button class="add-member-btn" onclick="showAddMutualAidModal()">+ Add Station</button>
+    <div class="panel-toolbar">
+      <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Mutual Aid</div>
+      <button id="add-mutual-btn-main" onclick="showAddMutualAidModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">+ Add</button>
     </div>
     <div class="mutual-aid-container" id="mutual-aid-container">
       <div class="empty-state" id="mutual-aid-empty">
@@ -1371,7 +1371,10 @@ function loginFromRoster(member, el) {
   document.querySelectorAll('.roster-join-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   currentUser = { name: member.name, role: member.role, team: member.team, isCaptain: false };
-  setTimeout(() => enterApp(), 300);
+  setTimeout(() => {
+    selfRegisterCrew();
+    enterApp();
+  }, 300);
 }
 
 function loginManual() {
@@ -1380,7 +1383,22 @@ function loginManual() {
   const role = document.getElementById('login-role').value;
   const team = document.getElementById('login-team').value;
   currentUser = { name, role, team, isCaptain: false };
+  selfRegisterCrew();
   enterApp();
+}
+
+function selfRegisterCrew() {
+  // Check if this person is already on the board
+  const existing = Object.values(STATE.personnel || {}).find(m => m.name === currentUser.name);
+  if (existing) return; // already there, don't duplicate
+  const id = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+  const member = {
+    id, name: currentUser.name, role: currentUser.role, team: currentUser.team,
+    noRadio: false, status: 'Responding', statusTime: Date.now(), joinedBy: currentUser.name
+  };
+  STATE.personnel[id] = member;
+  addLog(`${currentUser.name} joined as ${currentUser.role}`);
+  saveFullState();
 }
 
 function loginCaptain() {
@@ -1398,12 +1416,10 @@ function enterApp() {
   document.getElementById('app').classList.remove('hidden');
   if (currentUser.isCaptain) {
     document.body.classList.add('is-captain');
-    // Force all captain toolbars visible directly
-    document.querySelectorAll('.captain-add-toolbar, .captain-only').forEach(el => {
-      el.style.cssText = 'display:flex !important';
-    });
-    document.querySelectorAll('.captain-only-block').forEach(el => {
-      el.style.cssText = 'display:block !important';
+    // Show all captain buttons directly by ID - no CSS class dependency
+    ['add-member-btn-main','add-apparatus-btn-main','add-mutual-btn-main','par-btn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'inline-flex';
     });
   }
   document.getElementById('topbar-user-chip').textContent = currentUser.isCaptain ? `IC: ${currentUser.name}` : currentUser.name;
@@ -2057,6 +2073,10 @@ function signOut() {
   document.getElementById('menu-modal').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.body.classList.remove('is-captain');
+  ['add-member-btn-main','add-apparatus-btn-main','add-mutual-btn-main','par-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
   currentUser = null;
   showLoginScreen();
 }
