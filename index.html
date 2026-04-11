@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fire Ground Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getDatabase, ref, set, onValue, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+  window._firebaseModules = { initializeApp, getDatabase, ref, set, onValue, get };
+</script>
+
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #161a1f;
+  --surface2: #1e2329;
+  --border: #2a3040;
+  --text: #e8ecf0;
+  --text2: #8a95a3;
+  --accent: #e8471a;
+  --accent2: #ff6b3d;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --purple: #a855f7;
+  --orange: #f97316;
+  --blue: #3b82f6;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+
+/* SETUP SCREEN */
+#setup-screen {
+  position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 16px 40px; gap: 12px; overflow-y: auto;
+}
+#setup-screen.hidden { display: none; }
+.setup-logo { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-top: 8px; }
+.setup-title { font-family: var(--font-head); font-size: 26px; font-weight: 800; text-align: center; line-height: 1.1; }
+.setup-desc { font-size: 13px; color: var(--text2); text-align: center; line-height: 1.4; max-width: 320px; }
+.setup-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px;
+}
+.setup-card h3 { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--accent); }
+.setup-card p { font-size: 12px; color: var(--text2); line-height: 1.4; }
+.setup-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text); font-family: var(--font-body); font-size: 14px; width: 100%;
+  outline: none;
+}
+.setup-input:focus { border-color: var(--accent); }
+.setup-input::placeholder { color: var(--text2); }
+.btn-primary {
+  background: var(--accent); color: white; border: none; border-radius: 8px;
+  padding: 12px 20px; font-family: var(--font-head); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.5px; cursor: pointer; width: 100%; text-transform: uppercase;
+}
+.btn-primary:active { opacity: 0.85; }
+.setup-or { text-align: center; color: var(--text2); font-size: 12px; }
+.btn-secondary {
+  background: transparent; color: var(--text2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 20px; font-family: var(--font-head); font-size: 14px; font-weight: 600;
+  cursor: pointer; width: 100%; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.btn-secondary:active { background: var(--surface); }
+.firebase-note {
+  font-size: 11px; color: var(--text2); text-align: center; max-width: 340px; line-height: 1.5;
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+}
+.firebase-note a { color: var(--accent2); }
+.firebase-note code { background: var(--surface); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+
+/* LOGIN SCREEN */
+#login-screen {
+  position: fixed; inset: 0; background: var(--bg); z-index: 900;
+  display: flex; flex-direction: column; padding: 0;
+}
+#login-screen.hidden { display: none; }
+.login-header {
+  background: var(--surface); border-bottom: 2px solid var(--accent);
+  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+}
+.login-logo-block {}
+.login-dept { font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+.login-title { font-family: var(--font-head); font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; }
+.login-body {
+  flex: 1; overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;
+}
+.login-incident-info {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  font-size: 13px; color: var(--text2); text-align: center;
+}
+.login-incident-info strong { color: var(--text); font-family: var(--font-head); font-size: 16px; display: block; margin-bottom: 2px; }
+.login-section-title { font-family: var(--font-head); font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; }
+.roster-join-list { display: flex; flex-direction: column; gap: 8px; }
+.roster-join-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.roster-join-btn:active { background: var(--surface2); }
+.roster-join-btn.selected { border-color: var(--accent); background: rgba(232,71,26,0.08); }
+.roster-join-avatar {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text2); flex-shrink: 0;
+}
+.roster-join-info { flex: 1; }
+.roster-join-name { font-family: var(--font-head); font-size: 17px; font-weight: 700; }
+.roster-join-role { font-size: 12px; color: var(--text2); }
+.login-divider { display: flex; align-items: center; gap: 10px; }
+.login-divider-line { flex: 1; height: 1px; background: var(--border); }
+.login-divider-text { font-size: 12px; color: var(--text2); }
+.login-manual { display: flex; flex-direction: column; gap: 10px; }
+.login-row { display: flex; gap: 8px; }
+.login-input {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 15px;
+  flex: 1; outline: none;
+}
+.login-input:focus { border-color: var(--accent); }
+.login-input::placeholder { color: var(--text2); }
+.login-select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 14px;
+  flex: 1; outline: none;
+}
+.login-captain-section {
+  background: rgba(232,71,26,0.06); border: 1px solid rgba(232,71,26,0.3); border-radius: 10px;
+  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.login-captain-section h4 { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--accent); }
+.login-captain-section p { font-size: 12px; color: var(--text2); }
+.login-pin-row { display: flex; gap: 8px; align-items: center; }
+.login-pin-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 18px;
+  letter-spacing: 4px; width: 130px; outline: none; text-align: center;
+}
+.login-pin-input:focus { border-color: var(--accent); }
+.captain-join-btn {
+  background: var(--accent); color: white; border: none; border-radius: 8px;
+  padding: 12px 18px; font-family: var(--font-head); font-size: 15px; font-weight: 700;
+  cursor: pointer; flex: 1; text-transform: uppercase;
+}
+.captain-join-btn:active { opacity: 0.85; }
+.login-join-btn {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; font-family: var(--font-head); font-size: 16px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.login-join-btn:active { background: var(--surface); }
+.sync-indicator {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text2); }
+.sync-dot.live { background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* MAIN APP */
+#app { height: 100%; display: flex; flex-direction: column; }
+#app.hidden { display: none; }
+
+/* TOP BAR */
+.topbar {
+  background: var(--surface); border-bottom: 2px solid var(--accent);
+  padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.topbar-left { flex: 1; min-width: 0; }
+.topbar-dept { font-family: var(--font-head); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+.topbar-incident { font-family: var(--font-head); font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+.topbar-incident-input {
+  font-family: var(--font-head); font-size: 16px; font-weight: 800; background: transparent;
+  border: none; border-bottom: 1px solid var(--accent); color: var(--text); outline: none; width: 100%;
+}
+.topbar-address { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-address-input {
+  font-size: 11px; background: transparent; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text2); outline: none; width: 100%;
+}
+.topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.topbar-btn {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 10px; font-family: var(--font-head); font-size: 11px; font-weight: 700;
+  color: var(--text); cursor: pointer; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.topbar-btn:active { background: var(--border); }
+.topbar-btn.par { background: var(--red); border-color: var(--red); color: white; }
+.topbar-btn.par:active { background: #dc2626; }
+.topbar-user-chip {
+  background: rgba(232,71,26,0.15); border: 1px solid rgba(232,71,26,0.4); border-radius: 6px;
+  padding: 4px 8px; font-family: var(--font-head); font-size: 11px; font-weight: 700; color: var(--accent2);
+  white-space: nowrap;
+}
+
+/* PAR COUNTDOWN BANNER */
+.par-banner {
+  background: var(--red); color: white; padding: 8px 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-head); font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  flex-shrink: 0; animation: flash-bg 1s infinite;
+}
+.par-banner.hidden { display: none; }
+@keyframes flash-bg { 0%,100% { background: var(--red); } 50% { background: #991b1b; } }
+
+/* TABS */
+.tabs {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; overflow-x: auto; flex-shrink: 0;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: 0 0 auto; padding: 10px 14px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2); background: none; border: none;
+  cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:active { background: var(--surface2); }
+
+/* TAB PANELS */
+.tab-panel { display: none; flex: 1; overflow-y: auto; }
+.tab-panel.active { display: block; }
+
+/* PERSONNEL TAB */
+.panel-toolbar {
+  padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+}
+.filter-pill {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+  padding: 5px 12px; font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  color: var(--text2); cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.filter-pill.active { color: white; }
+.filter-pill.all.active { background: var(--surface2); border-color: var(--text2); color: var(--text); }
+.filter-pill.responding.active { background: var(--blue); border-color: var(--blue); }
+.filter-pill.staged.active { background: var(--yellow); border-color: var(--yellow); color: #1a1a1a; }
+.filter-pill.in.active { background: var(--green); border-color: var(--green); color: #1a1a1a; }
+.filter-pill.out.active { background: var(--red); border-color: var(--red); }
+.filter-pill.rehab.active { background: var(--purple); border-color: var(--purple); }
+.filter-pill.missing.active { background: var(--orange); border-color: var(--orange); animation: flash-bg 1s infinite; }
+.toolbar-count { font-family: var(--font-head); font-size: 12px; color: var(--text2); margin-left: auto; }
+.add-member-btn {
+  background: var(--accent); color: white; border: none; border-radius: 8px;
+  padding: 7px 12px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.add-member-btn:active { opacity: 0.85; }
+
+.member-cards { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+.member-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+  transition: border-color 0.15s;
+}
+.member-card.status-responding { border-left: 3px solid var(--blue); }
+.member-card.status-staged { border-left: 3px solid var(--yellow); }
+.member-card.status-in { border-left: 3px solid var(--green); }
+.member-card.status-out { border-left: 3px solid var(--red); }
+.member-card.status-rehab { border-left: 3px solid var(--purple); }
+.member-card.status-standby { border-left: 3px solid var(--text2); }
+.member-card.status-missing { border-left: 3px solid var(--orange); animation: flash-border 1s infinite; }
+@keyframes flash-border { 0%,100% { border-left-color: var(--orange); } 50% { border-left-color: transparent; } }
+
+.member-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 14px; font-weight: 800; color: white;
+  background: var(--surface2);
+}
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-family: var(--font-head); font-size: 16px; font-weight: 700; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.member-role { font-size: 11px; color: var(--text2); }
+.member-team { font-size: 10px; background: var(--surface2); border-radius: 4px; padding: 1px 5px; color: var(--text2); font-weight: 600; font-family: var(--font-head); letter-spacing: 0.5px; }
+.no-radio-badge { font-size: 9px; background: var(--yellow); color: #1a1a1a; border-radius: 4px; padding: 1px 5px; font-weight: 800; font-family: var(--font-head); letter-spacing: 0.5px; }
+.member-status-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.member-status-badge {
+  border-radius: 6px; padding: 4px 8px; font-family: var(--font-head); font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; cursor: pointer; user-select: none;
+}
+.badge-responding { background: rgba(59,130,246,0.2); color: var(--blue); border: 1px solid var(--blue); }
+.badge-staged { background: rgba(234,179,8,0.2); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-in { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid var(--green); }
+.badge-out { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid var(--red); }
+.badge-rehab { background: rgba(168,85,247,0.2); color: var(--purple); border: 1px solid var(--purple); }
+.badge-standby { background: rgba(138,149,163,0.15); color: var(--text2); border: 1px solid var(--text2); }
+.badge-missing { background: rgba(249,115,22,0.25); color: var(--orange); border: 1px solid var(--orange); }
+.member-time { font-size: 10px; color: var(--text2); }
+
+.quick-roster-section { padding: 8px 12px 0; }
+.quick-roster-title { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 8px; }
+.quick-roster-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick-add-chip {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 12px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  color: var(--text2); cursor: pointer;
+}
+.quick-add-chip:active { background: var(--surface2); border-color: var(--accent); }
+
+/* STATUS PICKER MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.hidden { display: none; }
+.modal-sheet {
+  background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
+  padding: 16px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 8px;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.modal-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; }
+.modal-close {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer; color: var(--text2);
+}
+.status-option {
+  display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+  background: var(--surface2); border-radius: 10px; cursor: pointer; border: 1px solid transparent;
+}
+.status-option:active { opacity: 0.85; }
+.status-option-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.status-option-label { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.status-option-desc { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.status-option.delete-option { border-color: var(--red); }
+.status-option.delete-option .status-option-label { color: var(--red); }
+
+/* ADD MEMBER MODAL */
+.add-modal-sheet {
+  background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
+  padding: 16px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 12px;
+  max-height: 85vh; overflow-y: auto;
+}
+.modal-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 15px;
+  outline: none; width: 100%;
+}
+.modal-input:focus { border-color: var(--accent); }
+.modal-input::placeholder { color: var(--text2); }
+.modal-select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 14px;
+  outline: none; width: 100%;
+}
+.modal-row { display: flex; gap: 8px; }
+.modal-label { font-family: var(--font-head); font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--text2); text-transform: uppercase; margin-bottom: 4px; }
+.modal-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+.modal-toggle-label { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
+.toggle-switch {
+  width: 44px; height: 24px; background: var(--border); border-radius: 12px; cursor: pointer;
+  position: relative; transition: background 0.2s;
+}
+.toggle-switch.on { background: var(--accent); }
+.toggle-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%; background: white; transition: left 0.2s;
+}
+.toggle-switch.on::after { left: 22px; }
+.btn-modal-add {
+  background: var(--accent); color: white; border: none; border-radius: 8px;
+  padding: 14px; font-family: var(--font-head); font-size: 16px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.btn-modal-add:active { opacity: 0.85; }
+
+/* APPARATUS TAB */
+.apparatus-grid { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.apparatus-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.apparatus-header {
+  padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.apparatus-icon { font-size: 22px; }
+.apparatus-info { flex: 1; }
+.apparatus-name { font-family: var(--font-head); font-size: 18px; font-weight: 800; }
+.apparatus-station { font-size: 11px; color: var(--text2); }
+.apparatus-status-btn {
+  border-radius: 8px; padding: 6px 10px; font-family: var(--font-head); font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; border: none; cursor: pointer;
+}
+.app-enroute { background: var(--blue); color: white; }
+.app-onscene { background: var(--green); color: white; }
+.app-staged { background: var(--yellow); color: #1a1a1a; }
+.app-returning { background: var(--text2); color: var(--bg); }
+.app-available { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.apparatus-body { padding: 10px 14px; }
+.apparatus-crew-title { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 8px; }
+.apparatus-crew-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.apparatus-crew-chip {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; gap: 5px;
+}
+.apparatus-crew-chip .remove-crew { color: var(--text2); cursor: pointer; font-size: 14px; }
+.apparatus-crew-chip .remove-crew:hover { color: var(--red); }
+.apparatus-assign-btn {
+  background: transparent; border: 1px dashed var(--border); border-radius: 6px;
+  padding: 4px 10px; font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  color: var(--text2); cursor: pointer;
+}
+.apparatus-assign-btn:active { background: var(--surface2); }
+
+/* IOCANC TAB */
+.iocanc-container { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.iocanc-header-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+}
+.iocanc-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.iocanc-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; }
+.iocanc-subtitle { font-size: 12px; color: var(--text2); }
+.iocanc-section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.iocanc-section-header {
+  padding: 12px 14px; background: var(--surface2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+}
+.iocanc-letter {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 18px; font-weight: 800; color: white; flex-shrink: 0;
+}
+.iocanc-section-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.iocanc-section-hint { font-size: 11px; color: var(--text2); }
+.iocanc-field { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.iocanc-field:last-child { border-bottom: none; }
+.iocanc-field label { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--text2); text-transform: uppercase; display: block; margin-bottom: 6px; }
+.iocanc-textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 10px 12px; color: var(--text); font-family: var(--font-body); font-size: 14px;
+  resize: none; outline: none; min-height: 60px;
+}
+.iocanc-textarea:focus { border-color: var(--accent); }
+.iocanc-textarea::placeholder { color: var(--text2); }
+.iocanc-select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 10px 12px; color: var(--text); font-family: var(--font-body); font-size: 14px; outline: none;
+}
+.generate-btn {
+  background: var(--accent); color: white; border: none; border-radius: 10px;
+  padding: 14px; font-family: var(--font-head); font-size: 16px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 1px; width: 100%;
+}
+.generate-btn:active { opacity: 0.85; }
+.radio-script-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap;
+  display: none;
+}
+.radio-script-box.visible { display: block; }
+.copy-btn {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 16px; font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; width: 100%; display: none; margin-top: 6px;
+}
+.copy-btn.visible { display: block; }
+.copy-btn:active { background: var(--surface); }
+
+/* MUTUAL AID TAB */
+.mutual-aid-container { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.mutual-aid-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.mutual-aid-header {
+  padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mutual-aid-name { font-family: var(--font-head); font-size: 18px; font-weight: 800; }
+.mutual-aid-status-btn {
+  border-radius: 7px; padding: 5px 10px; font-family: var(--font-head); font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px; border: none; cursor: pointer;
+}
+.ma-requested { background: var(--yellow); color: #1a1a1a; }
+.ma-responding { background: var(--blue); color: white; }
+.ma-onscene { background: var(--green); color: white; }
+.ma-released { background: var(--text2); color: var(--bg); }
+.ma-standby { background: var(--surface); color: var(--text2); border: 1px solid var(--border); }
+.mutual-aid-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.ma-crew-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ma-crew-chip {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; gap: 5px;
+}
+.ma-crew-chip .remove-crew { color: var(--text2); cursor: pointer; }
+.ma-crew-chip .remove-crew:active { color: var(--red); }
+.ma-add-person { display: flex; gap: 8px; }
+.ma-input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 8px 12px; color: var(--text); font-family: var(--font-body); font-size: 14px;
+  flex: 1; outline: none;
+}
+.ma-input:focus { border-color: var(--accent); }
+.ma-input::placeholder { color: var(--text2); }
+.ma-add-btn {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 7px;
+  padding: 8px 14px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase;
+}
+.ma-add-btn:active { background: var(--border); }
+
+/* SHARE MODAL */
+.share-modal-sheet {
+  background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
+  padding: 20px; padding-bottom: 36px; display: flex; flex-direction: column; gap: 14px;
+  align-items: center;
+}
+.share-title { font-family: var(--font-head); font-size: 24px; font-weight: 800; }
+.share-url-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; font-size: 12px; color: var(--text2); word-break: break-all; width: 100%;
+  text-align: center;
+}
+.share-url-box strong { color: var(--text); font-size: 14px; }
+#share-qr { background: white; border-radius: 8px; padding: 8px; }
+.share-instructions { font-size: 13px; color: var(--text2); text-align: center; line-height: 1.6; }
+.share-instructions strong { color: var(--accent); }
+.share-copy-btn {
+  background: var(--accent); color: white; border: none; border-radius: 8px;
+  padding: 12px 24px; font-family: var(--font-head); font-size: 15px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; width: 100%;
+}
+.share-copy-btn:active { opacity: 0.85; }
+.share-close-btn {
+  background: transparent; color: var(--text2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 24px; font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; width: 100%;
+}
+.share-close-btn:active { background: var(--surface2); }
+.pin-display { font-family: var(--font-head); font-size: 13px; color: var(--text2); }
+.pin-display strong { color: var(--accent2); font-size: 18px; letter-spacing: 4px; }
+
+/* LOG DRAWER */
+.log-drawer {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 400;
+}
+.log-drawer.hidden { display: none; }
+.log-sheet {
+  position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface);
+  border-radius: 16px 16px 0 0; max-height: 70vh; display: flex; flex-direction: column;
+}
+.log-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.log-header-title { font-family: var(--font-head); font-size: 18px; font-weight: 800; }
+.log-close { font-size: 20px; cursor: pointer; color: var(--text2); }
+.log-list { overflow-y: auto; flex: 1; padding: 8px; }
+.log-entry {
+  padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.4;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { color: var(--text2); font-size: 11px; }
+
+/* EMPTY STATE */
+.empty-state {
+  padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.empty-icon { font-size: 40px; }
+.empty-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
+.empty-desc { font-size: 14px; color: var(--text2); line-height: 1.5; max-width: 280px; }
+
+/* SELECT MODAL GENERIC */
+.select-modal-sheet {
+  background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
+  padding: 16px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 8px;
+  max-height: 70vh; overflow-y: auto;
+}
+
+/* Menu items */
+.menu-item {
+  display: flex; align-items: center; gap: 14px; padding: 13px 14px;
+  background: var(--surface2); border-radius: 10px; cursor: pointer; border: 1px solid transparent;
+}
+.menu-item:active { opacity: 0.8; }
+.menu-item span { font-size: 22px; flex-shrink: 0; }
+.menu-item-label { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+.menu-item-desc { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+/* Utility */
+.hidden { display: none !important; }
+.captain-only { display: none; }
+body.is-captain .captain-only { display: flex; }
+body.is-captain .captain-only-block { display: block; }
+body.is-captain .panel-toolbar.captain-only { display: flex; }
+.captain-only-block { display: none; }
+.captain-add-toolbar { display: none; }
+body.is-captain .captain-add-toolbar { display: flex; }
+
+select option { background: var(--surface); }
+</style>
+
+</head>
+<body>
+
+<!-- ============================================================ -->
+
+<!-- SETUP SCREEN -->
+
+<!-- ============================================================ -->
+
+<div id="setup-screen">
+  <div class="setup-logo">Fire Ground Board</div>
+  <div class="setup-title">PAR Accountability<br>System</div>
+  <div class="setup-desc">Real-time personnel accountability for active incidents. Works on any phone with service.</div>
+
+  <div class="setup-card" id="setup-new-card">
+    <h3>🔴 Start New Incident</h3>
+    <p>Captain / IC only. Paste your Firebase Database URL, set a PIN, and go.</p>
+    <div>
+      <div class="modal-label">Department Name</div>
+      <input class="setup-input" id="setup-dept-name" placeholder="e.g. Combermere VFD" autocomplete="off">
+    </div>
+    <div>
+      <div class="modal-label">Firebase Database URL</div>
+      <input class="setup-input" id="setup-db-url" placeholder="https://your-project-default-rtdb.firebaseio.com" type="url" autocomplete="off" autocapitalize="off">
+    </div>
+    <div>
+      <div class="modal-label">Captain PIN (4 digits)</div>
+      <input class="setup-input" id="setup-pin" placeholder="e.g. 1234" maxlength="4" type="tel">
+    </div>
+    <div>
+      <div class="modal-label">Incident Name</div>
+      <input class="setup-input" id="setup-incident-name" placeholder="e.g. Structure Fire - Hwy 62" autocomplete="off">
+    </div>
+    <div>
+      <div class="modal-label">Address / Location</div>
+      <input class="setup-input" id="setup-incident-addr" placeholder="e.g. 1234 Combermere Dr" autocomplete="off">
+    </div>
+    <button class="btn-primary" onclick="startNewIncident()">Start Incident as Captain</button>
+  </div>
+
+  <div class="setup-or">— or —</div>
+
+  <div class="setup-card">
+    <h3>📲 Join Existing Incident</h3>
+    <p>Open the link your captain shared, or paste the database URL manually.</p>
+    <div>
+      <div class="modal-label">Firebase Database URL</div>
+      <input class="setup-input" id="join-db-url" placeholder="https://your-project-default-rtdb.firebaseio.com" type="url" autocomplete="off" autocapitalize="off">
+    </div>
+    <button class="btn-primary" onclick="joinExistingIncident()">Join as Crew</button>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+
+<!-- LOGIN SCREEN -->
+
+<!-- ============================================================ -->
+
+<div id="login-screen" class="hidden">
+  <div class="login-header">
+    <div class="login-logo-block">
+      <div class="login-dept" id="login-dept-label">Fire Ground Board</div>
+      <div class="login-title">PAR Board</div>
+    </div>
+    <div id="login-sync-indicator" class="sync-indicator">
+      <div class="sync-dot" id="login-sync-dot"></div>
+      <span id="login-sync-label">connecting</span>
+    </div>
+  </div>
+  <div class="login-body">
+    <div class="login-incident-info" id="login-incident-display">
+      <strong id="login-incident-name-display">Loading...</strong>
+      <span id="login-incident-addr-display"></span>
+    </div>
+
+```
+<div class="login-section-title">Quick Join — Tap Your Name</div>
+<div class="roster-join-list" id="roster-join-list">
+  <div style="color:var(--text2);font-size:13px;padding:8px 0;">Loading roster...</div>
+</div>
+
+<div class="login-divider">
+  <div class="login-divider-line"></div>
+  <div class="login-divider-text">OR JOIN MANUALLY</div>
+  <div class="login-divider-line"></div>
+</div>
+
+<div class="login-manual">
+  <input class="login-input" id="login-name" placeholder="Your name" autocomplete="off">
+  <div class="login-row">
+    <select class="login-select" id="login-role">
+      <option>Firefighter</option>
+      <option>Engineer/Driver</option>
+      <option>Medic</option>
+      <option>Lieutenant</option>
+      <option>Captain/IC</option>
+      <option>Safety Officer</option>
+      <option>Chief</option>
+    </select>
+    <select class="login-select" id="login-team">
+      <option value="Alpha">Alpha</option>
+      <option value="Bravo">Bravo</option>
+      <option value="Charlie">Charlie</option>
+      <option value="RIC">RIC Team</option>
+    </select>
+  </div>
+  <button class="login-join-btn" onclick="loginManual()">Join as Crew</button>
+</div>
+
+<div class="login-captain-section">
+  <h4>🎖 Captain / IC Access</h4>
+  <p>Enter the 4-digit PIN to take control of this board.</p>
+  <div class="login-pin-row">
+    <input class="login-pin-input" id="login-pin" placeholder="PIN" maxlength="4" type="tel">
+    <div style="flex:1;"></div>
+  </div>
+  <input class="login-input" id="captain-login-name" placeholder="Your name" autocomplete="off" style="margin-top:4px;">
+  <select class="login-select" id="captain-login-role" style="margin-top:4px;">
+    <option>Captain/IC</option>
+    <option>Lieutenant</option>
+    <option>Chief</option>
+    <option>Safety Officer</option>
+  </select>
+  <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+
+<!-- MAIN APP -->
+
+<!-- ============================================================ -->
+
+<div id="app" class="hidden">
+
+  <!-- PAR Countdown Banner -->
+
+  <div class="par-banner hidden" id="par-banner">
+    ⚠️ PAR CHECK — ALL CREWS REPORT — <span id="par-countdown">2:00</span>
+  </div>
+
+  <!-- Top Bar -->
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-dept" id="topbar-dept-label">Fire Ground Board</div>
+      <div id="topbar-incident-view" class="topbar-incident" onclick="enableEditIncident()"></div>
+      <input id="topbar-incident-edit" class="topbar-incident-input hidden" onblur="saveIncidentName()" placeholder="Incident name">
+      <div id="topbar-addr-view" class="topbar-address" onclick="enableEditAddr()"></div>
+      <input id="topbar-addr-edit" class="topbar-address-input hidden" onblur="saveAddr()" placeholder="Address">
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-user-chip" id="topbar-user-chip"></div>
+      <button class="topbar-btn" onclick="showShareModal()">📲</button>
+      <button class="topbar-btn" onclick="showLogDrawer()">📋</button>
+      <button class="topbar-btn par captain-only" id="par-btn" onclick="triggerParCheck()">PAR</button>
+      <button class="topbar-btn" onclick="showMenuModal()">☰</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('personnel', this)">👥 Personnel</button>
+    <button class="tab-btn" onclick="showTab('apparatus', this)">🚒 Apparatus</button>
+    <button class="tab-btn" onclick="showTab('iocanc', this)">📻 IOCANC</button>
+    <button class="tab-btn" onclick="showTab('mutual', this)">🤝 Mutual Aid</button>
+  </div>
+
+  <!-- ---- PERSONNEL TAB ---- -->
+
+  <div class="tab-panel active" id="tab-personnel">
+    <div class="panel-toolbar captain-add-toolbar" id="personnel-captain-toolbar">
+      <button class="add-member-btn" onclick="showAddMemberModal()">+ Add Member</button>
+    </div>
+    <div class="panel-toolbar">
+      <div class="filter-pill all active" onclick="setFilter('all', this)">All</div>
+      <div class="filter-pill responding" onclick="setFilter('Responding', this)">Responding</div>
+      <div class="filter-pill staged" onclick="setFilter('Staged', this)">Staged</div>
+      <div class="filter-pill in" onclick="setFilter('IN', this)">IN</div>
+      <div class="filter-pill out" onclick="setFilter('OUT', this)">OUT</div>
+      <div class="filter-pill rehab" onclick="setFilter('Rehab', this)">Rehab</div>
+      <div class="filter-pill missing" onclick="setFilter('MISSING', this)">MISSING</div>
+      <div class="toolbar-count" id="personnel-count">0 on scene</div>
+    </div>
+
+```
+<!-- Quick roster chips (not-yet-added members) -->
+<div id="quick-roster-section" class="quick-roster-section captain-only-block" style="display:none;">
+  <div class="quick-roster-title">Quick Add from Roster</div>
+  <div class="quick-roster-grid" id="quick-roster-grid"></div>
+</div>
+
+<div class="member-cards" id="member-cards"></div>
+<div class="empty-state hidden" id="personnel-empty">
+  <div class="empty-icon">👥</div>
+  <div class="empty-title">No Personnel on Board</div>
+  <div class="empty-desc">Captain: tap "+ Add" or use Quick Add from the saved roster above.</div>
+</div>
+```
+
+  </div>
+
+  <!-- ---- APPARATUS TAB ---- -->
+
+  <div class="tab-panel" id="tab-apparatus">
+    <div class="panel-toolbar captain-add-toolbar" id="apparatus-captain-toolbar">
+      <button class="add-member-btn" onclick="showAddApparatusModal()">+ Add Apparatus</button>
+    </div>
+    <div class="apparatus-grid" id="apparatus-grid">
+      <div class="empty-state" id="apparatus-empty">
+        <div class="empty-icon">🚒</div>
+        <div class="empty-title">No Apparatus Added</div>
+        <div class="empty-desc">Captain: tap "+ Add Apparatus" to add your trucks.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- IOCANC TAB ---- -->
+
+  <div class="tab-panel" id="tab-iocanc">
+    <div class="iocanc-container">
+      <div class="iocanc-header-card">
+        <div class="iocanc-title-row">
+          <div class="iocanc-title">📻 IOCANC Size-Up</div>
+        </div>
+        <div class="iocanc-subtitle">Arrival radio report — fill each section, then generate your transmission script</div>
+      </div>
+
+```
+  <!-- I -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">I</div>
+      <div><div class="iocanc-section-title">Identify</div><div class="iocanc-section-hint">Who you are / unit arriving</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Unit / Call Sign</label>
+      <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Combermere Tanker 1 arriving..." style="min-height:44px;">
+    </div>
+  </div>
+  <!-- O -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">O</div>
+      <div><div class="iocanc-section-title">Object</div><div class="iocanc-section-hint">What you're looking at</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Structure / Incident Description</label>
+      <textarea class="iocanc-textarea" id="io-object" placeholder="e.g. two-storey wood frame residential, approx 1500 sq ft..."></textarea>
+    </div>
+  </div>
+  <!-- C -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">C</div>
+      <div><div class="iocanc-section-title">Conditions</div><div class="iocanc-section-hint">Fire, smoke, hazards</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Visible Fire / Smoke</label>
+      <select class="iocanc-select" id="io-fire-location">
+        <option value="">Select...</option>
+        <option>No visible fire or smoke</option>
+        <option>Light smoke showing</option>
+        <option>Heavy smoke showing</option>
+        <option>Fire showing — ground floor</option>
+        <option>Fire showing — upper floor</option>
+        <option>Fire showing — roof</option>
+        <option>Well-involved structure</option>
+        <option>Fire through roof</option>
+      </select>
+    </div>
+    <div class="iocanc-field">
+      <label>Additional Hazards</label>
+      <textarea class="iocanc-textarea" id="io-conditions" placeholder="e.g. propane tank on east side, power lines down..."></textarea>
+    </div>
+  </div>
+  <!-- A -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">A</div>
+      <div><div class="iocanc-section-title">Actions</div><div class="iocanc-section-hint">What you're doing</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Initial Action</label>
+      <select class="iocanc-select" id="io-action">
+        <option value="">Select...</option>
+        <option>Establishing command, offensive attack</option>
+        <option>Establishing command, defensive attack</option>
+        <option>Establishing command, investigation</option>
+        <option>Establishing command, rescue operations</option>
+        <option>Laying supply line, offensive attack</option>
+        <option>Conducting 360 walk-around</option>
+        <option>Evacuation in progress</option>
+      </select>
+    </div>
+    <div class="iocanc-field">
+      <label>Additional Actions</label>
+      <textarea class="iocanc-textarea" id="io-actions-extra" placeholder="e.g. crews advancing 1¾ line through front door..."></textarea>
+    </div>
+  </div>
+  <!-- N -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">N</div>
+      <div><div class="iocanc-section-title">Needs</div><div class="iocanc-section-hint">Resources required</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Resources Needed</label>
+      <textarea class="iocanc-textarea" id="io-needs" placeholder="e.g. request second tanker, hydrant, EMS standby..."></textarea>
+    </div>
+  </div>
+  <!-- C2 -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter" style="background:var(--blue);">C</div>
+      <div><div class="iocanc-section-title">Command</div><div class="iocanc-section-hint">Who has command</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>IC Name</label>
+      <input class="iocanc-textarea" id="io-command" placeholder="e.g. Captain Smith has command" style="min-height:44px;">
+    </div>
+    <div class="iocanc-field">
+      <label>Command Location</label>
+      <select class="iocanc-select" id="io-command-loc">
+        <option value="">Select...</option>
+        <option>Command post at front of structure</option>
+        <option>Command post at road</option>
+        <option>Mobile command</option>
+        <option>Combermere Station Command</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="generate-btn" onclick="generateRadioScript()">Generate Radio Script</button>
+  <div class="radio-script-box" id="radio-script-output"></div>
+  <button class="copy-btn" id="copy-script-btn" onclick="copyRadioScript()">Copy Script</button>
+</div>
+```
+
+  </div>
+
+  <!-- ---- MUTUAL AID TAB ---- -->
+
+  <div class="tab-panel" id="tab-mutual">
+    <div class="panel-toolbar captain-add-toolbar" id="mutual-captain-toolbar">
+      <button class="add-member-btn" onclick="showAddMutualAidModal()">+ Add Station</button>
+    </div>
+    <div class="mutual-aid-container" id="mutual-aid-container">
+      <div class="empty-state" id="mutual-aid-empty">
+        <div class="empty-icon">🤝</div>
+        <div class="empty-title">No Mutual Aid Stations</div>
+        <div class="empty-desc">Captain: tap "+ Add Station" to add responding departments.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end #app -->
+
+<!-- ============================================================ -->
+
+<!-- MODALS -->
+
+<!-- ============================================================ -->
+
+<!-- Status Picker -->
+
+<div class="modal-overlay hidden" id="status-modal" onclick="closeStatusModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title" id="status-modal-name">Member Name</div>
+      <div class="modal-close" onclick="closeStatusModalDirect()">✕</div>
+    </div>
+    <div id="status-options-list"></div>
+  </div>
+</div>
+
+<!-- Add Member Modal -->
+
+<div class="modal-overlay hidden" id="add-member-modal" onclick="closeAddMemberModal(event)">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Add Personnel</div>
+      <div class="modal-close" onclick="closeAddMemberModalDirect()">✕</div>
+    </div>
+    <div>
+      <div class="modal-label">Full Name</div>
+      <input class="modal-input" id="add-name" placeholder="e.g. Smith, J." autocomplete="off">
+    </div>
+    <div class="modal-row">
+      <div style="flex:1;">
+        <div class="modal-label">Role</div>
+        <select class="modal-select" id="add-role">
+          <option>Firefighter</option>
+          <option>Engineer/Driver</option>
+          <option>Medic</option>
+          <option>Lieutenant</option>
+          <option>Captain/IC</option>
+          <option>Safety Officer</option>
+          <option>Chief</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <div class="modal-label">Crew</div>
+        <select class="modal-select" id="add-team">
+          <option value="Alpha">Alpha</option>
+          <option value="Bravo">Bravo</option>
+          <option value="Charlie">Charlie</option>
+          <option value="RIC">RIC Team</option>
+          <option value="Mutual Aid">Mutual Aid</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-toggle-row">
+      <div class="modal-toggle-label">No Radio</div>
+      <div class="toggle-switch" id="add-noradio-toggle" onclick="toggleNoRadio()"></div>
+    </div>
+    <div class="modal-toggle-row">
+      <div class="modal-toggle-label">Save to Roster</div>
+      <div class="toggle-switch on" id="add-roster-toggle" onclick="toggleSaveRoster()"></div>
+    </div>
+    <button class="btn-modal-add" onclick="submitAddMember()">Add to Board</button>
+  </div>
+</div>
+
+<!-- Share Modal -->
+
+<div class="modal-overlay hidden" id="share-modal" onclick="closeShareModal(event)">
+  <div class="share-modal-sheet">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+      <div class="share-title">📲 Share Board</div>
+      <div class="modal-close" onclick="closeShareModalDirect()">✕</div>
+    </div>
+    <div class="share-instructions">Crew opens the same URL on their phone to see the live board.</div>
+    <canvas id="share-qr" width="200" height="200"></canvas>
+    <div class="share-url-box" id="share-url-display"></div>
+    <div class="pin-display">Captain PIN: <strong id="share-pin-display"></strong></div>
+    <button class="share-copy-btn" onclick="copyShareUrl()">Copy Link</button>
+    <button class="share-close-btn" onclick="closeShareModalDirect()">Close</button>
+  </div>
+</div>
+
+<!-- Select Person for Apparatus -->
+
+<div class="modal-overlay hidden" id="assign-modal" onclick="closeAssignModal(event)">
+  <div class="select-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title" id="assign-modal-title">Assign Crew</div>
+      <div class="modal-close" onclick="closeAssignModalDirect()">✕</div>
+    </div>
+    <div id="assign-options-list"></div>
+  </div>
+</div>
+
+<!-- Log Drawer -->
+
+<div class="log-drawer hidden" id="log-drawer" onclick="closeLogDrawer(event)">
+  <div class="log-sheet">
+    <div class="log-header">
+      <div class="log-header-title">📋 Activity Log</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="exportLog()" style="background:var(--accent);color:white;border:none;border-radius:7px;padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">Export</button>
+        <div class="log-close" onclick="closeLogDrawerDirect()">✕</div>
+      </div>
+    </div>
+    <div class="log-list" id="log-list"></div>
+  </div>
+</div>
+
+<!-- Menu Modal -->
+
+<div class="modal-overlay hidden" id="menu-modal" onclick="if(event.target.id==='menu-modal')this.classList.add('hidden')">
+  <div class="modal-sheet" style="gap:6px;">
+    <div class="modal-header">
+      <div class="modal-title">Menu</div>
+      <div class="modal-close" onclick="document.getElementById('menu-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div class="menu-item" onclick="showLogDrawer();document.getElementById('menu-modal').classList.add('hidden')">
+      <span>📋</span><div><div class="menu-item-label">Activity Log</div><div class="menu-item-desc">Full timestamped log of all changes</div></div>
+    </div>
+    <div class="menu-item" onclick="exportLog();document.getElementById('menu-modal').classList.add('hidden')">
+      <span>📤</span><div><div class="menu-item-label">Export Log</div><div class="menu-item-desc">Download incident report as text file</div></div>
+    </div>
+    <div class="menu-item" id="menu-end-incident" style="display:none;" onclick="endIncident()">
+      <span>🔴</span><div><div class="menu-item-label" style="color:var(--red);">End Incident</div><div class="menu-item-desc">Mark incident closed and export final log</div></div>
+    </div>
+    <div class="menu-item" onclick="signOut()">
+      <span>🚪</span><div><div class="menu-item-label">Sign Out</div><div class="menu-item-desc">Return to login screen</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Apparatus Modal -->
+
+<div class="modal-overlay hidden" id="add-apparatus-modal" onclick="if(event.target.id==='add-apparatus-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Add Apparatus</div>
+      <div class="modal-close" onclick="document.getElementById('add-apparatus-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div>
+      <div class="modal-label">Unit Name</div>
+      <input class="modal-input" id="add-app-name" placeholder="e.g. Tanker 1, Pumper 2, Rescue" autocomplete="off">
+    </div>
+    <div>
+      <div class="modal-label">Station / Department</div>
+      <input class="modal-input" id="add-app-station" placeholder="e.g. Combermere, Barry's Bay" autocomplete="off">
+    </div>
+    <div>
+      <div class="modal-label">Type</div>
+      <select class="modal-select" id="add-app-icon">
+        <option value="🚒">🚒 Pumper / Tanker / Engine</option>
+        <option value="🚑">🚑 Rescue / Ambulance</option>
+        <option value="🚗">🚗 Command / Utility</option>
+        <option value="🚁">🚁 Air</option>
+      </select>
+    </div>
+    <button class="btn-modal-add" onclick="submitAddApparatus()">Add Unit</button>
+  </div>
+</div>
+
+<!-- Add Mutual Aid Modal -->
+
+<div class="modal-overlay hidden" id="add-mutual-modal" onclick="if(event.target.id==='add-mutual-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Add Mutual Aid Station</div>
+      <div class="modal-close" onclick="document.getElementById('add-mutual-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div>
+      <div class="modal-label">Department / Station Name</div>
+      <input class="modal-input" id="add-ma-name" placeholder="e.g. Barry's Bay Fire, Renfrew County" autocomplete="off">
+    </div>
+    <button class="btn-modal-add" onclick="submitAddMutualAid()">Add Station</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let STATE = {
+  incidentName: 'New Incident',
+  incidentAddr: '',
+  captainPin: '1234',
+  personnel: {},    // id -> member object
+  apparatus: {},    // id -> apparatus object
+  mutualAid: {},    // id -> mutual aid station
+  parActive: false,
+  parStart: null,
+  roster: [],       // saved roster (captain manages)
+  log: [],          // activity log entries
+  iocanc: {}        // iocanc form data
+};
+
+let currentUser = null; // { name, role, team, isCaption }
+let db = null;
+let dbRef = null;
+let syncInterval = null;
+let currentFilter = 'all';
+let activeStatusMemberId = null;
+let activeAssignApparatusId = null;
+let noRadioToggle = false;
+let saveRosterToggle = true;
+let parInterval = null;
+
+const DEFAULT_APPARATUS = [];
+
+const DEFAULT_MUTUAL_AID = [];
+
+const STATUS_FLOW = ['Responding', 'Staged', 'IN', 'OUT', 'Rehab', 'Standby', 'MISSING'];
+const STATUS_COLORS = {
+  'Responding': '#3b82f6',
+  'Staged': '#eab308',
+  'IN': '#22c55e',
+  'OUT': '#ef4444',
+  'Rehab': '#a855f7',
+  'Standby': '#8a95a3',
+  'MISSING': '#f97316'
+};
+const STATUS_DESC = {
+  'Responding': 'En route to scene',
+  'Staged': 'On scene, not deployed',
+  'IN': 'Inside structure',
+  'OUT': 'Exited safely',
+  'Rehab': 'Recovering',
+  'Standby': 'On scene, standing by',
+  'MISSING': '⚠️ NEEDS IMMEDIATE PAR CHECK'
+};
+
+// ============================================================
+// SETUP
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Check URL params for auto-join
+  const params = new URLSearchParams(window.location.search);
+  const dbUrl = params.get('db');
+  const pin = params.get('pin');
+  if (dbUrl) {
+    document.getElementById('join-db-url').value = decodeURIComponent(dbUrl);
+    if (pin) {
+      document.getElementById('login-pin').value = pin;
+    }
+    joinExistingIncident();
+  }
+});
+
+function startNewIncident() {
+  const dbUrl = document.getElementById('setup-db-url').value.trim();
+  const pin = document.getElementById('setup-pin').value.trim();
+  const dept = document.getElementById('setup-dept-name').value.trim() || 'Fire Dept';
+  const name = document.getElementById('setup-incident-name').value.trim() || 'Incident';
+  const addr = document.getElementById('setup-incident-addr').value.trim();
+
+  if (!dbUrl) { alert('Please enter your Firebase Database URL.'); return; }
+  if (!pin || pin.length !== 4) { alert('Please enter a 4-digit captain PIN.'); return; }
+
+  STATE.deptName = dept;
+  STATE.captainPin = pin;
+  STATE.incidentName = name;
+  STATE.incidentAddr = addr;
+  STATE.apparatus = {};
+  STATE.mutualAid = {};
+  STATE.personnel = {};
+  STATE.roster = [];
+  STATE.log = [];
+
+  initFirebase(dbUrl, () => {
+    saveFullState();
+    document.getElementById('setup-screen').classList.add('hidden');
+    showLoginScreen();
+  });
+}
+
+function joinExistingIncident() {
+  const dbUrl = document.getElementById('join-db-url').value.trim();
+  if (!dbUrl) { alert('Please enter the Firebase Database URL from your captain.'); return; }
+  initFirebase(dbUrl, () => {
+    document.getElementById('setup-screen').classList.add('hidden');
+    showLoginScreen();
+  });
+}
+
+function initFirebase(dbUrl, callback) {
+  const { initializeApp, getDatabase, ref, set, onValue, get } = window._firebaseModules;
+  try {
+    const app = initializeApp({ databaseURL: dbUrl }, `app-${Date.now()}`);
+    db = getDatabase(app);
+    dbRef = ref(db, 'fireboard');
+    // Load existing state
+    get(dbRef).then(snapshot => {
+      if (snapshot.exists()) {
+        const remote = snapshot.val();
+        STATE = Object.assign(STATE, remote);
+        if (!STATE.apparatus || Object.keys(STATE.apparatus).length === 0) {
+          STATE.apparatus = {};
+          DEFAULT_APPARATUS.forEach(a => { STATE.apparatus[a.id] = {...a}; });
+        }
+        if (!STATE.mutualAid || Object.keys(STATE.mutualAid).length === 0) {
+          STATE.mutualAid = {};
+          DEFAULT_MUTUAL_AID.forEach(m => { STATE.mutualAid[m.id] = {...m}; });
+        }
+      }
+      // Start live listener
+      onValue(dbRef, (snap) => {
+        if (snap.exists()) {
+          const remote = snap.val();
+          STATE = Object.assign(STATE, remote);
+          renderAll();
+          updateSyncIndicator(true);
+        }
+      });
+      if (callback) callback();
+    }).catch(e => {
+      alert('Could not connect to Firebase. Check the URL and try again.\n' + e.message);
+    });
+  } catch(e) {
+    alert('Firebase init failed: ' + e.message);
+  }
+}
+
+function saveFullState() {
+  if (!dbRef) return;
+  const { set } = window._firebaseModules;
+  set(dbRef, JSON.parse(JSON.stringify(STATE))).catch(e => console.error('Save error:', e));
+}
+
+function updateSyncIndicator(live) {
+  const dot = document.getElementById('login-sync-dot');
+  const label = document.getElementById('login-sync-label');
+  if (dot) { dot.classList.toggle('live', live); }
+  if (label) { label.textContent = live ? 'live' : 'connecting'; }
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  renderLoginRoster();
+  document.getElementById('login-incident-name-display').textContent = STATE.incidentName;
+  document.getElementById('login-incident-addr-display').textContent = STATE.incidentAddr;
+  const dept = STATE.deptName || 'Fire Ground Board';
+  document.getElementById('login-dept-label').textContent = dept;
+  if (dbRef) { document.getElementById('login-sync-dot').classList.add('live'); document.getElementById('login-sync-label').textContent = 'live'; }
+}
+
+function renderLoginRoster() {
+  const list = document.getElementById('roster-join-list');
+  const roster = STATE.roster || [];
+  if (roster.length === 0) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px 0;">No saved roster yet. Use manual join below, or captain adds members.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  roster.forEach(member => {
+    const initials = member.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const div = document.createElement('div');
+    div.className = 'roster-join-btn';
+    div.innerHTML = `
+      <div class="roster-join-avatar">${initials}</div>
+      <div class="roster-join-info">
+        <div class="roster-join-name">${member.name}</div>
+        <div class="roster-join-role">${member.role} · ${member.team}</div>
+      </div>
+    `;
+    div.onclick = () => loginFromRoster(member, div);
+    list.appendChild(div);
+  });
+}
+
+function loginFromRoster(member, el) {
+  document.querySelectorAll('.roster-join-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  currentUser = { name: member.name, role: member.role, team: member.team, isCaptain: false };
+  setTimeout(() => enterApp(), 300);
+}
+
+function loginManual() {
+  const name = document.getElementById('login-name').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  const role = document.getElementById('login-role').value;
+  const team = document.getElementById('login-team').value;
+  currentUser = { name, role, team, isCaptain: false };
+  enterApp();
+}
+
+function loginCaptain() {
+  const pin = document.getElementById('login-pin').value.trim();
+  const name = document.getElementById('captain-login-name').value.trim();
+  if (!name) { alert('Enter your name.'); return; }
+  if (pin !== STATE.captainPin) { alert('Incorrect PIN.'); return; }
+  const role = document.getElementById('captain-login-role').value;
+  currentUser = { name, role, team: 'Command', isCaptain: true };
+  enterApp();
+}
+
+function enterApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  if (currentUser.isCaptain) document.body.classList.add('is-captain');
+  document.getElementById('topbar-user-chip').textContent = currentUser.isCaptain ? `IC: ${currentUser.name}` : currentUser.name;
+  document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
+  document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
+  const dept = STATE.deptName || 'Fire Ground Board';
+  document.getElementById('topbar-dept-label').textContent = dept;
+  renderAll();
+  if (STATE.parActive) startParCountdownDisplay(STATE.parStart);
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderPersonnel();
+  renderApparatus();
+  renderMutualAid();
+  // Update incident header
+  if (document.getElementById('topbar-incident-view')) {
+    document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
+    document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
+  }
+  // Update login display if visible
+  const incEl = document.getElementById('login-incident-name-display');
+  if (incEl) { incEl.textContent = STATE.incidentName; }
+  renderLoginRoster();
+  if (STATE.parActive && !parInterval) startParCountdownDisplay(STATE.parStart);
+}
+
+function renderPersonnel() {
+  const container = document.getElementById('member-cards');
+  const emptyState = document.getElementById('personnel-empty');
+  const countEl = document.getElementById('personnel-count');
+  const quickSection = document.getElementById('quick-roster-section');
+  const quickGrid = document.getElementById('quick-roster-grid');
+
+  const members = Object.values(STATE.personnel || {});
+  const filtered = currentFilter === 'all' ? members : members.filter(m => m.status === currentFilter);
+
+  // Quick add roster chips
+  const onBoardNames = members.map(m => m.name);
+  const rosterNotOnBoard = (STATE.roster || []).filter(r => !onBoardNames.includes(r.name));
+  if (currentUser && currentUser.isCaptain && rosterNotOnBoard.length > 0) {
+    quickSection.style.display = 'block';
+    quickGrid.innerHTML = '';
+    rosterNotOnBoard.forEach(r => {
+      const chip = document.createElement('div');
+      chip.className = 'quick-add-chip';
+      chip.textContent = r.name;
+      chip.onclick = () => quickAddFromRoster(r);
+      quickGrid.appendChild(chip);
+    });
+  } else {
+    quickSection.style.display = 'none';
+  }
+
+  // Count
+  const inCount = members.filter(m => m.status === 'IN').length;
+  const totalOnScene = members.filter(m => ['Staged','IN','OUT','Rehab','Standby','MISSING'].includes(m.status)).length;
+  countEl.textContent = `${inCount} IN · ${totalOnScene} on scene`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '';
+    emptyState.classList.remove('hidden');
+    return;
+  }
+  emptyState.classList.add('hidden');
+
+  // Sort: MISSING first, then IN, then others
+  const order = { 'MISSING': 0, 'IN': 1, 'Staged': 2, 'Responding': 3, 'Rehab': 4, 'OUT': 5, 'Standby': 6 };
+  filtered.sort((a,b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+
+  container.innerHTML = '';
+  filtered.forEach(member => {
+    const card = document.createElement('div');
+    card.className = `member-card status-${member.status.toLowerCase().replace(' ','').replace('/','_')}`;
+    const initials = member.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const avatarColor = stringToColor(member.name);
+    const timeStr = member.statusTime ? formatTime(member.statusTime) : '';
+    const canEdit = currentUser && (currentUser.isCaptain || member.joinedBy === currentUser.name);
+
+    card.innerHTML = `
+      <div class="member-avatar" style="background:${avatarColor}">${initials}</div>
+      <div class="member-info">
+        <div class="member-name">${member.name}</div>
+        <div class="member-meta">
+          <span class="member-role">${member.role}</span>
+          <span class="member-team">${member.team}</span>
+          ${member.noRadio ? '<span class="no-radio-badge">NO RADIO</span>' : ''}
+        </div>
+      </div>
+      <div class="member-status-area">
+        <div class="member-status-badge badge-${member.status.toLowerCase().replace(' ','').replace('/','_')} ${canEdit ? '' : ''}"
+          onclick="${canEdit ? `openStatusModal('${member.id}')` : ''}"
+          style="${canEdit ? 'cursor:pointer;' : 'cursor:default;'}"
+        >${member.status}</div>
+        <div class="member-time">${timeStr}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderApparatus() {
+  const grid = document.getElementById('apparatus-grid');
+  if (!grid) return;
+  const apparatus = Object.values(STATE.apparatus || {});
+  const emptyEl = document.getElementById('apparatus-empty');
+
+  // Remove old cards but keep empty state
+  Array.from(grid.children).forEach(c => { if (!c.id) grid.removeChild(c); });
+
+  if (apparatus.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  // Remove all non-empty-state children first
+  while (grid.firstChild && !grid.firstChild.id) grid.removeChild(grid.firstChild);
+  grid.innerHTML = '';
+  if (emptyEl) grid.appendChild(emptyEl);
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  apparatus.forEach(app => {
+    const statusClass = 'app-' + app.status.toLowerCase().replace(/ /g,'');
+    const card = document.createElement('div');
+    card.className = 'apparatus-card';
+    card.innerHTML = `
+      <div class="apparatus-header">
+        <div class="apparatus-icon">${app.icon}</div>
+        <div class="apparatus-info">
+          <div class="apparatus-name">${app.name}</div>
+          <div class="apparatus-station">${app.station}</div>
+        </div>
+        <button class="apparatus-status-btn ${statusClass}" onclick="cycleAppStatus('${app.id}')">${app.status}</button>
+      </div>
+      <div class="apparatus-body">
+        <div class="apparatus-crew-title">Crew on this unit</div>
+        <div class="apparatus-crew-list">
+          ${(app.crew||[]).map(name => `
+            <div class="apparatus-crew-chip">
+              ${name}
+              ${currentUser && currentUser.isCaptain ? `<span class="remove-crew" onclick="removeCrewFromApp('${app.id}','${name}')">✕</span>` : ''}
+            </div>
+          `).join('')}
+          ${currentUser && currentUser.isCaptain ? `<button class="apparatus-assign-btn" onclick="showAssignModal('${app.id}')">+ Assign</button>` : ''}
+        </div>
+      </div>
+    `;
+    grid.insertBefore(card, emptyEl || null);
+  });
+}
+
+function renderMutualAid() {
+  const container = document.getElementById('mutual-aid-container');
+  if (!container) return;
+  const stations = Object.values(STATE.mutualAid || {});
+  const emptyEl = document.getElementById('mutual-aid-empty');
+
+  container.innerHTML = '';
+  if (emptyEl) container.appendChild(emptyEl);
+
+  if (stations.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  stations.forEach(station => {
+    const statusClass = 'ma-' + station.status.toLowerCase().replace(/ /g,'');
+    const card = document.createElement('div');
+    card.className = 'mutual-aid-card';
+    card.innerHTML = `
+      <div class="mutual-aid-header">
+        <div class="mutual-aid-name">${station.name}</div>
+        <button class="mutual-aid-status-btn ${statusClass}" onclick="cycleMaStatus('${station.id}')">${station.status}</button>
+      </div>
+      <div class="mutual-aid-body">
+        <div class="ma-crew-list">
+          ${(station.crew||[]).map(name => `
+            <div class="ma-crew-chip">
+              ${name}
+              ${currentUser && currentUser.isCaptain ? `<span class="remove-crew" onclick="removeMaCrew('${station.id}','${name}')">✕</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        ${currentUser && currentUser.isCaptain ? `
+        <div class="ma-add-person">
+          <input class="ma-input" id="ma-input-${station.id}" placeholder="Add person name">
+          <button class="ma-add-btn" onclick="addMaCrew('${station.id}')">Add</button>
+        </div>` : ''}
+      </div>
+    `;
+    container.insertBefore(card, emptyEl || null);
+  });
+}
+
+// ============================================================
+// STATUS MODAL
+// ============================================================
+function openStatusModal(memberId) {
+  if (!currentUser) return;
+  const member = STATE.personnel[memberId];
+  if (!member) return;
+  if (!currentUser.isCaptain && member.joinedBy !== currentUser.name) return;
+
+  activeStatusMemberId = memberId;
+  document.getElementById('status-modal-name').textContent = member.name;
+  const list = document.getElementById('status-options-list');
+  list.innerHTML = '';
+
+  STATUS_FLOW.forEach(status => {
+    const opt = document.createElement('div');
+    opt.className = 'status-option';
+    if (status === member.status) opt.style.border = `1px solid ${STATUS_COLORS[status]}`;
+    opt.innerHTML = `
+      <div class="status-option-dot" style="background:${STATUS_COLORS[status]}"></div>
+      <div>
+        <div class="status-option-label" style="color:${STATUS_COLORS[status]}">${status}${status === member.status ? ' ✓' : ''}</div>
+        <div class="status-option-desc">${STATUS_DESC[status]}</div>
+      </div>
+    `;
+    opt.onclick = () => setMemberStatus(memberId, status);
+    list.appendChild(opt);
+  });
+
+  if (currentUser.isCaptain) {
+    const delOpt = document.createElement('div');
+    delOpt.className = 'status-option delete-option';
+    delOpt.innerHTML = `<div class="status-option-dot" style="background:var(--red)"></div><div><div class="status-option-label">Remove from Board</div></div>`;
+    delOpt.onclick = () => removeMember(memberId);
+    list.appendChild(delOpt);
+  }
+
+  document.getElementById('status-modal').classList.remove('hidden');
+}
+
+function setMemberStatus(memberId, status) {
+  STATE.personnel[memberId].status = status;
+  STATE.personnel[memberId].statusTime = Date.now();
+  addLog(`${STATE.personnel[memberId].name} → ${status}`);
+  saveFullState();
+  closeStatusModalDirect();
+  renderPersonnel();
+}
+
+function removeMember(memberId) {
+  const name = STATE.personnel[memberId].name;
+  addLog(`${name} removed from board`);
+  delete STATE.personnel[memberId];
+  saveFullState();
+  closeStatusModalDirect();
+  renderPersonnel();
+}
+
+function closeStatusModal(e) { if (e.target.id === 'status-modal') closeStatusModalDirect(); }
+function closeStatusModalDirect() { document.getElementById('status-modal').classList.add('hidden'); activeStatusMemberId = null; }
+
+// ============================================================
+// ADD MEMBER
+// ============================================================
+function showAddMemberModal() {
+  document.getElementById('add-name').value = '';
+  noRadioToggle = false;
+  saveRosterToggle = true;
+  document.getElementById('add-noradio-toggle').classList.remove('on');
+  document.getElementById('add-roster-toggle').classList.add('on');
+  document.getElementById('add-member-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('add-name').focus(), 100);
+}
+
+function toggleNoRadio() {
+  noRadioToggle = !noRadioToggle;
+  document.getElementById('add-noradio-toggle').classList.toggle('on', noRadioToggle);
+}
+
+function toggleSaveRoster() {
+  saveRosterToggle = !saveRosterToggle;
+  document.getElementById('add-roster-toggle').classList.toggle('on', saveRosterToggle);
+}
+
+function submitAddMember() {
+  const name = document.getElementById('add-name').value.trim();
+  if (!name) { alert('Enter a name.'); return; }
+  const role = document.getElementById('add-role').value;
+  const team = document.getElementById('add-team').value;
+  const id = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+  const member = { id, name, role, team, noRadio: noRadioToggle, status: 'Responding', statusTime: Date.now(), joinedBy: currentUser ? currentUser.name : 'captain' };
+  STATE.personnel[id] = member;
+  if (saveRosterToggle) {
+    const rosterNames = (STATE.roster || []).map(r => r.name);
+    if (!rosterNames.includes(name)) {
+      if (!STATE.roster) STATE.roster = [];
+      STATE.roster.push({ name, role, team, noRadio: noRadioToggle });
+    }
+  }
+  addLog(`${name} added as ${role}`);
+  saveFullState();
+  closeAddMemberModalDirect();
+  renderPersonnel();
+}
+
+function quickAddFromRoster(r) {
+  const id = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+  const member = { id, name: r.name, role: r.role, team: r.team, noRadio: r.noRadio||false, status: 'Responding', statusTime: Date.now(), joinedBy: currentUser ? currentUser.name : 'captain' };
+  STATE.personnel[id] = member;
+  addLog(`${r.name} quick-added as ${r.role}`);
+  saveFullState();
+  renderPersonnel();
+}
+
+function closeAddMemberModal(e) { if (e.target.id === 'add-member-modal') closeAddMemberModalDirect(); }
+function closeAddMemberModalDirect() { document.getElementById('add-member-modal').classList.add('hidden'); }
+
+// ============================================================
+// APPARATUS
+// ============================================================
+const APP_STATUS_CYCLE = ['Available', 'En Route', 'On Scene', 'Staged', 'Returning'];
+function cycleAppStatus(appId) {
+  if (!currentUser || !currentUser.isCaptain) return;
+  const app = STATE.apparatus[appId];
+  const idx = APP_STATUS_CYCLE.indexOf(app.status);
+  app.status = APP_STATUS_CYCLE[(idx + 1) % APP_STATUS_CYCLE.length];
+  addLog(`${app.name} → ${app.status}`);
+  saveFullState();
+  renderApparatus();
+}
+
+function showAssignModal(appId) {
+  activeAssignApparatusId = appId;
+  const app = STATE.apparatus[appId];
+  document.getElementById('assign-modal-title').textContent = `Assign to ${app.name}`;
+  const list = document.getElementById('assign-options-list');
+  list.innerHTML = '';
+  const members = Object.values(STATE.personnel || {});
+  if (members.length === 0) { list.innerHTML = '<div style="color:var(--text2);padding:16px;font-size:13px;">No personnel on board yet.</div>'; }
+  members.forEach(m => {
+    const opt = document.createElement('div');
+    opt.className = 'status-option';
+    const alreadyAssigned = (app.crew||[]).includes(m.name);
+    opt.innerHTML = `<div class="status-option-dot" style="background:${STATUS_COLORS[m.status]||'#888'}"></div><div><div class="status-option-label">${m.name}${alreadyAssigned?' ✓':''}</div><div class="status-option-desc">${m.role} · ${m.status}</div></div>`;
+    opt.onclick = () => assignCrewToApp(appId, m.name);
+    list.appendChild(opt);
+  });
+  document.getElementById('assign-modal').classList.remove('hidden');
+}
+
+function assignCrewToApp(appId, name) {
+  const app = STATE.apparatus[appId];
+  if (!app.crew) app.crew = [];
+  if (!app.crew.includes(name)) { app.crew.push(name); addLog(`${name} assigned to ${app.name}`); }
+  saveFullState();
+  closeAssignModalDirect();
+  renderApparatus();
+}
+
+function removeCrewFromApp(appId, name) {
+  STATE.apparatus[appId].crew = (STATE.apparatus[appId].crew||[]).filter(n=>n!==name);
+  saveFullState();
+  renderApparatus();
+}
+
+function closeAssignModal(e) { if (e.target.id === 'assign-modal') closeAssignModalDirect(); }
+function closeAssignModalDirect() { document.getElementById('assign-modal').classList.add('hidden'); }
+
+// ============================================================
+// MUTUAL AID
+// ============================================================
+const MA_STATUS_CYCLE = ['Standby', 'Requested', 'Responding', 'On Scene', 'Released'];
+function cycleMaStatus(maId) {
+  if (!currentUser || !currentUser.isCaptain) return;
+  const ma = STATE.mutualAid[maId];
+  const idx = MA_STATUS_CYCLE.indexOf(ma.status);
+  ma.status = MA_STATUS_CYCLE[(idx + 1) % MA_STATUS_CYCLE.length];
+  addLog(`${ma.name} → ${ma.status}`);
+  saveFullState();
+  renderMutualAid();
+}
+
+function addMaCrew(maId) {
+  const input = document.getElementById('ma-input-' + maId);
+  const name = input.value.trim();
+  if (!name) return;
+  if (!STATE.mutualAid[maId].crew) STATE.mutualAid[maId].crew = [];
+  STATE.mutualAid[maId].crew.push(name);
+  input.value = '';
+  saveFullState();
+  renderMutualAid();
+}
+
+function removeMaCrew(maId, name) {
+  STATE.mutualAid[maId].crew = (STATE.mutualAid[maId].crew||[]).filter(n=>n!==name);
+  saveFullState();
+  renderMutualAid();
+}
+
+// ============================================================
+// IOCANC
+// ============================================================
+function generateRadioScript() {
+  const identify = document.getElementById('io-identify').value.trim();
+  const object = document.getElementById('io-object').value.trim();
+  const fireLoc = document.getElementById('io-fire-location').value;
+  const conditions = document.getElementById('io-conditions').value.trim();
+  const action = document.getElementById('io-action').value;
+  const actionsExtra = document.getElementById('io-actions-extra').value.trim();
+  const needs = document.getElementById('io-needs').value.trim();
+  const command = document.getElementById('io-command').value.trim();
+  const commandLoc = document.getElementById('io-command-loc').value;
+
+  let script = `📻 IOCANC ARRIVAL REPORT\n`;
+  script += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  if (identify) script += `[I – IDENTIFY]\n${identify}\n\n`;
+  if (object) script += `[O – OBJECT]\n${object}\n\n`;
+  let condFull = [fireLoc, conditions].filter(Boolean).join('. ');
+  if (condFull) script += `[C – CONDITIONS]\n${condFull}\n\n`;
+  let actFull = [action, actionsExtra].filter(Boolean).join('. ');
+  if (actFull) script += `[A – ACTIONS]\n${actFull}\n\n`;
+  if (needs) script += `[N – NEEDS]\n${needs}\n\n`;
+  let cmdFull = [command, commandLoc].filter(Boolean).join('. ');
+  if (cmdFull) script += `[C – COMMAND]\n${cmdFull}\n\n`;
+  script += `Time: ${new Date().toLocaleTimeString()}`;
+
+  const output = document.getElementById('radio-script-output');
+  const copyBtn = document.getElementById('copy-script-btn');
+  output.textContent = script;
+  output.classList.add('visible');
+  copyBtn.classList.add('visible');
+  STATE.iocanc = { identify, object, fireLoc, conditions, action, actionsExtra, needs, command, commandLoc, generatedAt: Date.now() };
+  saveFullState();
+}
+
+function copyRadioScript() {
+  const text = document.getElementById('radio-script-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('copy-script-btn').textContent = 'Copied!';
+    setTimeout(() => document.getElementById('copy-script-btn').textContent = 'Copy Script', 2000);
+  });
+}
+
+// ============================================================
+// PAR CHECK
+// ============================================================
+function triggerParCheck() {
+  STATE.parActive = true;
+  STATE.parStart = Date.now();
+  addLog('PAR Check triggered by IC');
+  saveFullState();
+  startParCountdownDisplay(STATE.parStart);
+}
+
+function startParCountdownDisplay(startTime) {
+  const banner = document.getElementById('par-banner');
+  banner.classList.remove('hidden');
+  if (parInterval) clearInterval(parInterval);
+  const duration = 120000; // 2 min
+  function tick() {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, duration - elapsed);
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    document.getElementById('par-countdown').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    if (remaining <= 0) {
+      clearInterval(parInterval);
+      parInterval = null;
+      banner.classList.add('hidden');
+      STATE.parActive = false;
+      saveFullState();
+    }
+  }
+  tick();
+  parInterval = setInterval(tick, 1000);
+}
+
+// ============================================================
+// INCIDENT HEADER EDITING (CAPTAIN ONLY)
+// ============================================================
+function enableEditIncident() {
+  if (!currentUser || !currentUser.isCaptain) return;
+  document.getElementById('topbar-incident-view').classList.add('hidden');
+  const input = document.getElementById('topbar-incident-edit');
+  input.value = STATE.incidentName;
+  input.classList.remove('hidden');
+  input.focus();
+}
+
+function saveIncidentName() {
+  const val = document.getElementById('topbar-incident-edit').value.trim();
+  if (val) { STATE.incidentName = val; saveFullState(); }
+  document.getElementById('topbar-incident-edit').classList.add('hidden');
+  document.getElementById('topbar-incident-view').classList.remove('hidden');
+  document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
+}
+
+function enableEditAddr() {
+  if (!currentUser || !currentUser.isCaptain) return;
+  document.getElementById('topbar-addr-view').classList.add('hidden');
+  const input = document.getElementById('topbar-addr-edit');
+  input.value = STATE.incidentAddr;
+  input.classList.remove('hidden');
+  input.focus();
+}
+
+function saveAddr() {
+  const val = document.getElementById('topbar-addr-edit').value.trim();
+  STATE.incidentAddr = val;
+  saveFullState();
+  document.getElementById('topbar-addr-edit').classList.add('hidden');
+  document.getElementById('topbar-addr-view').classList.remove('hidden');
+  document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
+}
+
+// ============================================================
+// SHARE MODAL
+// ============================================================
+function showShareModal() {
+  const modal = document.getElementById('share-modal');
+  modal.classList.remove('hidden');
+  const dbUrl = db ? db.app.options.databaseURL : '';
+  const shareUrl = `${window.location.href.split('?')[0]}?db=${encodeURIComponent(dbUrl)}`;
+  document.getElementById('share-url-display').innerHTML = `<strong>${shareUrl}</strong>`;
+  document.getElementById('share-pin-display').textContent = STATE.captainPin;
+
+  // Generate QR
+  const canvas = document.getElementById('share-qr');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,200,200);
+  try {
+    if (window.QRCode) {
+      const temp = document.createElement('div');
+      new QRCode(temp, { text: shareUrl, width: 200, height: 200, colorDark: '#000', colorLight: '#fff' });
+      setTimeout(() => {
+        const img = temp.querySelector('img');
+        if (img) { const i = new Image(); i.onload = () => ctx.drawImage(i,0,0,200,200); i.src = img.src; }
+        else { const c = temp.querySelector('canvas'); if (c) ctx.drawImage(c,0,0,200,200); }
+      }, 100);
+    }
+  } catch(e) { console.log('QR gen error', e); }
+}
+
+function copyShareUrl() {
+  const dbUrl = db ? db.app.options.databaseURL : '';
+  const shareUrl = `${window.location.href.split('?')[0]}?db=${encodeURIComponent(dbUrl)}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    document.querySelector('.share-copy-btn').textContent = 'Copied!';
+    setTimeout(() => document.querySelector('.share-copy-btn').textContent = 'Copy Link', 2000);
+  });
+}
+
+function closeShareModal(e) { if (e.target.id === 'share-modal') closeShareModalDirect(); }
+function closeShareModalDirect() { document.getElementById('share-modal').classList.add('hidden'); }
+
+// ============================================================
+// LOG
+// ============================================================
+function addLog(message) {
+  if (!STATE.log) STATE.log = [];
+  STATE.log.unshift({ time: Date.now(), message });
+  if (STATE.log.length > 200) STATE.log = STATE.log.slice(0, 200);
+}
+
+function showLogDrawer() {
+  const list = document.getElementById('log-list');
+  const logs = STATE.log || [];
+  if (logs.length === 0) { list.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="empty-title">No activity yet</div></div>'; }
+  else {
+    list.innerHTML = logs.map(e => `
+      <div class="log-entry">
+        <div class="log-time">${formatTime(e.time)}</div>
+        <div>${e.message}</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('log-drawer').classList.remove('hidden');
+}
+
+function closeLogDrawer(e) { if (e.target.id === 'log-drawer') closeLogDrawerDirect(); }
+function closeLogDrawerDirect() { document.getElementById('log-drawer').classList.add('hidden'); }
+
+// ============================================================
+// TABS & FILTERS
+// ============================================================
+function showTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+function setFilter(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderPersonnel();
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function stringToColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const colors = ['#e8471a','#3b82f6','#22c55e','#a855f7','#f97316','#06b6d4','#ec4899','#8b5cf6'];
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function showAddApparatusModal() {
+  document.getElementById('add-app-name').value = '';
+  document.getElementById('add-app-station').value = STATE.deptName || '';
+  document.getElementById('add-apparatus-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('add-app-name').focus(), 100);
+}
+
+function submitAddApparatus() {
+  const name = document.getElementById('add-app-name').value.trim();
+  if (!name) { alert('Enter a unit name.'); return; }
+  const station = document.getElementById('add-app-station').value.trim();
+  const icon = document.getElementById('add-app-icon').value;
+  const id = 'app_' + Date.now();
+  STATE.apparatus[id] = { id, name, station, icon, status: 'Available', crew: [] };
+  saveFullState();
+  document.getElementById('add-apparatus-modal').classList.add('hidden');
+  renderApparatus();
+}
+
+function showAddMutualAidModal() {
+  document.getElementById('add-ma-name').value = '';
+  document.getElementById('add-mutual-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('add-ma-name').focus(), 100);
+}
+
+function submitAddMutualAid() {
+  const name = document.getElementById('add-ma-name').value.trim();
+  if (!name) { alert('Enter a station name.'); return; }
+  const id = 'ma_' + Date.now();
+  STATE.mutualAid[id] = { id, name, status: 'Standby', crew: [] };
+  saveFullState();
+  document.getElementById('add-mutual-modal').classList.add('hidden');
+  renderMutualAid();
+}
+
+function showMenuModal() {
+  const endBtn = document.getElementById('menu-end-incident');
+  if (endBtn) endBtn.style.display = currentUser && currentUser.isCaptain ? 'flex' : 'none';
+  document.getElementById('menu-modal').classList.remove('hidden');
+}
+
+function signOut() {
+  document.getElementById('menu-modal').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.body.classList.remove('is-captain');
+  currentUser = null;
+  showLoginScreen();
+}
+
+function endIncident() {
+  if (!confirm('End this incident? This will export the log and mark the incident closed. The data stays in Firebase.')) return;
+  addLog(`--- INCIDENT CLOSED by ${currentUser.name} ---`);
+  saveFullState();
+  exportLog(true);
+  document.getElementById('menu-modal').classList.add('hidden');
+}
+
+function exportLog(isEndOfIncident = false) {
+  const logs = STATE.log || [];
+  const incidentName = STATE.incidentName || 'Incident';
+  const incidentAddr = STATE.incidentAddr || '';
+  const dept = STATE.deptName || 'Fire Ground Board';
+  const now = new Date();
+
+  // Build full personnel summary
+  const members = Object.values(STATE.personnel || {});
+  let personnelSummary = '';
+  if (members.length > 0) {
+    personnelSummary = '\n--- PERSONNEL ON BOARD ---\n';
+    members.forEach(m => {
+      personnelSummary += `${m.name} | ${m.role} | ${m.team} | Status: ${m.status}${m.noRadio ? ' | NO RADIO' : ''}\n`;
+    });
+  }
+
+  // Build apparatus summary
+  const apparatus = Object.values(STATE.apparatus || {});
+  let apparatusSummary = '';
+  if (apparatus.length > 0) {
+    apparatusSummary = '\n--- APPARATUS ---\n';
+    apparatus.forEach(a => {
+      const crew = (a.crew || []).join(', ') || 'No crew assigned';
+      apparatusSummary += `${a.name} (${a.station}) | ${a.status} | Crew: ${crew}\n`;
+    });
+  }
+
+  // Build mutual aid summary
+  const maStations = Object.values(STATE.mutualAid || {});
+  let maSummary = '';
+  if (maStations.length > 0) {
+    maSummary = '\n--- MUTUAL AID ---\n';
+    maStations.forEach(s => {
+      const crew = (s.crew || []).join(', ') || 'No crew listed';
+      maSummary += `${s.name} | ${s.status} | Personnel: ${crew}\n`;
+    });
+  }
+
+  // Build IOCANC if filled
+  const io = STATE.iocanc || {};
+  let iocancSummary = '';
+  if (io.identify || io.object || io.conditions) {
+    iocancSummary = '\n--- IOCANC ARRIVAL REPORT ---\n';
+    if (io.identify) iocancSummary += `I (Identify): ${io.identify}\n`;
+    if (io.object) iocancSummary += `O (Object): ${io.object}\n`;
+    if (io.fireLoc || io.conditions) iocancSummary += `C (Conditions): ${[io.fireLoc, io.conditions].filter(Boolean).join('. ')}\n`;
+    if (io.action || io.actionsExtra) iocancSummary += `A (Actions): ${[io.action, io.actionsExtra].filter(Boolean).join('. ')}\n`;
+    if (io.needs) iocancSummary += `N (Needs): ${io.needs}\n`;
+    if (io.command || io.commandLoc) iocancSummary += `C (Command): ${[io.command, io.commandLoc].filter(Boolean).join('. ')}\n`;
+  }
+
+  // Build chronological log (reverse logs so oldest first)
+  const chronoLogs = [...logs].reverse();
+  let logText = '\n--- ACTIVITY LOG (oldest to newest) ---\n';
+  chronoLogs.forEach(e => {
+    logText += `[${new Date(e.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${e.message}\n`;
+  });
+
+  const header = `${dept.toUpperCase()} — INCIDENT REPORT\n` +
+    `${'='.repeat(50)}\n` +
+    `Incident: ${incidentName}\n` +
+    `Address: ${incidentAddr || 'Not recorded'}\n` +
+    `Exported: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}\n` +
+    `${'='.repeat(50)}\n`;
+
+  const fullText = header + personnelSummary + apparatusSummary + maSummary + iocancSummary + logText;
+
+  // Download as .txt
+  const blob = new Blob([fullText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = incidentName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+  const dateStr = now.toISOString().slice(0,10);
+  a.href = url;
+  a.download = `${safeName}-${dateStr}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+</script>
+
+</body>
+</html>
