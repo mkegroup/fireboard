@@ -642,7 +642,7 @@ select option { background: var(--surface); }
 
 <!-- ============================================================ -->
 
-<div id="setup-screen">
+<div id="setup-screen" class="hidden">
   <div class="setup-logo">Fire Ground Board</div>
   <div class="setup-title">PAR Accountability<br>System</div>
   <div class="setup-desc">Real-time personnel accountability for active incidents. Works on any phone with service.</div>
@@ -685,6 +685,21 @@ select option { background: var(--surface); }
     <button class="btn-primary" onclick="joinExistingIncident()">Join as Crew</button>
   </div>
 
+</div>
+
+<!-- ============================================================ -->
+
+<!-- CREW LOADING SCREEN -->
+
+<!-- ============================================================ -->
+
+<div id="crew-loading-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:1100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+  <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">Combermere VFD</div>
+  <div style="font-family:var(--font-head);font-size:28px;font-weight:800;">Fire Ground Board</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;"></div>
+    <div style="font-size:13px;color:var(--text2);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;">Connecting...</div>
+  </div>
 </div>
 
 <!-- ============================================================ -->
@@ -1283,31 +1298,54 @@ const STATUS_DESC = {
 // SETUP
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
-  // Check URL params first (shared link)
   const params = new URLSearchParams(window.location.search);
   const dbUrl = params.get('db');
-  const pin = params.get('pin');
+  const savedDb = sessionStorage.getItem('fgb_db');
 
-  if (dbUrl) {
-    // Shared link — go straight to join
-    document.getElementById('join-db-url').value = decodeURIComponent(dbUrl);
-    if (pin) document.getElementById('login-pin').value = pin;
-    // Save to session so refresh works
-    sessionStorage.setItem('fgb_db', decodeURIComponent(dbUrl));
-    joinExistingIncident();
-  } else {
-    // Check if we were already connected this session (page refresh)
-    const savedDb = sessionStorage.getItem('fgb_db');
-    if (savedDb) {
-      // Was connected — reconnect and go to login screen
-      document.getElementById('join-db-url').value = savedDb;
+  if (dbUrl || savedDb) {
+    // Hide setup screen immediately — crew don't need it
+    document.getElementById('setup-screen').classList.add('hidden');
+    // Show a loading state
+    document.getElementById('crew-loading-screen').classList.remove('hidden');
+  }
+
+  // Firebase modules load async — poll until ready then proceed
+  function waitForFirebase(cb) {
+    if (window._firebaseModules) { cb(); return; }
+    let attempts = 0;
+    const t = setInterval(() => {
+      attempts++;
+      if (window._firebaseModules) { clearInterval(t); cb(); }
+      else if (attempts > 40) {
+        clearInterval(t);
+        document.getElementById('crew-loading-screen').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+        alert('Could not load Firebase. Check your internet connection and reload.');
+      }
+    }, 150);
+  }
+
+  waitForFirebase(() => {
+    document.getElementById('crew-loading-screen').classList.add('hidden');
+
+    if (dbUrl) {
+      // QR code / shared link — straight to login
+      sessionStorage.setItem('fgb_db', decodeURIComponent(dbUrl));
+      initFirebase(decodeURIComponent(dbUrl), () => {
+        document.getElementById('setup-screen').classList.add('hidden');
+        showLoginScreen();
+      });
+    } else if (savedDb) {
+      // Page refresh — reconnect silently
       initFirebase(savedDb, () => {
         document.getElementById('setup-screen').classList.add('hidden');
         showLoginScreen();
       });
+    } else {
+      // Fresh open — show setup
+      document.getElementById('setup-screen').classList.remove('hidden');
     }
-    // Otherwise show setup screen as normal
-  }
+  });
 });
 
 function startNewIncident() {
