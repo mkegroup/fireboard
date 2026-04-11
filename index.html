@@ -1510,7 +1510,6 @@ function updateCallBanner() {
   const addr = document.getElementById('banner-incident-addr');
   if (name) name.textContent = STATE.incidentName || 'Active Incident';
   if (addr) addr.textContent = STATE.incidentAddr || '';
-  // Show elapsed time if log has start entry
   const timeEl = document.getElementById('banner-time');
   if (timeEl && STATE.log && STATE.log.length > 0) {
     const oldest = STATE.log[STATE.log.length - 1];
@@ -1522,6 +1521,8 @@ function updateCallBanner() {
     }
   }
 }
+
+function updateSyncIndicator(live) {
   const dot = document.getElementById('login-sync-dot');
   const label = document.getElementById('login-sync-label');
   if (dot) { dot.classList.toggle('live', live); }
@@ -1989,6 +1990,8 @@ function assignMyselfToApp(appId) {
     renderApparatus();
   }
 }
+
+function setAppStatus(appId, status) {
   const app = STATE.apparatus[appId];
   app.status = status;
   addLog(`${app.name} → ${status}`);
@@ -2346,6 +2349,8 @@ function signOut() {
   currentUser = null;
   showLoginScreen();
 }
+
+function endIncident() {
   if (!confirm('End this incident? The board will be cleared for everyone and this call will be saved to history.')) return;
 
   addLog(`--- INCIDENT CLOSED by ${currentUser.name} at ${new Date().toLocaleTimeString()} ---`);
@@ -2563,6 +2568,8 @@ function deleteHistoryCall(callId) {
     }
   }).catch(e => alert('Delete failed: ' + e.message));
 }
+
+function toggleHistoryDetail(id) {
   const detail = document.getElementById('detail-' + id);
   const chev = document.getElementById('chev-' + id);
   if (detail.classList.contains('hidden')) {
