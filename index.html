@@ -651,16 +651,16 @@ select option { background: var(--surface); }
 <!-- ============================================================ -->
 
 <div id="setup-screen" class="hidden">
-  <div class="setup-logo">Fire Ground Board</div>
-  <div class="setup-title">PAR Accountability<br>System</div>
-  <div class="setup-desc">Real-time personnel accountability for active incidents. Works on any phone with service.</div>
+  <div class="setup-logo">MKE Group</div>
+  <div class="setup-title">Fire Ground Board</div>
+  <div class="setup-desc">Real-time PAR accountability for active incidents. Works on any phone with service. Free for any department.</div>
 
   <div class="setup-card" id="setup-new-card">
     <h3>🔴 Start New Incident</h3>
-    <p>Captain / IC only. Paste your Firebase Database URL, set a PIN, and go.</p>
+    <p>Captain / IC only. Requires a free Firebase database URL — <a href="https://fire.mkegroup.ca/setup" target="_blank" style="color:var(--accent2);">setup guide here</a>.</p>
     <div>
       <div class="modal-label">Department Name</div>
-      <input class="setup-input" id="setup-dept-name" placeholder="e.g. Combermere VFD" autocomplete="off">
+      <input class="setup-input" id="setup-dept-name" placeholder="e.g. Barry's Bay Fire" autocomplete="off">
     </div>
     <div>
       <div class="modal-label">Firebase Database URL</div>
@@ -672,11 +672,11 @@ select option { background: var(--surface); }
     </div>
     <div>
       <div class="modal-label">Incident Name</div>
-      <input class="setup-input" id="setup-incident-name" placeholder="e.g. Structure Fire - Hwy 62" autocomplete="off">
+      <input class="setup-input" id="setup-incident-name" placeholder="e.g. Structure Fire — Hwy 62" autocomplete="off">
     </div>
     <div>
       <div class="modal-label">Address / Location</div>
-      <input class="setup-input" id="setup-incident-addr" placeholder="e.g. 1234 Combermere Dr" autocomplete="off">
+      <input class="setup-input" id="setup-incident-addr" placeholder="e.g. 1234 Main St" autocomplete="off">
     </div>
     <button class="btn-primary" onclick="startNewIncident()">Start Incident as Captain</button>
   </div>
@@ -693,6 +693,10 @@ select option { background: var(--surface); }
     <button class="btn-primary" onclick="joinExistingIncident()">Join as Crew</button>
   </div>
 
+  <div class="firebase-note">
+    <strong>First time?</strong> You need a free Firebase database to sync across devices. Takes 5 minutes. <a href="https://fire.mkegroup.ca/setup" target="_blank" style="color:var(--accent2);">Read the setup guide →</a>
+  </div>
+
 </div>
 
 <!-- ============================================================ -->
@@ -702,7 +706,7 @@ select option { background: var(--surface); }
 <!-- ============================================================ -->
 
 <div id="crew-loading-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:1100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
-  <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">Combermere VFD</div>
+  <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">MKE Group</div>
   <div style="font-family:var(--font-head);font-size:28px;font-weight:800;">Fire Ground Board</div>
   <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
     <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;"></div>
@@ -914,7 +918,7 @@ select option { background: var(--surface); }
     </div>
     <div class="iocanc-field">
       <label>Unit / Call Sign</label>
-      <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Combermere Tanker 1 arriving..." style="min-height:44px;">
+      <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Tanker 1 arriving on scene..." style="min-height:44px;">
     </div>
   </div>
   <!-- O -->
@@ -1005,7 +1009,7 @@ select option { background: var(--surface); }
         <option>Command post at front of structure</option>
         <option>Command post at road</option>
         <option>Mobile command</option>
-        <option>Combermere Station Command</option>
+        <option>Station command</option>
       </select>
     </div>
   </div>
@@ -1233,7 +1237,7 @@ select option { background: var(--surface); }
     </div>
     <div>
       <div class="modal-label">Station / Department</div>
-      <input class="modal-input" id="add-app-station" placeholder="e.g. Combermere, Barry's Bay" autocomplete="off">
+      <input class="modal-input" id="add-app-station" placeholder="e.g. Station 1, Mutual Aid" autocomplete="off">
     </div>
     <div>
       <div class="modal-label">Type</div>
@@ -2196,8 +2200,11 @@ function showShareModal() {
   modal.classList.remove('hidden');
 
   const dbUrl = db ? db.app.options.databaseURL : '';
-  // Always use clean base URL — strip any existing query params
-  const baseUrl = window.location.origin + window.location.pathname;
+  // Always use the canonical public URL regardless of where the app is being served from
+  const canonicalBase = 'https://fire.mkegroup.ca';
+  const baseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? window.location.origin + window.location.pathname
+    : canonicalBase;
   const shareUrl = `${baseUrl}?db=${encodeURIComponent(dbUrl)}`;
 
   document.getElementById('share-url-display').innerHTML = `<strong style="word-break:break-all;font-size:12px;">${shareUrl}</strong>`;
@@ -2232,7 +2239,10 @@ function showShareModal() {
 
 function copyShareUrl() {
   const dbUrl = db ? db.app.options.databaseURL : '';
-  const baseUrl = window.location.origin + window.location.pathname;
+  const canonicalBase = 'https://fire.mkegroup.ca';
+  const baseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? window.location.origin + window.location.pathname
+    : canonicalBase;
   const shareUrl = `${baseUrl}?db=${encodeURIComponent(dbUrl)}`;
   navigator.clipboard.writeText(shareUrl).then(() => {
     document.querySelector('.share-copy-btn').textContent = 'Copied!';
