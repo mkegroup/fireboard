@@ -5,635 +5,222 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Get Fire Ground Board running for your department in 5 minutes. Free PAR accountability system for fire departments.">
 <title>Fire Ground Board — Setup Guide</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;1,700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0a0c0f;
-  --surface: #131619;
-  --surface2: #1a1f24;
-  --border: #252d36;
-  --text: #eef1f5;
-  --text2: #8e9baa;
-  --text3: #c4cdd6;
-  --accent: #e8471a;
-  --accent2: #ff6b3d;
-  --green: #22c55e;
-  --blue: #3b82f6;
-  --yellow: #f59e0b;
+  --bg:#0a0c0f;--surface:#13161a;--surface2:#1a1e24;--border:#252d38;
+  --text:#eef1f5;--text2:#7a8897;--text3:#b8c4d0;
+  --accent:#e8471a;--accent2:#ff6b3d;--green:#22c55e;
 }
-
-- { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-background: var(–bg);
-color: var(–text);
-font-family: ‘Barlow’, sans-serif;
-font-size: 16px;
-line-height: 1.6;
-overflow-x: hidden;
-}
-
-/* –– HEADER –– */
-.site-header {
-position: sticky; top: 0; z-index: 100;
-background: rgba(10,12,15,0.92);
-backdrop-filter: blur(12px);
-border-bottom: 1px solid var(–border);
-padding: 14px 24px;
-display: flex; align-items: center; justify-content: space-between;
-}
-.header-brand {
-display: flex; align-items: center; gap: 10px;
-}
-.header-dot {
-width: 10px; height: 10px; border-radius: 50%;
-background: var(–accent);
-animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
-.header-name {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 18px; font-weight: 800; letter-spacing: 0.5px;
-}
-.header-name span { color: var(–accent); }
-.header-cta {
-background: var(–accent); color: white;
-border: none; border-radius: 7px;
-padding: 8px 16px;
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 14px; font-weight: 700;
-text-transform: uppercase; letter-spacing: 0.5px;
-cursor: pointer; text-decoration: none;
-display: inline-block;
-transition: background 0.15s;
-}
-.header-cta:hover { background: var(–accent2); }
-
-/* –– HERO –– */
-.hero {
-padding: 64px 24px 48px;
-max-width: 680px; margin: 0 auto;
-text-align: center;
-}
-.hero-eyebrow {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 11px; font-weight: 700; letter-spacing: 4px;
-color: var(–accent); text-transform: uppercase;
-margin-bottom: 16px;
-display: inline-flex; align-items: center; gap: 8px;
-}
-.hero-eyebrow::before, .hero-eyebrow::after {
-content: ‘’; display: block;
-width: 32px; height: 1px; background: var(–accent);
-opacity: 0.5;
-}
-.hero h1 {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: clamp(36px, 8vw, 58px);
-font-weight: 800; line-height: 1.0;
-margin-bottom: 20px;
-}
-.hero h1 em {
-font-style: italic; color: var(–accent);
-}
-.hero-desc {
-font-size: 17px; color: var(–text3); line-height: 1.65;
-max-width: 520px; margin: 0 auto 32px;
-}
-.hero-time {
-display: inline-flex; align-items: center; gap: 8px;
-background: rgba(34,197,94,0.1);
-border: 1px solid rgba(34,197,94,0.3);
-border-radius: 100px;
-padding: 8px 18px;
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
-color: var(–green);
-}
-.hero-time-dot { width: 7px; height: 7px; border-radius: 50%; background: var(–green); }
-
-/* –– WHAT YOU NEED –– */
-.prereqs {
-max-width: 680px; margin: 0 auto;
-padding: 0 24px 48px;
-}
-.prereq-grid {
-display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-gap: 12px; margin-top: 20px;
-}
-.prereq-card {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-padding: 16px;
-display: flex; align-items: flex-start; gap: 12px;
-}
-.prereq-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
-.prereq-title {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 15px; font-weight: 700; color: var(–text);
-margin-bottom: 2px;
-}
-.prereq-desc { font-size: 12px; color: var(–text2); line-height: 1.4; }
-
-/* –– STEPS –– */
-.steps-section {
-max-width: 680px; margin: 0 auto;
-padding: 0 24px 64px;
-}
-
-.section-heading {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 11px; font-weight: 700; letter-spacing: 3px;
-color: var(–text2); text-transform: uppercase;
-border-bottom: 1px solid var(–border);
-padding-bottom: 10px; margin-bottom: 28px;
-}
-
-.step {
-display: flex; gap: 20px; margin-bottom: 32px;
-align-items: flex-start;
-}
-.step:last-child { margin-bottom: 0; }
-
-.step-left {
-display: flex; flex-direction: column; align-items: center;
-flex-shrink: 0;
-}
-.step-num {
-width: 38px; height: 38px; border-radius: 50%;
-background: var(–accent);
-display: flex; align-items: center; justify-content: center;
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 18px; font-weight: 800; color: white;
-flex-shrink: 0;
-}
-.step-line {
-width: 1px; flex: 1; min-height: 24px;
-background: var(–border); margin-top: 6px;
-}
-.step:last-child .step-line { display: none; }
-
-.step-body { flex: 1; padding-bottom: 8px; }
-.step-title {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 20px; font-weight: 800;
-margin-bottom: 6px; line-height: 1.1;
-}
-.step-desc { font-size: 15px; color: var(–text3); line-height: 1.6; }
-.step-desc strong { color: var(–text); font-weight: 600; }
-.step-desc a { color: var(–accent2); text-decoration: none; }
-.step-desc a:hover { text-decoration: underline; }
-
-.step-callout {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 10px;
-padding: 14px 16px;
-margin-top: 14px;
-font-size: 14px; color: var(–text2); line-height: 1.6;
-}
-.step-callout strong { color: var(–text); }
-.step-callout code {
-background: var(–surface2);
-border: 1px solid var(–border);
-border-radius: 5px;
-padding: 2px 7px;
-font-size: 13px; color: var(–text);
-font-family: ‘Courier New’, monospace;
-}
-
-.step-img-placeholder {
-background: var(–surface2);
-border: 1px dashed var(–border);
-border-radius: 10px;
-padding: 20px;
-margin-top: 14px;
-text-align: center;
-font-size: 13px; color: var(–text2);
-}
-
-.nav-path {
-display: inline-flex; align-items: center; gap: 6px;
-background: var(–surface2);
-border: 1px solid var(–border);
-border-radius: 8px;
-padding: 8px 12px;
-font-size: 13px; color: var(–text3);
-margin-top: 12px; flex-wrap: wrap;
-}
-.nav-path-step {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-weight: 700; font-size: 14px; color: var(–text);
-}
-.nav-path-arrow { color: var(–text2); font-size: 12px; }
-
-.url-box {
-background: var(–surface2);
-border: 1px solid var(–border);
-border-left: 3px solid var(–accent);
-border-radius: 8px;
-padding: 12px 14px;
-margin-top: 12px;
-font-family: ‘Courier New’, monospace;
-font-size: 13px; color: var(–accent2);
-word-break: break-all;
-}
-
-/* –– DIVIDER –– */
-.section-divider {
-max-width: 680px; margin: 0 auto 40px;
-padding: 0 24px;
-height: 1px; background: var(–border);
-}
-
-/* –– TROUBLESHOOT –– */
-.troubleshoot {
-max-width: 680px; margin: 0 auto;
-padding: 0 24px 64px;
-}
-.trouble-item {
-border: 1px solid var(–border);
-border-radius: 10px;
-overflow: hidden;
-margin-bottom: 8px;
-}
-.trouble-q {
-padding: 14px 16px;
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 16px; font-weight: 700; color: var(–text);
-background: var(–surface);
-cursor: pointer;
-display: flex; align-items: center; justify-content: space-between;
-user-select: none;
-}
-.trouble-q:active { background: var(–surface2); }
-.trouble-chevron { color: var(–text2); font-size: 12px; transition: transform 0.2s; }
-.trouble-a {
-padding: 0 16px;
-font-size: 14px; color: var(–text2); line-height: 1.65;
-max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s;
-}
-.trouble-a.open { max-height: 300px; padding: 14px 16px; }
-.trouble-a strong { color: var(–text); }
-.trouble-a code {
-background: var(–surface2); border: 1px solid var(–border);
-border-radius: 4px; padding: 1px 6px; font-size: 12px;
-font-family: ‘Courier New’, monospace;
-}
-
-/* –– CTA FOOTER –– */
-.cta-footer {
-background: var(–surface);
-border-top: 1px solid var(–border);
-padding: 48px 24px;
-text-align: center;
-}
-.cta-footer h2 {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 32px; font-weight: 800;
-margin-bottom: 12px;
-}
-.cta-footer p {
-color: var(–text2); font-size: 15px;
-max-width: 440px; margin: 0 auto 28px;
-line-height: 1.6;
-}
-.cta-btn {
-display: inline-block;
-background: var(–accent); color: white;
-border-radius: 10px; padding: 16px 32px;
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 18px; font-weight: 800;
-text-transform: uppercase; letter-spacing: 1px;
-text-decoration: none;
-transition: background 0.15s, transform 0.1s;
-}
-.cta-btn:hover { background: var(–accent2); transform: translateY(-1px); }
-.cta-btn:active { transform: translateY(0); }
-.cta-footer-note {
-margin-top: 16px; font-size: 13px; color: var(–text2);
-}
-
-/* –– FOOTER –– */
-footer {
-border-top: 1px solid var(–border);
-padding: 20px 24px;
-text-align: center;
-font-size: 12px; color: var(–text2);
-}
-footer a { color: var(–accent2); text-decoration: none; }
-
-/* –– UTIL –– */
-.label {
-font-family: ‘Barlow Condensed’, sans-serif;
-font-size: 11px; font-weight: 700; letter-spacing: 2px;
-color: var(–text2); text-transform: uppercase;
-margin-bottom: 16px; display: block;
-}
-
-@media (max-width: 480px) {
-.hero { padding: 48px 20px 36px; }
-.steps-section, .prereqs, .troubleshoot { padding-left: 20px; padding-right: 20px; }
-.step { gap: 14px; }
-.step-num { width: 32px; height: 32px; font-size: 15px; }
-}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;line-height:1.5;overflow-x:hidden}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+nav{position:sticky;top:0;z-index:100;background:rgba(10,12,15,0.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800}
+.nav-logo span{color:var(--accent)}
+.nav-btn{background:var(--accent);color:white;border:none;border-radius:7px;padding:7px 14px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;text-decoration:none}
+.hero{padding:32px 20px 24px;border-bottom:1px solid var(--border)}
+.hero-tag{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:10px}
+.hero h1{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;line-height:1.0;margin-bottom:12px}
+.hero h1 em{font-style:italic;color:var(--accent)}
+.hero-sub{font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:16px;max-width:400px}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:100px;padding:6px 14px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--green)}
+.bdot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.prereqs{padding:22px 20px;border-bottom:1px solid var(--border)}
+.slabel{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--text2);text-transform:uppercase;margin-bottom:12px}
+.plist{display:flex;flex-direction:column;gap:7px}
+.prow{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.picon{font-size:20px;flex-shrink:0}
+.ptitle{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700}
+.pdesc{font-size:12px;color:var(--text2);margin-top:1px}
+.pfree{margin-left:auto;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;color:var(--green);background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:5px;padding:2px 7px}
+.steps{padding:22px 20px 36px}
+.step{display:flex;gap:14px}
+.sc{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.snum{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:white;flex-shrink:0}
+.sline{width:2px;flex:1;background:var(--border);margin:4px 0;min-height:16px}
+.step:last-child .sline{display:none}
+.sbody{flex:1;padding-bottom:22px}
+.step:last-child .sbody{padding-bottom:0}
+.stitle{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;margin-bottom:5px;line-height:1.1;padding-top:4px}
+.sdesc{font-size:14px;color:var(--text3);line-height:1.6}
+.sdesc strong{color:var(--text);font-weight:600}
+.callout{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--text2);line-height:1.6;margin-top:10px}
+.callout strong{color:var(--text)}
+.callout code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;font-family:monospace;color:var(--text)}
+.crumb{display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-top:10px}
+.cs{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+.ca{color:var(--text2);font-size:11px}
+.urlbox{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:11px 13px;margin-top:10px;font-family:monospace;font-size:13px;color:var(--accent2);word-break:break-all}
+.flist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.frow{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;gap:10px;align-items:flex-start}
+.fn{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--accent2);min-width:100px;flex-shrink:0;padding-top:1px}
+.fd{font-size:13px;color:var(--text2);line-height:1.5}
+.fd strong{color:var(--text)}
+.divider{height:1px;background:var(--border);margin:0 20px}
+.faq{padding:22px 20px 36px}
+.fi{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.fq{padding:12px 13px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;user-select:none}
+.fq:active{background:var(--surface2)}
+.fchev{color:var(--text2);font-size:11px;flex-shrink:0}
+.fa{font-size:13px;color:var(--text2);line-height:1.65;max-height:0;overflow:hidden;transition:max-height .25s ease,padding .25s;padding:0 13px}
+.fa.open{max-height:400px;padding:12px 13px;border-top:1px solid var(--border)}
+.fa strong{color:var(--text)}
+.fa code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;font-family:monospace}
+.cta{background:var(--surface);border-top:1px solid var(--border);padding:36px 20px;text-align:center}
+.cta h2{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;margin-bottom:10px}
+.cta p{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:22px;max-width:320px;margin-left:auto;margin-right:auto}
+.cbtn{display:inline-block;background:var(--accent);color:white;border-radius:10px;padding:14px 28px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;text-transform:uppercase;letter-spacing:1px;text-decoration:none}
+.cnote{margin-top:12px;font-size:12px;color:var(--text2)}
+footer{border-top:1px solid var(--border);padding:16px 20px;text-align:center;font-size:12px;color:var(--text2)}
 </style>
-
 </head>
 <body>
+<nav>
+  <div class="nav-logo">Fire Ground <span>Board</span></div>
+  <a href="https://fire.mkegroup.ca" class="nav-btn">Open App</a>
+</nav>
 
-<!-- HEADER -->
+<div class="hero">
+  <div class="hero-tag">Setup Guide</div>
+  <h1>Live on your next<br>call in <em>5 minutes.</em></h1>
+  <p class="hero-sub">Free for any fire department. One Google account, 5 minutes, ready for your next call.</p>
+  <div class="hero-badge"><div class="bdot"></div>Total setup time: 5 minutes</div>
+</div>
 
-<header class="site-header">
-  <div class="header-brand">
-    <div class="header-dot"></div>
-    <div class="header-name">Fire Ground <span>Board</span></div>
+<div class="prereqs">
+  <div class="slabel">What you need</div>
+  <div class="plist">
+    <div class="prow"><div class="picon">📱</div><div><div class="ptitle">A smartphone</div><div class="pdesc">Any iPhone or Android. Crew just need Safari or Chrome.</div></div><div class="pfree">FREE</div></div>
+    <div class="prow"><div class="picon">📶</div><div><div class="ptitle">Cell service</div><div class="pdesc">One bar is enough to sync across all devices.</div></div><div class="pfree">FREE</div></div>
+    <div class="prow"><div class="picon">🔑</div><div><div class="ptitle">Google account</div><div class="pdesc">For your free Firebase database. Most depts already have one.</div></div><div class="pfree">FREE</div></div>
   </div>
-  <a href="https://fire.mkegroup.ca" class="header-cta">Open App</a>
-</header>
+</div>
 
-<!-- HERO -->
+<div class="divider"></div>
 
-<section class="hero">
-  <div class="hero-eyebrow">Setup Guide</div>
-  <h1>Live on your next call<br>in <em>5 minutes.</em></h1>
-  <p class="hero-desc">Fire Ground Board is free for any department. You need one free Google account and about 5 minutes to get fully set up. This guide walks through every step.</p>
-  <div class="hero-time">
-    <div class="hero-time-dot"></div>
-    Total setup time: 5 minutes
-  </div>
-</section>
-
-<!-- WHAT YOU NEED -->
-
-<section class="prereqs">
-  <span class="label">What you need</span>
-  <div class="prereq-grid">
-    <div class="prereq-card">
-      <div class="prereq-icon">📱</div>
-      <div>
-        <div class="prereq-title">A smartphone</div>
-        <div class="prereq-desc">Any iPhone or Android. Crew just need a browser — Safari or Chrome.</div>
-      </div>
-    </div>
-    <div class="prereq-card">
-      <div class="prereq-icon">📶</div>
-      <div>
-        <div class="prereq-title">Cell service</div>
-        <div class="prereq-desc">One bar is enough. The board syncs over regular cell data.</div>
-      </div>
-    </div>
-    <div class="prereq-card">
-      <div class="prereq-icon">🔑</div>
-      <div>
-        <div class="prereq-title">Google account</div>
-        <div class="prereq-desc">To create your free Firebase database. Takes 2 minutes if you don't have one.</div>
-      </div>
-    </div>
-    <div class="prereq-card">
-      <div class="prereq-icon">💰</div>
-      <div>
-        <div class="prereq-title">Budget: $0</div>
-        <div class="prereq-desc">Everything used here is on free tiers. No credit card, no trial period.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="section-divider"></div>
-
-<!-- STEPS -->
-
-<section class="steps-section">
-  <div class="section-heading">Step-by-step setup</div>
-
-  <!-- Step 1 -->
+<div class="steps">
+  <div class="slabel" style="margin-bottom:18px">Step-by-step</div>
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">1</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Go to Firebase Console</div>
-      <div class="step-desc">
-        Open <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> in your browser and sign in with a Google account your department controls — a shared Gmail works fine.
-      </div>
+    <div class="sc"><div class="snum">1</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Open Firebase Console</div>
+      <div class="sdesc">Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> and sign in with a Google account your department controls.</div>
     </div>
   </div>
-
-  <!-- Step 2 -->
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">2</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Create a new project</div>
-      <div class="step-desc">
-        Tap <strong>Add Project</strong>. Give it a name — something like <strong>BarreysBayFire</strong> or <strong>RenfrewFD</strong>. Click through the prompts. When asked about Google Analytics, you can skip it.
-      </div>
-      <div class="step-callout">
-        Each department gets their own project. Your incidents are completely private and separate from any other department using Fire Ground Board.
-      </div>
+    <div class="sc"><div class="snum">2</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Create a new project</div>
+      <div class="sdesc">Tap <strong>Add Project</strong>. Name it anything — e.g. <strong>BarreysBayFire</strong>. Click through, skip Google Analytics.</div>
+      <div class="callout">Each department gets their own project. Your incidents are completely private and separate from any other department.</div>
     </div>
   </div>
-
-  <!-- Step 3 -->
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">3</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Add a Realtime Database</div>
-      <div class="step-desc">
-        Once your project is created, navigate to:
-      </div>
-      <div class="nav-path">
-        <span class="nav-path-step">Build</span>
-        <span class="nav-path-arrow">→</span>
-        <span class="nav-path-step">Realtime Database</span>
-        <span class="nav-path-arrow">→</span>
-        <span class="nav-path-step">Create Database</span>
-      </div>
-      <div class="step-desc" style="margin-top:12px;">
-        Choose a region — <strong>us-central1</strong> is fine. When asked about security rules, select <strong>Start in test mode</strong> and click Enable.
-      </div>
-      <div class="step-callout">
-        <strong>What is "test mode"?</strong> It means anyone with your database URL can read and write for 30 days. That's fine — your 4-digit captain PIN protects control of the board, and you only share the URL with your crew. See the troubleshooting section below for how to renew after 30 days.
-      </div>
+    <div class="sc"><div class="snum">3</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Add a Realtime Database</div>
+      <div class="sdesc">Inside your project navigate to:</div>
+      <div class="crumb"><span class="cs">Build</span><span class="ca">›</span><span class="cs">Realtime Database</span><span class="ca">›</span><span class="cs">Create Database</span></div>
+      <div class="sdesc" style="margin-top:10px">Choose any region. When asked about security rules, select <strong>Start in test mode</strong> → Enable.</div>
     </div>
   </div>
-
-  <!-- Step 4 -->
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">4</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Copy your database URL</div>
-      <div class="step-desc">
-        After the database is created you'll see a URL near the top of the screen. It looks like this:
-      </div>
-      <div class="url-box">https://your-project-default-rtdb.firebaseio.com</div>
-      <div class="step-desc" style="margin-top:12px;">
-        Copy that URL. This is the only thing you need to remember. Save it in your phone's notes app.
-      </div>
+    <div class="sc"><div class="snum">4</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Copy your database URL</div>
+      <div class="sdesc">After the database creates you'll see a URL at the top:</div>
+      <div class="urlbox">https://your-project-default-rtdb.firebaseio.com</div>
+      <div class="sdesc" style="margin-top:10px">Copy it. Save it in your phone's notes. This is all you need going forward.</div>
     </div>
   </div>
-
-  <!-- Step 5 -->
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">5</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Open Fire Ground Board and start your first incident</div>
-      <div class="step-desc">
-        Go to <a href="https://fire.mkegroup.ca" target="_blank">fire.mkegroup.ca</a>. On the setup screen:
+    <div class="sc"><div class="snum">5</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Start your first incident</div>
+      <div class="sdesc">Go to <a href="https://fire.mkegroup.ca" target="_blank">fire.mkegroup.ca</a> and fill in the setup screen:</div>
+      <div class="flist">
+        <div class="frow"><div class="fn">Dept Name</div><div class="fd">Your department name</div></div>
+        <div class="frow"><div class="fn">Firebase URL</div><div class="fd">Paste the URL from Step 4</div></div>
+        <div class="frow"><div class="fn">Captain PIN</div><div class="fd">Any 4 digits. Share only with lieutenant or backup IC.</div></div>
+        <div class="frow"><div class="fn">Incident</div><div class="fd">e.g. <strong>Structure Fire Hwy 60</strong></div></div>
+        <div class="frow"><div class="fn">Address</div><div class="fd">Location of the incident</div></div>
       </div>
-      <div class="step-callout" style="margin-top:12px;">
-        <strong>Department Name</strong> — your department name (e.g. Barry's Bay Fire)<br><br>
-        <strong>Firebase Database URL</strong> — paste the URL from Step 4<br><br>
-        <strong>Captain PIN</strong> — any 4-digit PIN. Share this only with your lieutenant or backup IC. Anyone with this PIN gets full captain access.<br><br>
-        <strong>Incident Name</strong> — what this call is (e.g. Structure Fire Hwy 60)<br><br>
-        <strong>Address</strong> — location of the incident
-      </div>
-      <div class="step-desc" style="margin-top:12px;">
-        Tap <strong>Start Incident as Captain</strong>. You're live.
-      </div>
+      <div class="sdesc" style="margin-top:10px">Tap <strong>Start Incident as Captain</strong>. You're live.</div>
     </div>
   </div>
-
-  <!-- Step 6 -->
 
   <div class="step">
-    <div class="step-left">
-      <div class="step-num">6</div>
-      <div class="step-line"></div>
-    </div>
-    <div class="step-body">
-      <div class="step-title">Share with your crew</div>
-      <div class="step-desc">
-        Tap the <strong>📲</strong> button in the top right. You'll see a QR code and a share link. Post either one to your department group chat. Crew tap the link in Safari or Chrome — no download, no account needed. They tap their name and they're on the board instantly.
-      </div>
-      <div class="step-callout">
-        <strong>That's it.</strong> For every future call, your Firebase URL and PIN are pre-filled. You just enter the incident name and address and tap Start.
-      </div>
+    <div class="sc"><div class="snum">6</div><div class="sline"></div></div>
+    <div class="sbody">
+      <div class="stitle">Share with your crew</div>
+      <div class="sdesc">Tap <strong>📲</strong> in the top right. Post the QR code or link to your group chat. Crew tap it in their browser — no download, no account. They tap their name and they're on the board.</div>
+      <div class="callout"><strong>Every future call</strong> — Firebase URL and PIN are pre-filled. Just enter the incident name and address and tap Start.</div>
     </div>
   </div>
 
-</section>
+</div>
 
-<div class="section-divider"></div>
+<div class="divider"></div>
 
-<!-- TROUBLESHOOT -->
+<div class="faq">
+  <div class="slabel">Troubleshooting</div>
 
-<section class="troubleshoot">
-  <div class="section-heading">Troubleshooting</div>
-
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      The board stopped syncing after a few weeks
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      <strong>Firebase test mode rules expire every 30 days.</strong> Fix it in 30 seconds: go to Firebase Console → your project → Realtime Database → <strong>Rules</strong> tab. Replace everything with:<br><br>
-      <code>{ "rules": { ".read": true, ".write": true } }</code><br><br>
-      Click <strong>Publish</strong>. Done. Set a monthly reminder on your phone so you don't get caught mid-call.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">Board stopped syncing after a few weeks<span class="fchev">▶</span></div>
+    <div class="fa">Firebase test mode rules expire every 30 days. Fix: Firebase Console → your project → Realtime Database → <strong>Rules</strong> tab. Replace everything with <code>{"rules":{".read":true,".write":true}}</code> and click <strong>Publish</strong>. Set a monthly reminder so you're not caught mid-call.</div>
   </div>
 
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      The Start Incident button isn't doing anything
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      Two most common causes: <strong>1)</strong> The Firebase URL is wrong — make sure it ends in <code>.firebaseio.com</code> with no trailing slash. <strong>2)</strong> Your Firebase rules have expired — see the fix above. If neither helps, try reloading the page and waiting 5 seconds before tapping Start.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">Start Incident button isn't working<span class="fchev">▶</span></div>
+    <div class="fa">Two common causes: <strong>1)</strong> Firebase URL is wrong — confirm it ends in <code>.firebaseio.com</code> with no trailing slash. <strong>2)</strong> Firebase rules expired — see fix above. Try reloading and waiting 5 seconds before tapping.</div>
   </div>
 
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      Crew scanning the QR code get sent to the setup screen
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      This usually means the page is still cached from a previous version. Tell crew to <strong>close the tab completely and reopen the link</strong>, or open it in a private/incognito browser window. That bypasses the cache and loads fresh.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">Crew scanning QR get sent to the setup screen<span class="fchev">▶</span></div>
+    <div class="fa">Cached old version. Tell crew to close the tab completely and reopen the link, or open it in a private/incognito window.</div>
   </div>
 
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      No cell service on scene — will it work?
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      The board requires at least one bar of cell signal to sync between devices. One bar is enough. In a complete dead zone, the captain's phone still works as a local tracker — statuses update on their screen — and everything syncs automatically when signal returns. For scenes with zero signal, a physical PAR board is still your fallback.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">No cell service on scene<span class="fchev">▶</span></div>
+    <div class="fa">One bar is enough to sync. In a complete dead zone, the captain's phone still works locally and syncs when signal returns. For zero-signal scenes, a physical PAR board is still your fallback.</div>
   </div>
 
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      Is our incident data private?
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      Yes. Each department has their own Firebase project under their own Google account. The database URL is only shared with your crew. No data is shared with MKE Group, other departments, or anyone else. Your call history lives in your Firebase project and you can delete it any time from the Firebase Console.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">Can multiple people have captain access?<span class="fchev">▶</span></div>
+    <div class="fa">Yes. Anyone who enters the PIN on the login screen gets full captain access. Share it with your lieutenant or anyone who may need IC access.</div>
   </div>
 
-  <div class="trouble-item">
-    <div class="trouble-q" onclick="toggleFaq(this)">
-      Can multiple people have captain access?
-      <span class="trouble-chevron">▶</span>
-    </div>
-    <div class="trouble-a">
-      Yes. Anyone who enters the captain PIN on the login screen gets full control. Share the PIN with your lieutenant, deputy chief, or anyone who may need IC access. There's no limit on how many captain-level users can be active at once.
-    </div>
+  <div class="fi">
+    <div class="fq" onclick="t(this)">Is our data private?<span class="fchev">▶</span></div>
+    <div class="fa">Yes. Each department has their own Firebase project under their own Google account. Nothing is shared with MKE Group or other departments. Your call history lives in your Firebase project and you can delete it any time from the Firebase Console.</div>
   </div>
 
-</section>
+</div>
 
-<!-- CTA -->
-
-<section class="cta-footer">
+<div class="cta">
   <h2>Ready to go?</h2>
-  <p>Fire Ground Board is live and free. Open it in your browser, complete setup in 5 minutes, and you're ready for your next call.</p>
-  <a href="https://fire.mkegroup.ca" class="cta-btn">Open Fire Ground Board</a>
-  <div class="cta-footer-note">Free for any fire department. No account, no app, no subscription.</div>
-</section>
+  <p>Free for any fire department. No account, no app, no subscription.</p>
+  <a href="https://fire.mkegroup.ca" class="cbtn">Open Fire Ground Board</a>
+  <div class="cnote">fire.mkegroup.ca</div>
+</div>
 
-<footer>
-  Built by <a href="https://mkegroup.ca" target="_blank">MKE Group</a> &nbsp;·&nbsp; <a href="https://fire.mkegroup.ca">fire.mkegroup.ca</a>
-</footer>
+<footer>Built by <a href="https://mkegroup.ca" target="_blank">MKE Group</a> &nbsp;·&nbsp; <a href="https://fire.mkegroup.ca">fire.mkegroup.ca</a></footer>
 
 <script>
-function toggleFaq(el) {
-  const answer = el.nextElementSibling;
-  const chevron = el.querySelector('.trouble-chevron');
-  const isOpen = answer.classList.contains('open');
-  // Close all
-  document.querySelectorAll('.trouble-a').forEach(a => a.classList.remove('open'));
-  document.querySelectorAll('.trouble-chevron').forEach(c => c.textContent = '▶');
-  // Open this one if it was closed
-  if (!isOpen) {
-    answer.classList.add('open');
-    chevron.textContent = '▼';
-  }
+function t(el){
+  const a=el.nextElementSibling,c=el.querySelector('.fchev'),o=a.classList.contains('open');
+  document.querySelectorAll('.fa').forEach(x=>x.classList.remove('open'));
+  document.querySelectorAll('.fchev').forEach(x=>x.textContent='▶');
+  if(!o){a.classList.add('open');c.textContent='▼';}
 }
 </script>
 
