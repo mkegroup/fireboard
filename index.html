@@ -334,13 +334,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .modal-sheet {
   background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
   padding: 16px; padding-bottom: env(safe-area-inset-bottom, 24px); display: flex; flex-direction: column; gap: 8px;
-  max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  max-height: 88vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
   position: sticky; top: 0; background: var(--surface); z-index: 1; padding-bottom: 8px;
 }
-.modal-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; }
+.modal-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-close {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
   width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
@@ -361,22 +361,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .add-modal-sheet {
   background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
   padding: 16px; padding-bottom: env(safe-area-inset-bottom, 28px); display: flex; flex-direction: column; gap: 10px;
-  max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  max-height: 92vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
 }
 .modal-input {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 15px;
-  outline: none; width: 100%;
+  outline: none; width: 100%; min-width: 0;
 }
 .modal-input:focus { border-color: var(--accent); }
 .modal-input::placeholder { color: var(--text2); }
 .modal-select {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 14px;
-  outline: none; width: 100%;
+  outline: none; width: 100%; min-width: 0;
 }
-.modal-row { display: flex; gap: 8px; }
-.modal-label { font-family: var(--font-head); font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--text2); text-transform: uppercase; margin-bottom: 4px; }
+.modal-row { display: flex; gap: 8px; min-width: 0; }
+.modal-row > div { min-width: 0; flex: 1; }
 .modal-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
 .modal-toggle-label { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
 .toggle-switch {
@@ -1322,9 +1322,7 @@ select option { background: var(--surface); }
   <div class="dept-panel-tab active" id="dpanel-training">
     <div class="dept-toolbar captain-only" id="training-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddTrainingModal()">+ Log Training</button>
-      <div id="attendance-prompt-btn" style="display:none;">
-        <button class="add-member-btn" style="background:var(--green);" onclick="openAttendancePrompt()">Open Attendance</button>
-      </div>
+      <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="exportTraining()">Export</button>
     </div>
     <!-- Crew attendance banner -->
     <div id="attendance-banner" class="hidden" style="background:rgba(34,197,94,0.12);border-bottom:1px solid rgba(34,197,94,0.3);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -1347,6 +1345,7 @@ select option { background: var(--surface); }
   <div class="dept-panel-tab" id="dpanel-roster">
     <div class="dept-toolbar captain-only" id="roster-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddRosterMemberModal()">+ Add Member</button>
+      <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="exportRoster()">Export</button>
     </div>
     <div id="roster-profile-list" style="padding:8px;"></div>
     <div id="roster-empty" class="empty-state" style="display:none;">
@@ -1362,6 +1361,7 @@ select option { background: var(--surface); }
     <div class="dept-toolbar captain-only" id="equipment-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddEquipmentModal()">+ Add Item</button>
       <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="showManageLocationsModal()">Locations</button>
+      <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="exportEquipment()">Export</button>
     </div>
     <!-- Filter bar -->
     <div style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;" id="equip-filter-bar">
@@ -3679,6 +3679,75 @@ function removeLocation(idx) {
   DEPT.locations.splice(idx, 1);
   saveDept();
   renderLocationsList();
+}
+
+function exportTraining() {
+  const dept = STATE.deptName || 'Department';
+  const sessions = Object.values(DEPT.training || {}).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (sessions.length === 0) { alert('No training sessions to export.'); return; }
+  let text = `${dept.toUpperCase()} — TRAINING LOG\n${'='.repeat(50)}\nExported: ${new Date().toLocaleString()}\nTotal Sessions: ${sessions.length}\n\n`;
+  sessions.forEach(s => {
+    const att = (s.attendance||[]).map(a=>a.name).join(', ') || 'None recorded';
+    text += `${'─'.repeat(40)}\nSESSION: ${s.name}\nDate: ${s.date||'Not set'} · Type: ${s.type||''} · Duration: ${s.hours?s.hours+'h':'Not set'}\nLocation: ${s.location||'Not set'}\nInstructor: ${s.instructor||'Not set'}\n`;
+    if (s.notes) text += `Notes: ${s.notes}\n`;
+    text += `Attended (${(s.attendance||[]).length}): ${att}\n\n`;
+  });
+  deptDownload(text, `${(dept).toLowerCase().replace(/\s/g,'-')}-training-log-${new Date().toISOString().slice(0,10)}.txt`);
+}
+
+function exportRoster() {
+  const dept = STATE.deptName || 'Department';
+  const members = Object.values(DEPT.roster || {}).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (members.length === 0) { alert('No roster members to export.'); return; }
+  let text = `${dept.toUpperCase()} — MEMBER ROSTER\n${'='.repeat(50)}\nExported: ${new Date().toLocaleString()}\nTotal Members: ${members.length}\n\n`;
+  members.forEach(m => {
+    text += `${'─'.repeat(40)}\nNAME: ${m.name}\nRole: ${m.role||''} · Call Sign: ${m.callSign||'N/A'} · Years of Service: ${m.years||'N/A'}\n`;
+    if (m.phone) text += `Phone: ${m.phone}\n`;
+    if (m.radio) text += `Radio #: ${m.radio}\n`;
+    if ((m.certifications||[]).length > 0) {
+      text += `Certifications:\n`;
+      m.certifications.forEach(c => { text += `  - ${c.name}${c.date?' (completed '+c.date+')':''}${c.expiry?', expires '+c.expiry:''}\n`; });
+    }
+    const sessions = Object.values(DEPT.training||{}).filter(s => (s.attendance||[]).some(a=>a.name===m.name));
+    if (sessions.length > 0) {
+      const hrs = sessions.reduce((sum,s)=>sum+parseFloat(s.hours||0),0);
+      text += `Training: ${sessions.length} sessions · ${hrs} hours\n`;
+    }
+    if (m.ecName) text += `Emergency Contact: ${m.ecName}${m.ecRel?' ('+m.ecRel+')':''} · ${m.ecPhone||''}\n`;
+    if (m.notes) text += `Notes: ${m.notes}\n`;
+    text += '\n';
+  });
+  deptDownload(text, `${dept.toLowerCase().replace(/\s/g,'-')}-roster-${new Date().toISOString().slice(0,10)}.txt`);
+}
+
+function exportEquipment() {
+  const dept = STATE.deptName || 'Department';
+  const items = Object.values(DEPT.equipment || {}).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (items.length === 0) { alert('No equipment to export.'); return; }
+  const today = new Date();
+  let text = `${dept.toUpperCase()} — EQUIPMENT INVENTORY\n${'='.repeat(50)}\nExported: ${new Date().toLocaleString()}\nTotal Items: ${items.length}\n\n`;
+  const byLoc = {};
+  items.forEach(i => { const l = i.location||'Unassigned'; if (!byLoc[l]) byLoc[l]=[]; byLoc[l].push(i); });
+  Object.entries(byLoc).forEach(([loc, locItems]) => {
+    text += `\n[ ${loc.toUpperCase()} ]\n`;
+    locItems.forEach(item => {
+      const daysToSvc = item.nextService ? Math.ceil((new Date(item.nextService)-today)/86400000) : null;
+      const svcNote = daysToSvc !== null ? (daysToSvc < 0 ? ' *** OVERDUE ***' : daysToSvc<=30?` (svc in ${daysToSvc}d)`:'') : '';
+      text += `  ${item.name}${item.qty>1?' x'+item.qty:''} · ${item.status} · ${item.condition||''}${item.serial?' · SN: '+item.serial:''}${svcNote}\n`;
+      if (item.lastInspect) text += `    Last Inspection: ${item.lastInspect}\n`;
+      if (item.nextService) text += `    Next Service: ${item.nextService}\n`;
+      if (item.notes) text += `    Notes: ${item.notes}\n`;
+    });
+  });
+  deptDownload(text, `${dept.toLowerCase().replace(/\s/g,'-')}-equipment-${new Date().toISOString().slice(0,10)}.txt`);
+}
+
+function deptDownload(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatTime(ts) {
