@@ -396,6 +396,17 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 .btn-modal-add:active { opacity: 0.85; }
 
+/* Date inputs - clean on iOS */
+.date-input {
+  appearance: none; -webkit-appearance: none;
+  color-scheme: dark;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 15px;
+  min-height: 46px;
+}
+.date-input::-webkit-date-and-time-value { text-align: left; min-height: 24px; }
+
 /* APPARATUS TAB */
 .apparatus-grid { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .apparatus-card {
@@ -1391,7 +1402,7 @@ select option { background: var(--surface); }
       <div class="modal-close" onclick="document.getElementById('add-training-modal').classList.add('hidden')">✕</div>
     </div>
     <div><div class="modal-label">Session Name / Title</div><input class="modal-input" id="tr-name" placeholder="e.g. Live Fire Training, Pump Ops" autocomplete="off"></div>
-    <div><div class="modal-label">Date</div><input class="modal-input" id="tr-date" type="date"></div>
+    <div><div class="modal-label">Date</div><input class="modal-input date-input" id="tr-date" type="date"></div>
     <div><div class="modal-label">Location</div><input class="modal-input" id="tr-location" placeholder="e.g. Combermere Station, Training Grounds" autocomplete="off"></div>
     <div><div class="modal-label">Training Type</div>
       <select class="modal-select" id="tr-type">
@@ -1525,8 +1536,10 @@ select option { background: var(--surface); }
       </select>
     </div>
     <div class="modal-row">
-      <div style="flex:1;"><div class="modal-label">Last Inspection</div><input class="modal-input" id="eq-last-inspect" type="date"></div>
-      <div style="flex:1;"><div class="modal-label">Next Service Due</div><input class="modal-input" id="eq-next-service" type="date"></div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Last Inspection</div><input class="modal-input date-input" id="eq-last-inspect" type="date"></div>
+      <div style="flex:1;"><div class="modal-label">Next Service Due</div><input class="modal-input date-input" id="eq-next-service" type="date"></div>
+    </div>
     </div>
     <div><div class="modal-label">Condition</div>
       <select class="modal-select" id="eq-condition">
@@ -3405,8 +3418,8 @@ function addCertField(name, date, expiry) {
   row.className = 'cert-field-row';
   row.innerHTML = `
     <input class="modal-input cert-name-input" placeholder="Certification name" value="${name||''}" autocomplete="off" style="flex:2;">
-    <input class="modal-input cert-date-input" type="date" value="${date||''}" style="flex:1;">
-    <input class="modal-input cert-expiry-input" placeholder="Expiry (opt)" type="date" value="${expiry||''}" style="flex:1;">
+    <input class="modal-input cert-date-input date-input" type="date" value="${date||''}" style="flex:1;">
+    <input class="modal-input cert-expiry-input date-input" placeholder="Expiry (opt)" type="date" value="${expiry||''}" style="flex:1;">
     <span class="remove-cert" onclick="this.parentElement.remove()">✕</span>
   `;
   document.getElementById('rm-certs-list').appendChild(row);
