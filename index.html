@@ -223,7 +223,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
 }
 .topbar-left { flex: 1; min-width: 0; }
-.topbar-dept { font-family: var(--font-head); font-size: 9px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+.topbar-dept { font-family: var(--font-head); font-size: 15px; font-weight: 800; letter-spacing: 1px; color: var(--text); text-transform: uppercase; line-height: 1.1; }
 .topbar-incident { font-family: var(--font-head); font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
 .topbar-incident-input {
   font-family: var(--font-head); font-size: 16px; font-weight: 800; background: transparent;
@@ -897,8 +897,7 @@ select option { background: var(--surface); }
   <div class="topbar">
     <div class="topbar-left">
       <div class="topbar-dept" id="topbar-dept-label">Fire Ground Board</div>
-      <div id="topbar-incident-view" class="topbar-incident" onclick="enableEditIncident()"></div>
-      <input id="topbar-incident-edit" class="topbar-incident-input hidden" onblur="saveIncidentName()" placeholder="Incident name">
+    </div>
     </div>
     <div class="topbar-right">
       <div class="topbar-user-chip" id="topbar-user-chip"></div>
