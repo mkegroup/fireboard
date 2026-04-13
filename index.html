@@ -328,17 +328,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .modal-overlay.hidden { display: none; }
 .modal-sheet {
   background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
-  padding: 16px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 8px;
-  max-height: 80vh; overflow-y: auto;
+  padding: 16px; padding-bottom: env(safe-area-inset-bottom, 24px); display: flex; flex-direction: column; gap: 8px;
+  max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  position: sticky; top: 0; background: var(--surface); z-index: 1; padding-bottom: 8px;
 }
 .modal-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; }
 .modal-close {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
   width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-  font-size: 16px; cursor: pointer; color: var(--text2);
+  font-size: 16px; cursor: pointer; color: var(--text2); flex-shrink: 0;
 }
 .status-option {
   display: flex; align-items: center; gap: 12px; padding: 13px 14px;
@@ -354,8 +355,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* ADD MEMBER MODAL */
 .add-modal-sheet {
   background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
-  padding: 16px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 12px;
-  max-height: 85vh; overflow-y: auto;
+  padding: 16px; padding-bottom: env(safe-area-inset-bottom, 28px); display: flex; flex-direction: column; gap: 10px;
+  max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 .modal-input {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
@@ -705,6 +706,10 @@ select option { background: var(--surface); }
     <strong>First time?</strong> You need a free Firebase database to sync across devices. Takes 5 minutes. <a href="https://fire.mkegroup.ca/setup.html" target="_blank" style="color:var(--accent2);">Read the setup guide →</a>
   </div>
 
+  <button onclick="openDeptPanelFromSetup()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;width:100%;max-width:400px;font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;">
+    🏛 Department Records (No Incident Required)
+  </button>
+
 </div>
 
 <!-- ============================================================ -->
@@ -796,6 +801,10 @@ select option { background: var(--surface); }
   </select>
   <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
 </div>
+
+<button onclick="openDeptPanel()" style="background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;width:100%;font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">
+  🏛 Department Records
+</button>
 ```
 
   </div>
@@ -1350,13 +1359,13 @@ select option { background: var(--surface); }
       <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="showManageLocationsModal()">Locations</button>
     </div>
     <!-- Filter bar -->
-    <div style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;overflow-x:auto;" id="equip-filter-bar">
-      <div class="filter-pill all active" onclick="setEquipFilter('all',this)">All</div>
-      <div class="filter-pill" style="border-color:var(--green);" onclick="setEquipFilter('Available',this)">Available</div>
-      <div class="filter-pill" style="border-color:var(--blue);" onclick="setEquipFilter('Deployed',this)">Deployed</div>
-      <div class="filter-pill" style="border-color:var(--yellow);" onclick="setEquipFilter('In Service',this)">In Service</div>
-      <div class="filter-pill" style="border-color:var(--red);" onclick="setEquipFilter('Out of Service',this)">Out of Service</div>
-      <div class="filter-pill" style="border-color:var(--orange);" onclick="setEquipFilter('Missing',this)">Missing</div>
+    <div style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;" id="equip-filter-bar">
+      <div class="eq-pill eq-pill-all active" onclick="setEquipFilter('all',this)">All</div>
+      <div class="eq-pill eq-pill-available" onclick="setEquipFilter('Available',this)">Available</div>
+      <div class="eq-pill eq-pill-deployed" onclick="setEquipFilter('Deployed',this)">Deployed</div>
+      <div class="eq-pill eq-pill-inservice" onclick="setEquipFilter('In Service',this)">In Service</div>
+      <div class="eq-pill eq-pill-oos" onclick="setEquipFilter('Out of Service',this)">Out of Service</div>
+      <div class="eq-pill eq-pill-missing" onclick="setEquipFilter('Missing',this)">Missing</div>
     </div>
     <div id="equipment-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
     <div id="equipment-empty" class="empty-state" style="display:none;">
@@ -1563,6 +1572,16 @@ select option { background: var(--surface); }
 .dept-panel-tab { display:none; flex:1; overflow-y:auto; flex-direction:column; }
 .dept-panel-tab.active { display:flex; }
 .dept-toolbar { padding:10px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
+
+/* Equipment filter pills */
+.eq-pill { flex:0 0 auto; padding:6px 12px; border-radius:20px; font-family:var(--font-head); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; cursor:pointer; border:1px solid var(--border); color:var(--text2); background:var(--surface2); white-space:nowrap; }
+.eq-pill.active { color:white; }
+.eq-pill-all.active { background:var(--surface); border-color:var(--text); color:var(--text); }
+.eq-pill-available.active { background:var(--green); border-color:var(--green); color:#0a1a0a; }
+.eq-pill-deployed.active { background:var(--blue); border-color:var(--blue); }
+.eq-pill-inservice.active { background:var(--yellow); border-color:var(--yellow); color:#1a1400; }
+.eq-pill-oos.active { background:var(--red); border-color:var(--red); }
+.eq-pill-missing.active { background:var(--orange); border-color:var(--orange); }
 
 .training-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:6px; cursor:pointer; }
 .training-card:active { background:var(--surface2); }
@@ -3037,17 +3056,42 @@ let activeEquipFilter = 'all';
 let activeTrainingSessionId = null;
 let editingRosterMemberId = null;
 
+function openDeptPanelFromSetup() {
+  // Need a Firebase URL to load dept data
+  const dbUrl = document.getElementById('setup-db-url').value.trim() || document.getElementById('join-db-url').value.trim();
+  if (!dbUrl) {
+    alert('Enter your Firebase Database URL first so department records can load.');
+    return;
+  }
+  if (!window._firebaseModules) { alert('Still loading — wait a moment.'); return; }
+  // Connect silently then open dept panel
+  ssSet('fgb_db', dbUrl);
+  initFirebase(dbUrl, () => {
+    document.getElementById('setup-screen').classList.add('hidden');
+    // Open dept as captain if pin matches, otherwise read-only
+    currentUser = { name: 'Admin', role: 'Captain/IC', team: 'Command', isCaptain: true };
+    openDeptPanel();
+  });
+}
+
 function openDeptPanel() {
   document.getElementById('dept-panel').classList.remove('hidden');
   document.getElementById('dept-name-label').textContent = STATE.deptName || '';
-  // Show captain toolbars
-  if (currentUser && currentUser.isCaptain) {
-    ['training-captain-toolbar','roster-captain-toolbar','equipment-captain-toolbar'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'flex';
-    });
+  // Always show toolbars for captain — no CSS class dependency
+  const isCap = currentUser && currentUser.isCaptain;
+  ['training-captain-toolbar','roster-captain-toolbar','equipment-captain-toolbar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isCap ? 'flex' : 'none';
+  });
+  // Load dept data — connect to Firebase if available
+  if (db) {
+    loadDept();
+  } else {
+    // No Firebase yet — show empty state, allow browsing
+    renderTraining();
+    renderRosterProfiles();
+    renderEquipment();
   }
-  loadDept();
 }
 
 function closeDeptPanel() {
@@ -3492,7 +3536,7 @@ function renderEquipment() {
 
 function setEquipFilter(filter, el) {
   activeEquipFilter = filter;
-  document.querySelectorAll('#equip-filter-bar .filter-pill').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#equip-filter-bar .eq-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   renderEquipment();
 }
