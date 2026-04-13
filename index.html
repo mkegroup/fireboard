@@ -1213,6 +1213,9 @@ select option { background: var(--surface); }
       <div class="modal-title">Menu</div>
       <div class="modal-close" onclick="document.getElementById('menu-modal').classList.add('hidden')">✕</div>
     </div>
+    <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');openDeptPanel()">
+      <span>🏛</span><div><div class="menu-item-label">Department</div><div class="menu-item-desc">Training logs, roster profiles, equipment</div></div>
+    </div>
     <div class="menu-item" onclick="showLogDrawer();document.getElementById('menu-modal').classList.add('hidden')">
       <span>📋</span><div><div class="menu-item-label">Activity Log</div><div class="menu-item-desc">Full timestamped log of all changes</div></div>
     </div>
@@ -1275,6 +1278,340 @@ select option { background: var(--surface); }
     <button class="btn-modal-add" onclick="submitAddMutualAid()">Add Station</button>
   </div>
 </div>
+
+<!-- ============================================================ -->
+
+<!-- DEPARTMENT PANEL -->
+
+<!-- ============================================================ -->
+
+<div id="dept-panel" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:970;display:flex;flex-direction:column;">
+
+  <!-- Dept Header -->
+
+  <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+    <button onclick="closeDeptPanel()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
+    <div style="font-family:var(--font-head);font-size:20px;font-weight:800;">🏛 Department</div>
+    <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text2);margin-left:auto;" id="dept-name-label"></div>
+  </div>
+
+  <!-- Dept Tabs -->
+
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-shrink:0;">
+    <button class="dept-tab active" id="dtab-training" onclick="showDeptTab('training',this)">📚 Training</button>
+    <button class="dept-tab" id="dtab-roster" onclick="showDeptTab('roster',this)">👤 Roster</button>
+    <button class="dept-tab" id="dtab-equipment" onclick="showDeptTab('equipment',this)">🔧 Equipment</button>
+  </div>
+
+  <!-- TRAINING TAB -->
+
+  <div class="dept-panel-tab active" id="dpanel-training">
+    <div class="dept-toolbar captain-only" id="training-captain-toolbar" style="display:none;">
+      <button class="add-member-btn" onclick="showAddTrainingModal()">+ Log Training</button>
+      <div id="attendance-prompt-btn" style="display:none;">
+        <button class="add-member-btn" style="background:var(--green);" onclick="openAttendancePrompt()">Open Attendance</button>
+      </div>
+    </div>
+    <!-- Crew attendance banner -->
+    <div id="attendance-banner" class="hidden" style="background:rgba(34,197,94,0.12);border-bottom:1px solid rgba(34,197,94,0.3);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div>
+        <div style="font-family:var(--font-head);font-size:14px;font-weight:800;color:var(--green);">Attendance Open</div>
+        <div id="attendance-session-name" style="font-size:12px;color:var(--text2);"></div>
+      </div>
+      <button onclick="markMyAttendance()" style="background:var(--green);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">I Was There</button>
+    </div>
+    <div id="training-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="training-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">📚</div>
+      <div class="empty-title">No Training Logged</div>
+      <div class="empty-desc">Captain: tap "+ Log Training" to add a session.</div>
+    </div>
+  </div>
+
+  <!-- ROSTER TAB -->
+
+  <div class="dept-panel-tab" id="dpanel-roster">
+    <div class="dept-toolbar captain-only" id="roster-captain-toolbar" style="display:none;">
+      <button class="add-member-btn" onclick="showAddRosterMemberModal()">+ Add Member</button>
+    </div>
+    <div id="roster-profile-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="roster-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">👤</div>
+      <div class="empty-title">No Roster Members</div>
+      <div class="empty-desc">Captain: tap "+ Add Member" to build your department roster.</div>
+    </div>
+  </div>
+
+  <!-- EQUIPMENT TAB -->
+
+  <div class="dept-panel-tab" id="dpanel-equipment">
+    <div class="dept-toolbar captain-only" id="equipment-captain-toolbar" style="display:none;">
+      <button class="add-member-btn" onclick="showAddEquipmentModal()">+ Add Item</button>
+      <button class="add-member-btn" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="showManageLocationsModal()">Locations</button>
+    </div>
+    <!-- Filter bar -->
+    <div style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;overflow-x:auto;" id="equip-filter-bar">
+      <div class="filter-pill all active" onclick="setEquipFilter('all',this)">All</div>
+      <div class="filter-pill" style="border-color:var(--green);" onclick="setEquipFilter('Available',this)">Available</div>
+      <div class="filter-pill" style="border-color:var(--blue);" onclick="setEquipFilter('Deployed',this)">Deployed</div>
+      <div class="filter-pill" style="border-color:var(--yellow);" onclick="setEquipFilter('In Service',this)">In Service</div>
+      <div class="filter-pill" style="border-color:var(--red);" onclick="setEquipFilter('Out of Service',this)">Out of Service</div>
+      <div class="filter-pill" style="border-color:var(--orange);" onclick="setEquipFilter('Missing',this)">Missing</div>
+    </div>
+    <div id="equipment-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="equipment-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">🔧</div>
+      <div class="empty-title">No Equipment Added</div>
+      <div class="empty-desc">Captain: tap "+ Add Item" to start your inventory.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD TRAINING MODAL -->
+
+<div class="modal-overlay hidden" id="add-training-modal" onclick="if(event.target.id==='add-training-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-height:90vh;">
+    <div class="modal-header">
+      <div class="modal-title">Log Training Session</div>
+      <div class="modal-close" onclick="document.getElementById('add-training-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div><div class="modal-label">Session Name / Title</div><input class="modal-input" id="tr-name" placeholder="e.g. Live Fire Training, Pump Ops" autocomplete="off"></div>
+    <div><div class="modal-label">Date</div><input class="modal-input" id="tr-date" type="date"></div>
+    <div><div class="modal-label">Location</div><input class="modal-input" id="tr-location" placeholder="e.g. Combermere Station, Training Grounds" autocomplete="off"></div>
+    <div><div class="modal-label">Training Type</div>
+      <select class="modal-select" id="tr-type">
+        <option>Live Fire</option><option>Pump Operations</option><option>Rope Rescue</option>
+        <option>Vehicle Extrication</option><option>First Aid / CPR</option><option>HAZMAT</option>
+        <option>ICS / Command</option><option>Driver Training</option><option>Equipment Familiarization</option>
+        <option>Wildfire</option><option>Water Rescue</option><option>Scene Management</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div><div class="modal-label">Duration (hours)</div><input class="modal-input" id="tr-hours" type="number" placeholder="e.g. 3" min="0.5" step="0.5"></div>
+    <div><div class="modal-label">Instructor / Led By</div><input class="modal-input" id="tr-instructor" placeholder="e.g. Captain Smith, OFMEM" autocomplete="off"></div>
+    <div><div class="modal-label">Description / Notes</div><textarea class="modal-input" id="tr-notes" placeholder="What was covered, objectives, observations..." style="min-height:70px;resize:none;"></textarea></div>
+    <div class="modal-toggle-row">
+      <div class="modal-toggle-label">Open attendance to crew now</div>
+      <div class="toggle-switch" id="tr-open-attendance" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <button class="btn-modal-add" onclick="submitAddTraining()">Save Session</button>
+  </div>
+</div>
+
+<!-- TRAINING DETAIL MODAL -->
+
+<div class="modal-overlay hidden" id="training-detail-modal" onclick="if(event.target.id==='training-detail-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-height:90vh;">
+    <div class="modal-header">
+      <div class="modal-title" id="tr-detail-title">Training Detail</div>
+      <div class="modal-close" onclick="document.getElementById('training-detail-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div id="tr-detail-body"></div>
+  </div>
+</div>
+
+<!-- ADD ROSTER MEMBER MODAL -->
+
+<div class="modal-overlay hidden" id="add-roster-member-modal" onclick="if(event.target.id==='add-roster-member-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-height:92vh;">
+    <div class="modal-header">
+      <div class="modal-title" id="roster-member-modal-title">Member Profile</div>
+      <div class="modal-close" onclick="document.getElementById('add-roster-member-modal').classList.add('hidden')">✕</div>
+    </div>
+    <!-- BASIC -->
+    <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">Basic Info</div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Full Name *</div><input class="modal-input" id="rm-name" placeholder="First Last" autocomplete="off"></div>
+      <div style="flex:1;"><div class="modal-label">Call Sign</div><input class="modal-input" id="rm-callsign" placeholder="e.g. C1" autocomplete="off"></div>
+    </div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Role</div>
+        <select class="modal-select" id="rm-role">
+          <option>Firefighter</option><option>Engineer/Driver</option><option>Medic</option>
+          <option>Lieutenant</option><option>Captain/IC</option><option>Safety Officer</option><option>Chief</option>
+        </select>
+      </div>
+      <div style="flex:1;"><div class="modal-label">Years of Service</div><input class="modal-input" id="rm-years" type="number" placeholder="e.g. 5" min="0"></div>
+    </div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Phone</div><input class="modal-input" id="rm-phone" type="tel" placeholder="Optional" autocomplete="off"></div>
+      <div style="flex:1;"><div class="modal-label">Radio #</div><input class="modal-input" id="rm-radio" placeholder="Optional" autocomplete="off"></div>
+    </div>
+    <!-- CERTIFICATIONS -->
+    <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin:10px 0 6px;">Certifications</div>
+    <div id="rm-certs-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <button onclick="addCertField()" style="background:transparent;border:1px dashed var(--border);border-radius:8px;padding:8px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:4px;">+ Add Certification</button>
+    <!-- MEDICAL - captain only, sensitive -->
+    <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;margin-top:8px;">
+      <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Medical (Captain Eyes Only)</div>
+      <div class="modal-row">
+        <div style="flex:1;"><div class="modal-label">Blood Type</div>
+          <select class="modal-select" id="rm-blood">
+            <option value="">Unknown</option><option>A+</option><option>A-</option><option>B+</option>
+            <option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+          </select>
+        </div>
+        <div style="flex:1;"><div class="modal-label">EPIPEN</div>
+          <select class="modal-select" id="rm-epipen">
+            <option value="">No</option><option>Yes — carries own</option><option>Yes — needs supply</option>
+          </select>
+        </div>
+      </div>
+      <div><div class="modal-label">Allergies</div><input class="modal-input" id="rm-allergies" placeholder="e.g. Penicillin, latex (optional)" autocomplete="off"></div>
+      <div style="margin-top:6px;"><div class="modal-label">Medical Conditions</div><textarea class="modal-input" id="rm-conditions" placeholder="e.g. asthma, diabetes — anything IC should know (optional)" style="min-height:56px;resize:none;"></textarea></div>
+      <div style="margin-top:6px;"><div class="modal-label">Medications</div><input class="modal-input" id="rm-medications" placeholder="Optional" autocomplete="off"></div>
+    </div>
+    <!-- EMERGENCY CONTACT -->
+    <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin:10px 0 6px;">Emergency Contact</div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Name</div><input class="modal-input" id="rm-ec-name" placeholder="Optional" autocomplete="off"></div>
+      <div style="flex:1;"><div class="modal-label">Relationship</div><input class="modal-input" id="rm-ec-rel" placeholder="e.g. Spouse" autocomplete="off"></div>
+    </div>
+    <div><div class="modal-label">Phone</div><input class="modal-input" id="rm-ec-phone" type="tel" placeholder="Optional" autocomplete="off"></div>
+    <!-- NOTES -->
+    <div style="margin-top:8px;"><div class="modal-label">Notes</div><textarea class="modal-input" id="rm-notes" placeholder="Any other relevant information..." style="min-height:56px;resize:none;"></textarea></div>
+    <input type="hidden" id="rm-editing-id">
+    <button class="btn-modal-add" onclick="submitRosterMember()">Save Member</button>
+  </div>
+</div>
+
+<!-- ADD EQUIPMENT MODAL -->
+
+<div class="modal-overlay hidden" id="add-equipment-modal" onclick="if(event.target.id==='add-equipment-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-height:92vh;">
+    <div class="modal-header">
+      <div class="modal-title" id="equip-modal-title">Add Equipment</div>
+      <div class="modal-close" onclick="document.getElementById('add-equipment-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div><div class="modal-label">Item Name *</div><input class="modal-input" id="eq-name" placeholder="e.g. SCBA Pack, Thermal Imager, Jaws of Life" autocomplete="off"></div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Category</div>
+        <select class="modal-select" id="eq-category">
+          <option>SCBA / Breathing</option><option>Hose / Nozzle</option><option>Rescue Tools</option>
+          <option>Thermal Imaging</option><option>Communications</option><option>Medical / EMS</option>
+          <option>PPE</option><option>Ladders</option><option>Lighting</option><option>Pumping Equipment</option>
+          <option>Foam / Suppression</option><option>Hand Tools</option><option>Vehicle Equipment</option><option>Other</option>
+        </select>
+      </div>
+      <div style="flex:1;"><div class="modal-label">Status</div>
+        <select class="modal-select" id="eq-status">
+          <option>Available</option><option>Deployed</option><option>In Service</option>
+          <option>Out of Service</option><option>Missing</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">ID / Serial #</div><input class="modal-input" id="eq-serial" placeholder="Optional" autocomplete="off"></div>
+      <div style="flex:1;"><div class="modal-label">Quantity</div><input class="modal-input" id="eq-qty" type="number" placeholder="1" min="1" value="1"></div>
+    </div>
+    <div><div class="modal-label">Location</div>
+      <select class="modal-select" id="eq-location">
+        <option value="Station">Station</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <div style="flex:1;"><div class="modal-label">Last Inspection</div><input class="modal-input" id="eq-last-inspect" type="date"></div>
+      <div style="flex:1;"><div class="modal-label">Next Service Due</div><input class="modal-input" id="eq-next-service" type="date"></div>
+    </div>
+    <div><div class="modal-label">Condition</div>
+      <select class="modal-select" id="eq-condition">
+        <option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option><option>Needs Repair</option>
+      </select>
+    </div>
+    <div><div class="modal-label">Notes</div><textarea class="modal-input" id="eq-notes" placeholder="Additional details, damage notes, service history..." style="min-height:60px;resize:none;"></textarea></div>
+    <input type="hidden" id="eq-editing-id">
+    <button class="btn-modal-add" onclick="submitEquipment()">Save Item</button>
+  </div>
+</div>
+
+<!-- MANAGE LOCATIONS MODAL -->
+
+<div class="modal-overlay hidden" id="manage-locations-modal" onclick="if(event.target.id==='manage-locations-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Equipment Locations</div>
+      <div class="modal-close" onclick="document.getElementById('manage-locations-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div id="locations-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <input class="modal-input" id="new-location-input" placeholder="e.g. Tanker 1, Bay 2, Training Room" autocomplete="off">
+      <button onclick="addLocation()" style="background:var(--accent);color:white;border:none;border-radius:8px;padding:10px 16px;font-family:var(--font-head);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEMBER PROFILE VIEW MODAL -->
+
+<div class="modal-overlay hidden" id="member-profile-modal" onclick="if(event.target.id==='member-profile-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-height:92vh;">
+    <div class="modal-header">
+      <div class="modal-title" id="profile-modal-name">Member Profile</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="profile-edit-btn" onclick="editRosterMember()" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--text);cursor:pointer;">Edit</button>
+        <div class="modal-close" onclick="document.getElementById('member-profile-modal').classList.add('hidden')">✕</div>
+      </div>
+    </div>
+    <div id="profile-modal-body"></div>
+  </div>
+</div>
+
+<style>
+.dept-tab { flex:1; padding:10px 8px; font-family:var(--font-head); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text2); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; }
+.dept-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.dept-tab:active { background:var(--surface2); }
+.dept-panel-tab { display:none; flex:1; overflow-y:auto; flex-direction:column; }
+.dept-panel-tab.active { display:flex; }
+.dept-toolbar { padding:10px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
+
+.training-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:6px; cursor:pointer; }
+.training-card:active { background:var(--surface2); }
+.training-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.training-card-name { font-family:var(--font-head); font-size:16px; font-weight:800; }
+.training-card-meta { font-size:12px; color:var(--text2); margin-top:3px; }
+.training-card-badge { font-family:var(--font-head); font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px; background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); white-space:nowrap; flex-shrink:0; }
+.training-card-badge.open { background:rgba(234,179,8,.15); color:var(--yellow); border-color:rgba(234,179,8,.3); }
+.attendance-chip { display:inline-flex; align-items:center; gap:4px; background:var(--surface2); border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:11px; color:var(--text2); margin:2px; }
+
+.roster-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:6px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+.roster-card:active { background:var(--surface2); }
+.roster-card-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-size:15px; font-weight:800; color:white; flex-shrink:0; }
+.roster-card-name { font-family:var(--font-head); font-size:16px; font-weight:800; }
+.roster-card-meta { font-size:12px; color:var(--text2); margin-top:2px; }
+.roster-card-flags { display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; }
+.flag-badge { font-size:10px; font-family:var(--font-head); font-weight:700; padding:2px 6px; border-radius:4px; }
+.flag-medical { background:rgba(239,68,68,.15); color:var(--red); border:1px solid rgba(239,68,68,.3); }
+.flag-cert { background:rgba(59,130,246,.15); color:var(--blue); border:1px solid rgba(59,130,246,.3); }
+
+.equip-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:6px; cursor:pointer; }
+.equip-card:active { background:var(--surface2); }
+.equip-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.equip-card-name { font-family:var(--font-head); font-size:15px; font-weight:800; }
+.equip-card-meta { font-size:12px; color:var(--text2); margin-top:3px; }
+.equip-status-badge { font-family:var(--font-head); font-size:11px; font-weight:800; padding:3px 8px; border-radius:5px; white-space:nowrap; flex-shrink:0; }
+.es-available { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+.es-deployed { background:rgba(59,130,246,.15); color:var(--blue); border:1px solid rgba(59,130,246,.3); }
+.es-inservice { background:rgba(234,179,8,.15); color:var(--yellow); border:1px solid rgba(234,179,8,.3); }
+.es-outofservice { background:rgba(239,68,68,.15); color:var(--red); border:1px solid rgba(239,68,68,.3); }
+.es-missing { background:rgba(249,115,22,.15); color:var(--orange); border:1px solid rgba(249,115,22,.3); }
+.service-due { font-size:11px; padding:2px 7px; border-radius:4px; font-family:var(--font-head); font-weight:700; }
+.service-overdue { background:rgba(239,68,68,.15); color:var(--red); }
+.service-soon { background:rgba(234,179,8,.15); color:var(--yellow); }
+
+.profile-section { margin-bottom:14px; }
+.profile-section-title { font-family:var(--font-head); font-size:11px; font-weight:700; letter-spacing:2px; color:var(--accent); text-transform:uppercase; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+.profile-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.profile-row:last-child { border-bottom:none; }
+.profile-key { color:var(--text2); }
+.profile-val { color:var(--text); font-weight:600; text-align:right; max-width:60%; }
+.cert-row { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--surface2); border-radius:7px; margin-bottom:4px; font-size:13px; }
+.cert-name { color:var(--text); font-weight:600; }
+.cert-meta { color:var(--text2); font-size:11px; }
+
+.cert-field-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.cert-field-row input { flex:1; }
+.cert-field-row .remove-cert { color:var(--text2); cursor:pointer; font-size:18px; padding:0 4px; flex-shrink:0; }
+</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -2689,6 +3026,572 @@ function exportLog(isEndOfIncident = false) {
   a.download = `${safeName}-${dateStr}.txt`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// DEPARTMENT PANEL
+// ============================================================
+let deptRef = null;
+let DEPT = { training: {}, roster: {}, equipment: {}, locations: ['Station', 'Tanker 1', 'Pumper 2', 'Rescue 3'] };
+let activeEquipFilter = 'all';
+let activeTrainingSessionId = null;
+let editingRosterMemberId = null;
+
+function openDeptPanel() {
+  document.getElementById('dept-panel').classList.remove('hidden');
+  document.getElementById('dept-name-label').textContent = STATE.deptName || '';
+  // Show captain toolbars
+  if (currentUser && currentUser.isCaptain) {
+    ['training-captain-toolbar','roster-captain-toolbar','equipment-captain-toolbar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'flex';
+    });
+  }
+  loadDept();
+}
+
+function closeDeptPanel() {
+  document.getElementById('dept-panel').classList.add('hidden');
+}
+
+function showDeptTab(name, el) {
+  document.querySelectorAll('.dept-panel-tab').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dept-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('dpanel-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+function getDeptRef() {
+  if (!db) return null;
+  const { ref } = window._firebaseModules;
+  return ref(db, 'department');
+}
+
+function saveDept() {
+  if (!db) return;
+  const { ref, set } = window._firebaseModules;
+  set(getDeptRef(), JSON.parse(JSON.stringify(DEPT))).catch(e => console.error('Dept save error:', e));
+}
+
+function loadDept() {
+  if (!db) return;
+  const { ref, get, onValue } = window._firebaseModules;
+  const dr = getDeptRef();
+  get(dr).then(snap => {
+    if (snap.exists()) {
+      const data = snap.val();
+      DEPT = Object.assign({ training:{}, roster:{}, equipment:{}, locations:['Station'] }, data);
+    }
+    renderTraining();
+    renderRosterProfiles();
+    renderEquipment();
+    // Listen for dept changes (attendance opening, etc.)
+    onValue(dr, (s) => {
+      if (s.exists()) {
+        DEPT = Object.assign({ training:{}, roster:{}, equipment:{}, locations:['Station'] }, s.val());
+        renderTraining();
+        renderRosterProfiles();
+        renderEquipment();
+        checkAttendanceBanner();
+      }
+    });
+  });
+}
+
+// ---- TRAINING ----
+function renderTraining() {
+  const list = document.getElementById('training-list');
+  const empty = document.getElementById('training-empty');
+  const sessions = Object.values(DEPT.training || {}).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (sessions.length === 0) { list.innerHTML=''; empty.style.display='flex'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = '';
+  sessions.forEach(session => {
+    const attendCount = (session.attendance || []).length;
+    const isOpen = session.attendanceOpen;
+    const card = document.createElement('div');
+    card.className = 'training-card';
+    card.innerHTML = `
+      <div class="training-card-header">
+        <div>
+          <div class="training-card-name">${session.name}</div>
+          <div class="training-card-meta">${session.date || ''} · ${session.type || ''} · ${session.hours || ''}h · ${session.location || ''}</div>
+          <div class="training-card-meta" style="margin-top:3px;">${attendCount} attended${session.instructor ? ' · Led by ' + session.instructor : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="training-card-badge ${isOpen ? 'open' : ''}">${isOpen ? 'Attendance Open' : attendCount + ' attended'}</span>
+          ${currentUser && currentUser.isCaptain ? `<button onclick="event.stopPropagation();toggleAttendance('${session.id}')" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-family:var(--font-head);font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;">${isOpen ? 'Close' : 'Open Attendance'}</button>` : ''}
+        </div>
+      </div>
+    `;
+    card.onclick = () => showTrainingDetail(session.id);
+    list.appendChild(card);
+  });
+}
+
+function showAddTrainingModal() {
+  document.getElementById('tr-name').value = '';
+  document.getElementById('tr-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('tr-location').value = '';
+  document.getElementById('tr-hours').value = '';
+  document.getElementById('tr-instructor').value = '';
+  document.getElementById('tr-notes').value = '';
+  document.getElementById('tr-open-attendance').classList.remove('on');
+  document.getElementById('add-training-modal').classList.remove('hidden');
+}
+
+function submitAddTraining() {
+  const name = document.getElementById('tr-name').value.trim();
+  if (!name) { alert('Enter a session name.'); return; }
+  const id = 'tr_' + Date.now();
+  const openAtt = document.getElementById('tr-open-attendance').classList.contains('on');
+  DEPT.training[id] = {
+    id, name,
+    date: document.getElementById('tr-date').value,
+    type: document.getElementById('tr-type').value,
+    hours: document.getElementById('tr-hours').value,
+    location: document.getElementById('tr-location').value.trim(),
+    instructor: document.getElementById('tr-instructor').value.trim(),
+    notes: document.getElementById('tr-notes').value.trim(),
+    attendanceOpen: openAtt,
+    attendance: [],
+    createdAt: Date.now(),
+    createdBy: currentUser ? currentUser.name : 'Captain'
+  };
+  if (openAtt) activeTrainingSessionId = id;
+  saveDept();
+  document.getElementById('add-training-modal').classList.add('hidden');
+  renderTraining();
+}
+
+function toggleAttendance(sessionId) {
+  const session = DEPT.training[sessionId];
+  if (!session) return;
+  session.attendanceOpen = !session.attendanceOpen;
+  activeTrainingSessionId = session.attendanceOpen ? sessionId : null;
+  saveDept();
+  renderTraining();
+}
+
+function checkAttendanceBanner() {
+  if (!currentUser || currentUser.isCaptain) return;
+  const openSession = Object.values(DEPT.training || {}).find(s => s.attendanceOpen);
+  const banner = document.getElementById('attendance-banner');
+  if (openSession) {
+    const alreadyMarked = (openSession.attendance || []).some(a => a.name === currentUser.name);
+    if (!alreadyMarked) {
+      banner.classList.remove('hidden');
+      document.getElementById('attendance-session-name').textContent = openSession.name + ' — ' + (openSession.date || '');
+      activeTrainingSessionId = openSession.id;
+      return;
+    }
+  }
+  banner.classList.add('hidden');
+}
+
+function markMyAttendance() {
+  if (!activeTrainingSessionId || !currentUser) return;
+  const session = DEPT.training[activeTrainingSessionId];
+  if (!session) return;
+  if (!session.attendance) session.attendance = [];
+  if (session.attendance.some(a => a.name === currentUser.name)) {
+    alert('Already marked as attended.'); return;
+  }
+  session.attendance.push({ name: currentUser.name, role: currentUser.role, markedAt: Date.now() });
+  saveDept();
+  document.getElementById('attendance-banner').classList.add('hidden');
+  renderTraining();
+}
+
+function showTrainingDetail(sessionId) {
+  const session = DEPT.training[sessionId];
+  if (!session) return;
+  document.getElementById('tr-detail-title').textContent = session.name;
+  const attendance = session.attendance || [];
+  let html = `
+    <div class="profile-section">
+      <div class="profile-section-title">Session Details</div>
+      <div class="profile-row"><span class="profile-key">Date</span><span class="profile-val">${session.date || 'Not set'}</span></div>
+      <div class="profile-row"><span class="profile-key">Type</span><span class="profile-val">${session.type || ''}</span></div>
+      <div class="profile-row"><span class="profile-key">Duration</span><span class="profile-val">${session.hours ? session.hours + ' hours' : 'Not set'}</span></div>
+      <div class="profile-row"><span class="profile-key">Location</span><span class="profile-val">${session.location || 'Not set'}</span></div>
+      <div class="profile-row"><span class="profile-key">Instructor</span><span class="profile-val">${session.instructor || 'Not set'}</span></div>
+      ${session.notes ? `<div class="profile-row"><span class="profile-key">Notes</span><span class="profile-val" style="text-align:left;max-width:70%;">${session.notes}</span></div>` : ''}
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">Attendance (${attendance.length})</div>
+      ${attendance.length === 0 ? '<div style="color:var(--text2);font-size:13px;">No attendance recorded yet.</div>' : ''}
+      ${attendance.map(a => `<div class="cert-row"><span class="cert-name">${a.name}</span><span class="cert-meta">${a.role || ''} · ${a.markedAt ? new Date(a.markedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span></div>`).join('')}
+    </div>
+  `;
+  if (currentUser && currentUser.isCaptain) {
+    // Add manual attendance
+    const onBoardNotAttended = Object.values(STATE.personnel || {}).filter(p => !attendance.some(a => a.name === p.name));
+    if (onBoardNotAttended.length > 0) {
+      html += `<div class="profile-section"><div class="profile-section-title">Add Attendance Manually</div><div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+      onBoardNotAttended.forEach(p => {
+        html += `<button onclick="manualMarkAttendance('${sessionId}','${p.name}','${p.role}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;">+ ${p.name}</button>`;
+      });
+      html += `</div></div>`;
+    }
+    html += `<button onclick="deleteTrainingSession('${sessionId}')" style="background:transparent;border:1px solid var(--red);border-radius:8px;padding:10px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--red);cursor:pointer;width:100%;margin-top:8px;">Delete Session</button>`;
+  }
+  document.getElementById('tr-detail-body').innerHTML = html;
+  document.getElementById('training-detail-modal').classList.remove('hidden');
+}
+
+function manualMarkAttendance(sessionId, name, role) {
+  const session = DEPT.training[sessionId];
+  if (!session) return;
+  if (!session.attendance) session.attendance = [];
+  if (!session.attendance.some(a => a.name === name)) {
+    session.attendance.push({ name, role, markedAt: Date.now(), manual: true });
+    saveDept();
+    showTrainingDetail(sessionId);
+    renderTraining();
+  }
+}
+
+function deleteTrainingSession(sessionId) {
+  if (!confirm('Delete this training session?')) return;
+  delete DEPT.training[sessionId];
+  saveDept();
+  document.getElementById('training-detail-modal').classList.add('hidden');
+  renderTraining();
+}
+
+// ---- ROSTER PROFILES ----
+function renderRosterProfiles() {
+  const list = document.getElementById('roster-profile-list');
+  const empty = document.getElementById('roster-empty');
+  const members = Object.values(DEPT.roster || {}).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (members.length === 0) { list.innerHTML=''; empty.style.display='flex'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = '';
+  members.forEach(m => {
+    const initials = (m.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const hasMedical = m.bloodType || m.allergies || m.conditions || m.epipen;
+    const certCount = (m.certifications||[]).length;
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    card.innerHTML = `
+      <div class="roster-card-avatar" style="background:${stringToColor(m.name||'')}">${initials}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="roster-card-name">${m.name}</div>
+        <div class="roster-card-meta">${m.role || ''} · ${m.years ? m.years + ' yrs' : ''} ${m.callSign ? '· ' + m.callSign : ''}</div>
+        <div class="roster-card-flags">
+          ${hasMedical ? '<span class="flag-badge flag-medical">Medical Info</span>' : ''}
+          ${certCount > 0 ? `<span class="flag-badge flag-cert">${certCount} cert${certCount>1?'s':''}</span>` : ''}
+        </div>
+      </div>
+      <div style="color:var(--text2);font-size:18px;">›</div>
+    `;
+    card.onclick = () => showMemberProfile(m.id);
+    list.appendChild(card);
+  });
+}
+
+function showAddRosterMemberModal(prefillName) {
+  document.getElementById('roster-member-modal-title').textContent = 'Add Member';
+  document.getElementById('rm-name').value = prefillName || '';
+  document.getElementById('rm-callsign').value = '';
+  document.getElementById('rm-role').value = 'Firefighter';
+  document.getElementById('rm-years').value = '';
+  document.getElementById('rm-phone').value = '';
+  document.getElementById('rm-radio').value = '';
+  document.getElementById('rm-blood').value = '';
+  document.getElementById('rm-epipen').value = '';
+  document.getElementById('rm-allergies').value = '';
+  document.getElementById('rm-conditions').value = '';
+  document.getElementById('rm-medications').value = '';
+  document.getElementById('rm-ec-name').value = '';
+  document.getElementById('rm-ec-rel').value = '';
+  document.getElementById('rm-ec-phone').value = '';
+  document.getElementById('rm-notes').value = '';
+  document.getElementById('rm-editing-id').value = '';
+  document.getElementById('rm-certs-list').innerHTML = '';
+  document.getElementById('add-roster-member-modal').classList.remove('hidden');
+}
+
+function addCertField(name, date, expiry) {
+  const row = document.createElement('div');
+  row.className = 'cert-field-row';
+  row.innerHTML = `
+    <input class="modal-input cert-name-input" placeholder="Certification name" value="${name||''}" autocomplete="off" style="flex:2;">
+    <input class="modal-input cert-date-input" type="date" value="${date||''}" style="flex:1;">
+    <input class="modal-input cert-expiry-input" placeholder="Expiry (opt)" type="date" value="${expiry||''}" style="flex:1;">
+    <span class="remove-cert" onclick="this.parentElement.remove()">✕</span>
+  `;
+  document.getElementById('rm-certs-list').appendChild(row);
+}
+
+function editRosterMember() {
+  const id = editingRosterMemberId;
+  if (!id) return;
+  const m = DEPT.roster[id];
+  if (!m) return;
+  document.getElementById('member-profile-modal').classList.add('hidden');
+  document.getElementById('roster-member-modal-title').textContent = 'Edit Member';
+  document.getElementById('rm-name').value = m.name||'';
+  document.getElementById('rm-callsign').value = m.callSign||'';
+  document.getElementById('rm-role').value = m.role||'Firefighter';
+  document.getElementById('rm-years').value = m.years||'';
+  document.getElementById('rm-phone').value = m.phone||'';
+  document.getElementById('rm-radio').value = m.radio||'';
+  document.getElementById('rm-blood').value = m.bloodType||'';
+  document.getElementById('rm-epipen').value = m.epipen||'';
+  document.getElementById('rm-allergies').value = m.allergies||'';
+  document.getElementById('rm-conditions').value = m.conditions||'';
+  document.getElementById('rm-medications').value = m.medications||'';
+  document.getElementById('rm-ec-name').value = m.ecName||'';
+  document.getElementById('rm-ec-rel').value = m.ecRel||'';
+  document.getElementById('rm-ec-phone').value = m.ecPhone||'';
+  document.getElementById('rm-notes').value = m.notes||'';
+  document.getElementById('rm-editing-id').value = id;
+  document.getElementById('rm-certs-list').innerHTML = '';
+  (m.certifications||[]).forEach(c => addCertField(c.name, c.date, c.expiry));
+  document.getElementById('add-roster-member-modal').classList.remove('hidden');
+}
+
+function submitRosterMember() {
+  const name = document.getElementById('rm-name').value.trim();
+  if (!name) { alert('Name is required.'); return; }
+  const editingId = document.getElementById('rm-editing-id').value;
+  const id = editingId || 'rm_' + Date.now();
+  const certRows = document.querySelectorAll('#rm-certs-list .cert-field-row');
+  const certs = [];
+  certRows.forEach(row => {
+    const n = row.querySelector('.cert-name-input').value.trim();
+    if (n) certs.push({ name: n, date: row.querySelector('.cert-date-input').value, expiry: row.querySelector('.cert-expiry-input').value });
+  });
+  DEPT.roster[id] = {
+    id, name,
+    callSign: document.getElementById('rm-callsign').value.trim(),
+    role: document.getElementById('rm-role').value,
+    years: document.getElementById('rm-years').value,
+    phone: document.getElementById('rm-phone').value.trim(),
+    radio: document.getElementById('rm-radio').value.trim(),
+    bloodType: document.getElementById('rm-blood').value,
+    epipen: document.getElementById('rm-epipen').value,
+    allergies: document.getElementById('rm-allergies').value.trim(),
+    conditions: document.getElementById('rm-conditions').value.trim(),
+    medications: document.getElementById('rm-medications').value.trim(),
+    ecName: document.getElementById('rm-ec-name').value.trim(),
+    ecRel: document.getElementById('rm-ec-rel').value.trim(),
+    ecPhone: document.getElementById('rm-ec-phone').value.trim(),
+    notes: document.getElementById('rm-notes').value.trim(),
+    certifications: certs,
+    updatedAt: Date.now()
+  };
+  saveDept();
+  document.getElementById('add-roster-member-modal').classList.add('hidden');
+  renderRosterProfiles();
+}
+
+function showMemberProfile(id) {
+  editingRosterMemberId = id;
+  const m = DEPT.roster[id];
+  if (!m) return;
+  document.getElementById('profile-modal-name').textContent = m.name;
+  const isCaptain = currentUser && currentUser.isCaptain;
+  let html = `
+    <div class="profile-section">
+      <div class="profile-section-title">Basic Info</div>
+      <div class="profile-row"><span class="profile-key">Role</span><span class="profile-val">${m.role||'Not set'}</span></div>
+      ${m.callSign ? `<div class="profile-row"><span class="profile-key">Call Sign</span><span class="profile-val">${m.callSign}</span></div>` : ''}
+      ${m.years ? `<div class="profile-row"><span class="profile-key">Years of Service</span><span class="profile-val">${m.years}</span></div>` : ''}
+      ${m.phone ? `<div class="profile-row"><span class="profile-key">Phone</span><span class="profile-val">${m.phone}</span></div>` : ''}
+      ${m.radio ? `<div class="profile-row"><span class="profile-key">Radio #</span><span class="profile-val">${m.radio}</span></div>` : ''}
+    </div>
+  `;
+  if ((m.certifications||[]).length > 0) {
+    html += `<div class="profile-section"><div class="profile-section-title">Certifications (${m.certifications.length})</div>`;
+    m.certifications.forEach(c => {
+      const expired = c.expiry && new Date(c.expiry) < new Date();
+      html += `<div class="cert-row"><span class="cert-name">${c.name}</span><span class="cert-meta" style="${expired?'color:var(--red)':''}">${c.date ? 'Completed ' + c.date : ''}${c.expiry ? ' · Expires ' + c.expiry : ''}</span></div>`;
+    });
+    html += `</div>`;
+  }
+  if (isCaptain) {
+    const hasMed = m.bloodType || m.epipen || m.allergies || m.conditions || m.medications;
+    if (hasMed) {
+      html += `<div class="profile-section" style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;">
+        <div class="profile-section-title" style="color:var(--red);">Medical (Captain Only)</div>
+        ${m.bloodType ? `<div class="profile-row"><span class="profile-key">Blood Type</span><span class="profile-val">${m.bloodType}</span></div>` : ''}
+        ${m.epipen && m.epipen !== '' ? `<div class="profile-row"><span class="profile-key">EpiPen</span><span class="profile-val">${m.epipen}</span></div>` : ''}
+        ${m.allergies ? `<div class="profile-row"><span class="profile-key">Allergies</span><span class="profile-val" style="text-align:right;max-width:65%;">${m.allergies}</span></div>` : ''}
+        ${m.conditions ? `<div class="profile-row"><span class="profile-key">Conditions</span><span class="profile-val" style="text-align:right;max-width:65%;">${m.conditions}</span></div>` : ''}
+        ${m.medications ? `<div class="profile-row"><span class="profile-key">Medications</span><span class="profile-val" style="text-align:right;max-width:65%;">${m.medications}</span></div>` : ''}
+      </div>`;
+    }
+    const hasEC = m.ecName || m.ecPhone;
+    if (hasEC) {
+      html += `<div class="profile-section"><div class="profile-section-title">Emergency Contact</div>
+        ${m.ecName ? `<div class="profile-row"><span class="profile-key">Name</span><span class="profile-val">${m.ecName}${m.ecRel ? ' (' + m.ecRel + ')' : ''}</span></div>` : ''}
+        ${m.ecPhone ? `<div class="profile-row"><span class="profile-key">Phone</span><span class="profile-val"><a href="tel:${m.ecPhone}" style="color:var(--accent2);">${m.ecPhone}</a></span></div>` : ''}
+      </div>`;
+    }
+  }
+  if (m.notes) {
+    html += `<div class="profile-section"><div class="profile-section-title">Notes</div><div style="font-size:13px;color:var(--text2);line-height:1.6;">${m.notes}</div></div>`;
+  }
+  // Training history
+  const sessions = Object.values(DEPT.training||{}).filter(s => (s.attendance||[]).some(a => a.name === m.name));
+  if (sessions.length > 0) {
+    const totalHours = sessions.reduce((sum,s) => sum + parseFloat(s.hours||0), 0);
+    html += `<div class="profile-section"><div class="profile-section-title">Training History (${sessions.length} sessions · ${totalHours}h)</div>`;
+    sessions.sort((a,b) => (b.date||'').localeCompare(a.date||'')).forEach(s => {
+      html += `<div class="cert-row"><span class="cert-name">${s.name}</span><span class="cert-meta">${s.date || ''} · ${s.hours||''}h</span></div>`;
+    });
+    html += `</div>`;
+  }
+  if (isCaptain) {
+    html += `<button onclick="if(confirm('Delete this member?')){delete DEPT.roster['${id}'];saveDept();renderRosterProfiles();document.getElementById('member-profile-modal').classList.add('hidden');}" style="background:transparent;border:1px solid var(--red);border-radius:8px;padding:10px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--red);cursor:pointer;width:100%;margin-top:8px;">Delete Member</button>`;
+  }
+  document.getElementById('profile-edit-btn').style.display = isCaptain ? 'block' : 'none';
+  document.getElementById('profile-modal-body').innerHTML = html;
+  document.getElementById('member-profile-modal').classList.remove('hidden');
+}
+
+// ---- EQUIPMENT ----
+function renderEquipment() {
+  const list = document.getElementById('equipment-list');
+  const empty = document.getElementById('equipment-empty');
+  let items = Object.values(DEPT.equipment || {}).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (activeEquipFilter !== 'all') items = items.filter(i => i.status === activeEquipFilter);
+  if (items.length === 0) { list.innerHTML=''; empty.style.display='flex'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = '';
+  const today = new Date();
+  items.forEach(item => {
+    const statusClass = 'es-' + (item.status||'available').toLowerCase().replace(/ /g,'');
+    let serviceBadge = '';
+    if (item.nextService) {
+      const svcDate = new Date(item.nextService);
+      const daysUntil = Math.ceil((svcDate - today) / 86400000);
+      if (daysUntil < 0) serviceBadge = `<span class="service-due service-overdue">Service Overdue</span>`;
+      else if (daysUntil <= 30) serviceBadge = `<span class="service-due service-soon">Service in ${daysUntil}d</span>`;
+    }
+    const card = document.createElement('div');
+    card.className = 'equip-card';
+    card.innerHTML = `
+      <div class="equip-card-header">
+        <div>
+          <div class="equip-card-name">${item.name}${item.qty && item.qty > 1 ? ` <span style="color:var(--text2);font-size:13px;">x${item.qty}</span>` : ''}</div>
+          <div class="equip-card-meta">${item.category||''} · ${item.location||''} · ${item.condition||''}</div>
+          ${item.serial ? `<div class="equip-card-meta">SN: ${item.serial}</div>` : ''}
+          <div style="margin-top:4px;">${serviceBadge}</div>
+        </div>
+        <span class="equip-status-badge ${statusClass}">${item.status||'Available'}</span>
+      </div>
+    `;
+    card.onclick = () => showEquipmentDetail(item.id);
+    list.appendChild(card);
+  });
+}
+
+function setEquipFilter(filter, el) {
+  activeEquipFilter = filter;
+  document.querySelectorAll('#equip-filter-bar .filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderEquipment();
+}
+
+function showAddEquipmentModal(editId) {
+  const eq = editId ? DEPT.equipment[editId] : null;
+  document.getElementById('equip-modal-title').textContent = eq ? 'Edit Equipment' : 'Add Equipment';
+  document.getElementById('eq-name').value = eq ? eq.name : '';
+  document.getElementById('eq-category').value = eq ? eq.category : 'SCBA / Breathing';
+  document.getElementById('eq-status').value = eq ? eq.status : 'Available';
+  document.getElementById('eq-serial').value = eq ? (eq.serial||'') : '';
+  document.getElementById('eq-qty').value = eq ? (eq.qty||1) : 1;
+  document.getElementById('eq-condition').value = eq ? (eq.condition||'Good') : 'Good';
+  document.getElementById('eq-last-inspect').value = eq ? (eq.lastInspect||'') : '';
+  document.getElementById('eq-next-service').value = eq ? (eq.nextService||'') : '';
+  document.getElementById('eq-notes').value = eq ? (eq.notes||'') : '';
+  document.getElementById('eq-editing-id').value = editId||'';
+  // Populate location dropdown
+  const locSel = document.getElementById('eq-location');
+  locSel.innerHTML = '';
+  (DEPT.locations||['Station']).forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc; opt.textContent = loc;
+    if (eq && eq.location === loc) opt.selected = true;
+    locSel.appendChild(opt);
+  });
+  document.getElementById('add-equipment-modal').classList.remove('hidden');
+}
+
+function submitEquipment() {
+  const name = document.getElementById('eq-name').value.trim();
+  if (!name) { alert('Enter an item name.'); return; }
+  const editId = document.getElementById('eq-editing-id').value;
+  const id = editId || 'eq_' + Date.now();
+  DEPT.equipment[id] = {
+    id, name,
+    category: document.getElementById('eq-category').value,
+    status: document.getElementById('eq-status').value,
+    serial: document.getElementById('eq-serial').value.trim(),
+    qty: document.getElementById('eq-qty').value || 1,
+    location: document.getElementById('eq-location').value,
+    condition: document.getElementById('eq-condition').value,
+    lastInspect: document.getElementById('eq-last-inspect').value,
+    nextService: document.getElementById('eq-next-service').value,
+    notes: document.getElementById('eq-notes').value.trim(),
+    updatedAt: Date.now()
+  };
+  saveDept();
+  document.getElementById('add-equipment-modal').classList.add('hidden');
+  renderEquipment();
+}
+
+function showEquipmentDetail(id) {
+  const item = DEPT.equipment[id];
+  if (!item) return;
+  // Show as inline edit sheet for captain, or info view for crew
+  if (currentUser && currentUser.isCaptain) {
+    showAddEquipmentModal(id);
+  } else {
+    alert(`${item.name}\nStatus: ${item.status}\nLocation: ${item.location||'N/A'}\nCondition: ${item.condition||'N/A'}${item.notes ? '\n\n' + item.notes : ''}`);
+  }
+}
+
+function showManageLocationsModal() {
+  renderLocationsList();
+  document.getElementById('manage-locations-modal').classList.remove('hidden');
+}
+
+function renderLocationsList() {
+  const list = document.getElementById('locations-list');
+  list.innerHTML = '';
+  (DEPT.locations||[]).forEach((loc, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    row.innerHTML = `
+      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;">${loc}</div>
+      ${i > 0 ? `<button onclick="removeLocation(${i})" style="background:transparent;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px;">✕</button>` : '<div style="width:26px;"></div>'}
+    `;
+    list.appendChild(row);
+  });
+}
+
+function addLocation() {
+  const input = document.getElementById('new-location-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!DEPT.locations) DEPT.locations = ['Station'];
+  if (!DEPT.locations.includes(val)) {
+    DEPT.locations.push(val);
+    saveDept();
+    renderLocationsList();
+  }
+  input.value = '';
+}
+
+function removeLocation(idx) {
+  DEPT.locations.splice(idx, 1);
+  saveDept();
+  renderLocationsList();
 }
 
 function formatTime(ts) {
