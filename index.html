@@ -326,6 +326,11 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   display: flex; align-items: flex-end; justify-content: center;
 }
 .modal-overlay.hidden { display: none; }
+/* Dept modals need higher z-index than the dept panel (970) */
+#add-training-modal, #training-detail-modal, #add-roster-member-modal,
+#add-equipment-modal, #manage-locations-modal, #member-profile-modal {
+  z-index: 1000;
+}
 .modal-sheet {
   background: var(--surface); border-radius: 16px 16px 0 0; width: 100%; max-width: 500px;
   padding: 16px; padding-bottom: env(safe-area-inset-bottom, 24px); display: flex; flex-direction: column; gap: 8px;
@@ -1294,7 +1299,7 @@ select option { background: var(--surface); }
 
 <!-- ============================================================ -->
 
-<div id="dept-panel" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:970;display:flex;flex-direction:column;">
+<div id="dept-panel" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:970;display:flex;flex-direction:column;height:100%;height:100dvh;">
 
   <!-- Dept Header -->
 
@@ -1329,7 +1334,7 @@ select option { background: var(--surface); }
       </div>
       <button onclick="markMyAttendance()" style="background:var(--green);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">I Was There</button>
     </div>
-    <div id="training-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="training-list" style="padding:8px;"></div>
     <div id="training-empty" class="empty-state" style="display:none;">
       <div class="empty-icon">📚</div>
       <div class="empty-title">No Training Logged</div>
@@ -1343,7 +1348,7 @@ select option { background: var(--surface); }
     <div class="dept-toolbar captain-only" id="roster-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddRosterMemberModal()">+ Add Member</button>
     </div>
-    <div id="roster-profile-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="roster-profile-list" style="padding:8px;"></div>
     <div id="roster-empty" class="empty-state" style="display:none;">
       <div class="empty-icon">👤</div>
       <div class="empty-title">No Roster Members</div>
@@ -1367,7 +1372,7 @@ select option { background: var(--surface); }
       <div class="eq-pill eq-pill-oos" onclick="setEquipFilter('Out of Service',this)">Out of Service</div>
       <div class="eq-pill eq-pill-missing" onclick="setEquipFilter('Missing',this)">Missing</div>
     </div>
-    <div id="equipment-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    <div id="equipment-list" style="padding:8px;"></div>
     <div id="equipment-empty" class="empty-state" style="display:none;">
       <div class="empty-icon">🔧</div>
       <div class="empty-title">No Equipment Added</div>
@@ -1569,8 +1574,10 @@ select option { background: var(--surface); }
 .dept-tab { flex:1; padding:10px 8px; font-family:var(--font-head); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text2); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; }
 .dept-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .dept-tab:active { background:var(--surface2); }
-.dept-panel-tab { display:none; flex:1; overflow-y:auto; flex-direction:column; }
+.dept-panel-tab { display:none; flex:1; overflow:hidden; flex-direction:column; min-height:0; }
 .dept-panel-tab.active { display:flex; }
+.dept-panel-tab > div[id$="-list"] { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px; min-height:0; }
+.dept-panel-tab > .empty-state { flex:1; }
 .dept-toolbar { padding:10px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
 
 /* Equipment filter pills */
@@ -2004,6 +2011,8 @@ function enterApp() {
   updateCallBanner();
   renderAll();
   if (STATE.parActive) startParCountdownDisplay(STATE.parStart);
+  // Push state so browser back doesn't exit the app
+  history.pushState({ panel: 'app' }, '');
 }
 
 // ============================================================
@@ -3077,17 +3086,16 @@ function openDeptPanelFromSetup() {
 function openDeptPanel() {
   document.getElementById('dept-panel').classList.remove('hidden');
   document.getElementById('dept-name-label').textContent = STATE.deptName || '';
-  // Always show toolbars for captain — no CSS class dependency
   const isCap = currentUser && currentUser.isCaptain;
   ['training-captain-toolbar','roster-captain-toolbar','equipment-captain-toolbar'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = isCap ? 'flex' : 'none';
   });
-  // Load dept data — connect to Firebase if available
+  // Push history state so browser back closes the panel
+  history.pushState({ panel: 'dept' }, '');
   if (db) {
     loadDept();
   } else {
-    // No Firebase yet — show empty state, allow browsing
     renderTraining();
     renderRosterProfiles();
     renderEquipment();
@@ -3096,7 +3104,42 @@ function openDeptPanel() {
 
 function closeDeptPanel() {
   document.getElementById('dept-panel').classList.add('hidden');
+  // Close any open dept modals too
+  ['add-training-modal','training-detail-modal','add-roster-member-modal',
+   'add-equipment-modal','manage-locations-modal','member-profile-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
 }
+
+// Handle browser back button
+window.addEventListener('popstate', (e) => {
+  // Close dept panel if open
+  const deptPanel = document.getElementById('dept-panel');
+  if (deptPanel && !deptPanel.classList.contains('hidden')) {
+    closeDeptPanel();
+    return;
+  }
+  // Close any open modal
+  const openModal = document.querySelector('.modal-overlay:not(.hidden)');
+  if (openModal) {
+    openModal.classList.add('hidden');
+    return;
+  }
+  // Close history screen
+  const histScreen = document.getElementById('history-screen');
+  if (histScreen && !histScreen.classList.contains('hidden')) {
+    closeHistoryScreen();
+    return;
+  }
+  // If on login/app, don't navigate away — push state back
+  const app = document.getElementById('app');
+  const login = document.getElementById('login-screen');
+  if ((app && !app.classList.contains('hidden')) ||
+      (login && !login.classList.contains('hidden'))) {
+    history.pushState({ panel: 'app' }, '');
+  }
+});
 
 function showDeptTab(name, el) {
   document.querySelectorAll('.dept-panel-tab').forEach(p => p.classList.remove('active'));
