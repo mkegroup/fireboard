@@ -293,8 +293,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* TAB PANELS */
 .tab-panel { display: none; flex: 1; overflow-y: auto; min-height: 0; }
 .tab-panel.active { display: flex; flex-direction: column; }
-/* Locations tab needs special overflow handling for map */
-#tab-locations.active { overflow: hidden; }
+#tab-locations { padding: 0; }
+#tab-locations.active { display: block; position: relative; overflow: hidden; }
 
 /* PERSONNEL TAB */
 .panel-toolbar {
