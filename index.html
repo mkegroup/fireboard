@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -31,6 +32,7 @@
 .loc-no-location { font-size:12px; color:var(--text2); padding:8px 14px; font-style:italic; }</style>
 
 <!-- Firebase SDK -->
+
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
   import { getDatabase, ref, set, onValue, get, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
@@ -289,8 +291,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tab-btn:active { background: var(--surface2); }
 
 /* TAB PANELS */
-.tab-panel { display: none; flex: 1; overflow-y: auto; }
-.tab-panel.active { display: block; }
+.tab-panel { display: none; flex: 1; overflow-y: auto; min-height: 0; }
+.tab-panel.active { display: flex; flex-direction: column; }
+/* Locations tab needs special overflow handling for map */
+#tab-locations.active { overflow: hidden; }
 
 /* PERSONNEL TAB */
 .panel-toolbar {
@@ -718,12 +722,16 @@ body.is-captain .captain-add-toolbar { display: flex; }
 
 select option { background: var(--surface); }
 </style>
+
 </head>
 <body>
 
 <!-- ============================================================ -->
+
 <!-- SETUP SCREEN -->
+
 <!-- ============================================================ -->
+
 <div id="setup-screen" class="hidden">
 
   <div class="setup-header">
@@ -787,8 +795,11 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
+
 <!-- CREW LOADING SCREEN -->
+
 <!-- ============================================================ -->
+
 <div id="crew-loading-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:1100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
   <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">MKE Group</div>
   <div style="font-family:var(--font-head);font-size:28px;font-weight:800;">Fire Ground Board</div>
@@ -799,8 +810,11 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
+
 <!-- LOGIN SCREEN -->
+
 <!-- ============================================================ -->
+
 <div id="login-screen" class="hidden">
   <div class="login-header">
     <div class="login-logo-block">
@@ -819,76 +833,85 @@ select option { background: var(--surface); }
       <span id="login-incident-addr-display" style="font-size:13px;color:var(--text2);margin-top:3px;display:block;"></span>
     </div>
 
-    <div class="login-section-title">Quick Join — Tap Your Name</div>
-    <div class="roster-join-list" id="roster-join-list">
-      <div style="color:var(--text2);font-size:13px;padding:8px 0;">Loading roster...</div>
-    </div>
+```
+<div class="login-section-title">Quick Join — Tap Your Name</div>
+<div class="roster-join-list" id="roster-join-list">
+  <div style="color:var(--text2);font-size:13px;padding:8px 0;">Loading roster...</div>
+</div>
 
-    <div class="login-divider">
-      <div class="login-divider-line"></div>
-      <div class="login-divider-text">OR JOIN MANUALLY</div>
-      <div class="login-divider-line"></div>
-    </div>
+<div class="login-divider">
+  <div class="login-divider-line"></div>
+  <div class="login-divider-text">OR JOIN MANUALLY</div>
+  <div class="login-divider-line"></div>
+</div>
 
-    <div class="login-manual">
-      <input class="login-input" id="login-name" placeholder="Your name" autocomplete="off">
-      <div class="login-row">
-        <select class="login-select" id="login-role">
-          <option>Firefighter</option>
-          <option>Engineer/Driver</option>
-          <option>Medic</option>
-          <option>Lieutenant</option>
-          <option>Captain/IC</option>
-          <option>Safety Officer</option>
-          <option>Chief</option>
-        </select>
-        <select class="login-select" id="login-team">
-          <option value="Alpha">Alpha</option>
-          <option value="Bravo">Bravo</option>
-          <option value="Charlie">Charlie</option>
-          <option value="RIC">RIC Team</option>
-        </select>
-      </div>
-      <button class="login-join-btn" onclick="loginManual()">Join as Crew</button>
-    </div>
+<div class="login-manual">
+  <input class="login-input" id="login-name" placeholder="Your name" autocomplete="off">
+  <div class="login-row">
+    <select class="login-select" id="login-role">
+      <option>Firefighter</option>
+      <option>Engineer/Driver</option>
+      <option>Medic</option>
+      <option>Lieutenant</option>
+      <option>Captain/IC</option>
+      <option>Safety Officer</option>
+      <option>Chief</option>
+    </select>
+    <select class="login-select" id="login-team">
+      <option value="Alpha">Alpha</option>
+      <option value="Bravo">Bravo</option>
+      <option value="Charlie">Charlie</option>
+      <option value="RIC">RIC Team</option>
+    </select>
+  </div>
+  <button class="login-join-btn" onclick="loginManual()">Join as Crew</button>
+</div>
 
-    <div class="login-captain-section">
-      <h4>🎖 Captain / IC Access</h4>
-      <p>Enter the 4-digit PIN to take control of this board.</p>
-      <div class="login-pin-row">
-        <input class="login-pin-input" id="login-pin" placeholder="PIN" maxlength="4" type="tel">
-        <div style="flex:1;"></div>
-      </div>
-      <input class="login-input" id="captain-login-name" placeholder="Your name" autocomplete="off" style="margin-top:4px;">
-      <select class="login-select" id="captain-login-role" style="margin-top:4px;">
-        <option>Captain/IC</option>
-        <option>Lieutenant</option>
-        <option>Chief</option>
-        <option>Safety Officer</option>
-      </select>
-      <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
-    </div>
+<div class="login-captain-section">
+  <h4>🎖 Captain / IC Access</h4>
+  <p>Enter the 4-digit PIN to take control of this board.</p>
+  <div class="login-pin-row">
+    <input class="login-pin-input" id="login-pin" placeholder="PIN" maxlength="4" type="tel">
+    <div style="flex:1;"></div>
+  </div>
+  <input class="login-input" id="captain-login-name" placeholder="Your name" autocomplete="off" style="margin-top:4px;">
+  <select class="login-select" id="captain-login-role" style="margin-top:4px;">
+    <option>Captain/IC</option>
+    <option>Lieutenant</option>
+    <option>Chief</option>
+    <option>Safety Officer</option>
+  </select>
+  <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
+</div>
 
-    <button onclick="openDeptPanel()" style="background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;width:100%;font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">
-      🏛 Department Records
-    </button>
+<button onclick="openDeptPanel()" style="background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;width:100%;font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">
+  🏛 Department Records
+</button>
+```
+
   </div>
 </div>
 
 <!-- ============================================================ -->
+
 <!-- MAIN APP -->
+
 <!-- ============================================================ -->
+
 <div id="app" class="hidden">
 
   <!-- PAR Countdown Banner -->
+
   <div class="par-banner hidden" id="par-banner">
     ⚠️ PAR CHECK — ALL CREWS REPORT — <span id="par-countdown">2:00</span>
   </div>
 
   <!-- Sync Status Banner -->
+
   <div id="sync-banner" style="display:none;background:#1a1a2e;border-bottom:1px solid var(--border);padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;"></div>
 
   <!-- Top Bar -->
+
   <div class="topbar">
     <div class="topbar-left">
       <div class="topbar-dept" id="topbar-dept-label">Fire Ground Board</div>
@@ -903,6 +926,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Call Info Banner -->
+
   <div id="call-info-banner" style="background:rgba(232,71,26,0.1);border-bottom:1px solid rgba(232,71,26,0.25);padding:8px 14px;display:flex;align-items:center;gap:10px;">
     <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 2s infinite;"></div>
     <div style="flex:1;min-width:0;">
@@ -913,6 +937,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Tabs -->
+
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('personnel', this)">👥 Personnel</button>
     <button class="tab-btn" onclick="showTab('apparatus', this)">🚒 Apparatus</button>
@@ -922,6 +947,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- ---- PERSONNEL TAB ---- -->
+
   <div class="tab-panel active" id="tab-personnel">
     <div class="panel-toolbar">
       <div class="filter-pill all active" onclick="setFilter('all', this)">All</div>
@@ -935,21 +961,25 @@ select option { background: var(--surface); }
       <button id="add-member-btn-main" onclick="showAddMemberModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">+ Add</button>
     </div>
 
-    <!-- Quick roster chips (not-yet-added members) -->
-    <div id="quick-roster-section" class="quick-roster-section captain-only-block" style="display:none;">
-      <div class="quick-roster-title">Quick Add from Roster</div>
-      <div class="quick-roster-grid" id="quick-roster-grid"></div>
-    </div>
+```
+<!-- Quick roster chips (not-yet-added members) -->
+<div id="quick-roster-section" class="quick-roster-section captain-only-block" style="display:none;">
+  <div class="quick-roster-title">Quick Add from Roster</div>
+  <div class="quick-roster-grid" id="quick-roster-grid"></div>
+</div>
 
-    <div class="member-cards" id="member-cards"></div>
-    <div class="empty-state hidden" id="personnel-empty">
-      <div class="empty-icon">👥</div>
-      <div class="empty-title">No Personnel on Board</div>
-      <div class="empty-desc">Captain: tap "+ Add" or use Quick Add from the saved roster above.</div>
-    </div>
+<div class="member-cards" id="member-cards"></div>
+<div class="empty-state hidden" id="personnel-empty">
+  <div class="empty-icon">👥</div>
+  <div class="empty-title">No Personnel on Board</div>
+  <div class="empty-desc">Captain: tap "+ Add" or use Quick Add from the saved roster above.</div>
+</div>
+```
+
   </div>
 
   <!-- ---- APPARATUS TAB ---- -->
+
   <div class="tab-panel" id="tab-apparatus">
     <div class="panel-toolbar">
       <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Units on Scene</div>
@@ -965,6 +995,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- ---- IOCANC TAB ---- -->
+
   <div class="tab-panel" id="tab-iocanc">
     <div class="iocanc-container">
       <div class="iocanc-header-card">
@@ -974,117 +1005,121 @@ select option { background: var(--surface); }
         <div class="iocanc-subtitle">Arrival radio report — fill each section, then generate your transmission script</div>
       </div>
 
-      <!-- I -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter">I</div>
-          <div><div class="iocanc-section-title">Identify</div><div class="iocanc-section-hint">Who you are / unit arriving</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>Unit / Call Sign</label>
-          <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Tanker 1 arriving on scene..." style="min-height:44px;">
-        </div>
-      </div>
-      <!-- O -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter">O</div>
-          <div><div class="iocanc-section-title">Object</div><div class="iocanc-section-hint">What you're looking at</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>Structure / Incident Description</label>
-          <textarea class="iocanc-textarea" id="io-object" placeholder="e.g. two-storey wood frame residential, approx 1500 sq ft..."></textarea>
-        </div>
-      </div>
-      <!-- C -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter">C</div>
-          <div><div class="iocanc-section-title">Conditions</div><div class="iocanc-section-hint">Fire, smoke, hazards</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>Visible Fire / Smoke</label>
-          <select class="iocanc-select" id="io-fire-location">
-            <option value="">Select...</option>
-            <option>No visible fire or smoke</option>
-            <option>Light smoke showing</option>
-            <option>Heavy smoke showing</option>
-            <option>Fire showing — ground floor</option>
-            <option>Fire showing — upper floor</option>
-            <option>Fire showing — roof</option>
-            <option>Well-involved structure</option>
-            <option>Fire through roof</option>
-          </select>
-        </div>
-        <div class="iocanc-field">
-          <label>Additional Hazards</label>
-          <textarea class="iocanc-textarea" id="io-conditions" placeholder="e.g. propane tank on east side, power lines down..."></textarea>
-        </div>
-      </div>
-      <!-- A -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter">A</div>
-          <div><div class="iocanc-section-title">Actions</div><div class="iocanc-section-hint">What you're doing</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>Initial Action</label>
-          <select class="iocanc-select" id="io-action">
-            <option value="">Select...</option>
-            <option>Establishing command, offensive attack</option>
-            <option>Establishing command, defensive attack</option>
-            <option>Establishing command, investigation</option>
-            <option>Establishing command, rescue operations</option>
-            <option>Laying supply line, offensive attack</option>
-            <option>Conducting 360 walk-around</option>
-            <option>Evacuation in progress</option>
-          </select>
-        </div>
-        <div class="iocanc-field">
-          <label>Additional Actions</label>
-          <textarea class="iocanc-textarea" id="io-actions-extra" placeholder="e.g. crews advancing 1¾ line through front door..."></textarea>
-        </div>
-      </div>
-      <!-- N -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter">N</div>
-          <div><div class="iocanc-section-title">Needs</div><div class="iocanc-section-hint">Resources required</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>Resources Needed</label>
-          <textarea class="iocanc-textarea" id="io-needs" placeholder="e.g. request second tanker, hydrant, EMS standby..."></textarea>
-        </div>
-      </div>
-      <!-- C2 -->
-      <div class="iocanc-section">
-        <div class="iocanc-section-header">
-          <div class="iocanc-letter" style="background:var(--blue);">C</div>
-          <div><div class="iocanc-section-title">Command</div><div class="iocanc-section-hint">Who has command</div></div>
-        </div>
-        <div class="iocanc-field">
-          <label>IC Name</label>
-          <input class="iocanc-textarea" id="io-command" placeholder="e.g. Captain Smith has command" style="min-height:44px;">
-        </div>
-        <div class="iocanc-field">
-          <label>Command Location</label>
-          <select class="iocanc-select" id="io-command-loc">
-            <option value="">Select...</option>
-            <option>Command post at front of structure</option>
-            <option>Command post at road</option>
-            <option>Mobile command</option>
-            <option>Station command</option>
-          </select>
-        </div>
-      </div>
-
-      <button class="generate-btn" onclick="generateRadioScript()">Generate Radio Script</button>
-      <div class="radio-script-box" id="radio-script-output"></div>
-      <button class="copy-btn" id="copy-script-btn" onclick="copyRadioScript()">Copy Script</button>
+```
+  <!-- I -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">I</div>
+      <div><div class="iocanc-section-title">Identify</div><div class="iocanc-section-hint">Who you are / unit arriving</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Unit / Call Sign</label>
+      <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Tanker 1 arriving on scene..." style="min-height:44px;">
+    </div>
+  </div>
+  <!-- O -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">O</div>
+      <div><div class="iocanc-section-title">Object</div><div class="iocanc-section-hint">What you're looking at</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Structure / Incident Description</label>
+      <textarea class="iocanc-textarea" id="io-object" placeholder="e.g. two-storey wood frame residential, approx 1500 sq ft..."></textarea>
+    </div>
+  </div>
+  <!-- C -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">C</div>
+      <div><div class="iocanc-section-title">Conditions</div><div class="iocanc-section-hint">Fire, smoke, hazards</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Visible Fire / Smoke</label>
+      <select class="iocanc-select" id="io-fire-location">
+        <option value="">Select...</option>
+        <option>No visible fire or smoke</option>
+        <option>Light smoke showing</option>
+        <option>Heavy smoke showing</option>
+        <option>Fire showing — ground floor</option>
+        <option>Fire showing — upper floor</option>
+        <option>Fire showing — roof</option>
+        <option>Well-involved structure</option>
+        <option>Fire through roof</option>
+      </select>
+    </div>
+    <div class="iocanc-field">
+      <label>Additional Hazards</label>
+      <textarea class="iocanc-textarea" id="io-conditions" placeholder="e.g. propane tank on east side, power lines down..."></textarea>
+    </div>
+  </div>
+  <!-- A -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">A</div>
+      <div><div class="iocanc-section-title">Actions</div><div class="iocanc-section-hint">What you're doing</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Initial Action</label>
+      <select class="iocanc-select" id="io-action">
+        <option value="">Select...</option>
+        <option>Establishing command, offensive attack</option>
+        <option>Establishing command, defensive attack</option>
+        <option>Establishing command, investigation</option>
+        <option>Establishing command, rescue operations</option>
+        <option>Laying supply line, offensive attack</option>
+        <option>Conducting 360 walk-around</option>
+        <option>Evacuation in progress</option>
+      </select>
+    </div>
+    <div class="iocanc-field">
+      <label>Additional Actions</label>
+      <textarea class="iocanc-textarea" id="io-actions-extra" placeholder="e.g. crews advancing 1¾ line through front door..."></textarea>
+    </div>
+  </div>
+  <!-- N -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter">N</div>
+      <div><div class="iocanc-section-title">Needs</div><div class="iocanc-section-hint">Resources required</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>Resources Needed</label>
+      <textarea class="iocanc-textarea" id="io-needs" placeholder="e.g. request second tanker, hydrant, EMS standby..."></textarea>
+    </div>
+  </div>
+  <!-- C2 -->
+  <div class="iocanc-section">
+    <div class="iocanc-section-header">
+      <div class="iocanc-letter" style="background:var(--blue);">C</div>
+      <div><div class="iocanc-section-title">Command</div><div class="iocanc-section-hint">Who has command</div></div>
+    </div>
+    <div class="iocanc-field">
+      <label>IC Name</label>
+      <input class="iocanc-textarea" id="io-command" placeholder="e.g. Captain Smith has command" style="min-height:44px;">
+    </div>
+    <div class="iocanc-field">
+      <label>Command Location</label>
+      <select class="iocanc-select" id="io-command-loc">
+        <option value="">Select...</option>
+        <option>Command post at front of structure</option>
+        <option>Command post at road</option>
+        <option>Mobile command</option>
+        <option>Station command</option>
+      </select>
     </div>
   </div>
 
+  <button class="generate-btn" onclick="generateRadioScript()">Generate Radio Script</button>
+  <div class="radio-script-box" id="radio-script-output"></div>
+  <button class="copy-btn" id="copy-script-btn" onclick="copyRadioScript()">Copy Script</button>
+</div>
+```
+
+  </div>
+
   <!-- ---- MUTUAL AID TAB ---- -->
+
   <div class="tab-panel" id="tab-mutual">
     <div class="panel-toolbar">
       <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Mutual Aid</div>
@@ -1099,30 +1134,31 @@ select option { background: var(--surface); }
     </div>
   </div>
   <!-- ---- LOCATIONS TAB ---- -->
-  <div class="tab-panel" id="tab-locations" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-    <!-- Toolbar -->
-    <div class="panel-toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:6px;">
-      <div style="font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Live Positions</div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <div id="location-share-status" style="font-family:var(--font-head);font-size:11px;font-weight:700;color:var(--text2);"></div>
-        <button id="share-location-btn" onclick="toggleLocationSharing()" style="background:var(--green);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">Share My Location</button>
+  <div class="tab-panel" id="tab-locations" style="position:relative;">
+    <!-- Full screen map -->
+    <div id="locations-map" style="position:absolute;inset:0;z-index:1;"></div>
+    <!-- Floating toolbar at top -->
+    <div style="position:absolute;top:10px;left:10px;right:10px;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none;">
+      <div style="background:rgba(13,15,18,0.88);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;pointer-events:auto;">
+        <div id="location-share-status" style="font-family:var(--font-head);font-size:11px;font-weight:700;color:var(--green);"></div>
+        <button id="share-location-btn" onclick="toggleLocationSharing()" style="background:var(--green);color:white;border:none;border-radius:7px;padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">Share My Location</button>
+      </div>
+      <div style="background:rgba(13,15,18,0.88);backdrop-filter:blur(8px);border:1px solid rgba(234,179,8,0.3);border-radius:10px;padding:6px 10px;font-size:11px;color:var(--yellow);max-width:160px;line-height:1.3;pointer-events:none;">
+        ⚠ GPS less accurate indoors
       </div>
     </div>
-    <!-- GPS accuracy note -->
-    <div style="background:rgba(234,179,8,0.08);border-bottom:1px solid rgba(234,179,8,0.2);padding:7px 14px;font-size:11px;color:var(--yellow);line-height:1.4;flex-shrink:0;">
-      ⚠ GPS updates while this tab is open. Accuracy is reduced inside structures — last known position shown when signal is lost.
-    </div>
-    <!-- Map -->
-    <div id="locations-map" style="flex:1;min-height:0;"></div>
-    <!-- Member list below map -->
-    <div id="locations-list" style="flex-shrink:0;max-height:180px;overflow-y:auto;border-top:1px solid var(--border);"></div>
+    <!-- Floating crew list at bottom -->
+    <div id="locations-list" style="position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(13,15,18,0.92);backdrop-filter:blur(8px);border-top:1px solid var(--border);max-height:40%;overflow-y:auto;"></div>
   </div>
 
 </div><!-- end #app -->
 
 <!-- ============================================================ -->
+
 <!-- CALL ENDED SCREEN -->
+
 <!-- ============================================================ -->
+
 <div id="call-ended-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:20px;">
   <div style="font-size:48px;">✅</div>
   <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;line-height:1.1;">Call Ended</div>
@@ -1133,8 +1169,11 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
+
 <!-- STANDBY SCREEN (shown to crew when call ends) -->
+
 <!-- ============================================================ -->
+
 <div id="standby-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;">
   <div style="font-size:48px;">🟡</div>
   <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;">Call Ended</div>
@@ -1143,8 +1182,11 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
+
 <!-- HISTORY SCREEN -->
+
 <!-- ============================================================ -->
+
 <div id="history-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:960;display:flex;flex-direction:column;">
   <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
     <button onclick="closeHistoryScreen()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
@@ -1154,10 +1196,13 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
+
 <!-- MODALS -->
+
 <!-- ============================================================ -->
 
 <!-- Status Picker -->
+
 <div class="modal-overlay hidden" id="status-modal" onclick="closeStatusModal(event)">
   <div class="modal-sheet">
     <div class="modal-header">
@@ -1169,6 +1214,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Member Modal -->
+
 <div class="modal-overlay hidden" id="add-member-modal" onclick="closeAddMemberModal(event)">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1216,6 +1262,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Share Modal -->
+
 <div class="modal-overlay hidden" id="share-modal" onclick="closeShareModal(event)">
   <div class="share-modal-sheet">
     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
@@ -1237,6 +1284,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Select Person for Apparatus -->
+
 <div class="modal-overlay hidden" id="assign-modal" onclick="closeAssignModal(event)">
   <div class="select-modal-sheet">
     <div class="modal-header">
@@ -1248,6 +1296,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Log Drawer -->
+
 <div class="log-drawer hidden" id="log-drawer" onclick="closeLogDrawer(event)">
   <div class="log-sheet">
     <div class="log-header">
@@ -1262,6 +1311,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Menu Modal -->
+
 <div class="modal-overlay hidden" id="menu-modal" onclick="if(event.target.id==='menu-modal')this.classList.add('hidden')">
   <div class="modal-sheet" style="gap:6px;">
     <div class="modal-header">
@@ -1290,6 +1340,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Apparatus Modal -->
+
 <div class="modal-overlay hidden" id="add-apparatus-modal" onclick="if(event.target.id==='add-apparatus-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1318,6 +1369,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Mutual Aid Modal -->
+
 <div class="modal-overlay hidden" id="add-mutual-modal" onclick="if(event.target.id==='add-mutual-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1332,13 +1384,16 @@ select option { background: var(--surface); }
   </div>
 </div>
 
+<!-- ============================================================ -->
+
+<!-- DEPARTMENT PANEL -->
 
 <!-- ============================================================ -->
-<!-- DEPARTMENT PANEL -->
-<!-- ============================================================ -->
+
 <div id="dept-panel" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:970;display:flex;flex-direction:column;height:100%;height:100dvh;">
 
   <!-- Dept Header -->
+
   <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
     <button onclick="closeDeptPanel()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
     <div style="font-family:var(--font-head);font-size:20px;font-weight:800;">🏛 Department</div>
@@ -1346,6 +1401,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Dept Tabs -->
+
   <div style="background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-shrink:0;">
     <button class="dept-tab active" id="dtab-training" onclick="showDeptTab('training',this)">📚 Training</button>
     <button class="dept-tab" id="dtab-roster" onclick="showDeptTab('roster',this)">👤 Roster</button>
@@ -1353,6 +1409,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- TRAINING TAB -->
+
   <div class="dept-panel-tab active" id="dpanel-training">
     <div class="dept-toolbar captain-only" id="training-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddTrainingModal()">+ Log Training</button>
@@ -1375,6 +1432,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- ROSTER TAB -->
+
   <div class="dept-panel-tab" id="dpanel-roster">
     <div class="dept-toolbar captain-only" id="roster-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddRosterMemberModal()">+ Add Member</button>
@@ -1389,6 +1447,7 @@ select option { background: var(--surface); }
   </div>
 
   <!-- EQUIPMENT TAB -->
+
   <div class="dept-panel-tab" id="dpanel-equipment">
     <div class="dept-toolbar captain-only" id="equipment-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddEquipmentModal()">+ Add Item</button>
@@ -1415,6 +1474,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD TRAINING MODAL -->
+
 <div class="modal-overlay hidden" id="add-training-modal" onclick="if(event.target.id==='add-training-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:90vh;">
     <div class="modal-header">
@@ -1445,6 +1505,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- TRAINING DETAIL MODAL -->
+
 <div class="modal-overlay hidden" id="training-detail-modal" onclick="if(event.target.id==='training-detail-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:90vh;">
     <div class="modal-header">
@@ -1456,6 +1517,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD ROSTER MEMBER MODAL -->
+
 <div class="modal-overlay hidden" id="add-roster-member-modal" onclick="if(event.target.id==='add-roster-member-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1520,6 +1582,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD EQUIPMENT MODAL -->
+
 <div class="modal-overlay hidden" id="add-equipment-modal" onclick="if(event.target.id==='add-equipment-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1570,6 +1633,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- MANAGE LOCATIONS MODAL -->
+
 <div class="modal-overlay hidden" id="manage-locations-modal" onclick="if(event.target.id==='manage-locations-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1585,6 +1649,7 @@ select option { background: var(--surface); }
 </div>
 
 <!-- MEMBER PROFILE VIEW MODAL -->
+
 <div class="modal-overlay hidden" id="member-profile-modal" onclick="if(event.target.id==='member-profile-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1668,6 +1733,7 @@ select option { background: var(--surface); }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
@@ -3749,7 +3815,9 @@ function showTab(name, el) {
   el.classList.add('active');
   if (name === 'locations') {
     initMap();
-    setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 100);
+    // Multiple invalidateSize calls to ensure map fills after layout
+    setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 50);
+    setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 300);
     renderLocationsMap();
   }
 }
@@ -3876,21 +3944,32 @@ function updateLocationsList(data) {
   if (!list) return;
   const personnel = Object.values(STATE.personnel || {});
   if (personnel.length === 0) { list.innerHTML = ''; return; }
-  let html = '';
-  personnel.forEach(p => {
-    const locKey = p.name.replace(/[.#$[\]]/g,'_');
-    const loc = data[locKey];
+  const withLoc = personnel.filter(p => { const k = p.name.replace(/[.#$[\]]/g,'_'); return data[k] && data[k].lat; });
+  const withoutLoc = personnel.filter(p => { const k = p.name.replace(/[.#$[\]]/g,'_'); return !data[k] || !data[k].lat; });
+  let html = `<div style="padding:8px 12px;font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border);">Crew (${personnel.length}) · ${withLoc.length} sharing location</div>`;
+  withLoc.forEach(p => {
+    const k = p.name.replace(/[.#$[\]]/g,'_');
+    const loc = data[k];
     const color = getStatusColor(p.status);
-    const hasLoc = loc && loc.lat;
-    const locStr = hasLoc ? `±${loc.accuracy}m` : 'No location';
-    html += `<div class="loc-member-row">
-      <div class="loc-member-dot" style="background:${color};"></div>
-      <div class="loc-member-name">${p.name}</div>
-      <div style="font-size:11px;color:var(--text2);margin-right:8px;">${locStr}</div>
-      <div class="loc-member-status" style="color:${color};">${p.status}</div>
+    const age = loc.ts ? Math.floor((Date.now()-loc.ts)/60000) : null;
+    html += `<div onclick="if(locMap&&locMarkers['${k}']){locMap.setView(locMarkers['${k}'].getLatLng(),17,{animate:true});locMarkers['${k}'].openPopup();}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer;active:background:var(--surface2);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--font-head);font-size:14px;font-weight:700;">${p.name}</div>
+        <div style="font-size:11px;color:var(--text2);">${p.status} · ±${loc.accuracy}m${age !== null ? ' · ' + (age < 1 ? 'just now' : age + 'm ago') : ''}</div>
+      </div>
+      <div style="font-size:16px;">📍</div>
     </div>`;
   });
-  if (!html) html = '<div class="loc-no-location">No personnel on board yet.</div>';
+  withoutLoc.forEach(p => {
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);opacity:0.45;">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-family:var(--font-head);font-size:14px;font-weight:700;">${p.name}</div>
+        <div style="font-size:11px;color:var(--text2);">Location not shared</div>
+      </div>
+    </div>`;
+  });
   list.innerHTML = html;
 }
 
@@ -3978,5 +4057,6 @@ function formatTime(ts) {
 }
 
 </script>
+
 </body>
 </html>
