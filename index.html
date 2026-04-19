@@ -4,6 +4,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fire Ground Board">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#e8471a">
+<meta name="description" content="Real-time PAR accountability for active fire scenes. Free for any department.">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Fire Ground Board</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-2CHW7ZLQ4L"></script>
@@ -721,6 +729,7 @@ body.is-captain .panel-toolbar.captain-only { display: flex; }
 body.is-captain .captain-add-toolbar { display: flex; }
 
 select option { background: var(--surface); }
+@keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
 </style>
 
 </head>
@@ -4146,6 +4155,100 @@ function exitDemoMode() {
   document.getElementById('sync-banner').style.display = 'none';
   document.body.classList.remove('is-captain');
 }
+
+// ============================================================
+// PWA — SERVICE WORKER + INSTALL PROMPT
+// ============================================================
+let deferredInstallPrompt = null;
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW reg failed:', e));
+  });
+}
+
+// Capture install prompt (Android Chrome)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  // Don't show if already installed or banner dismissed
+  if (localStorage.getItem('fgb-install-dismissed')) return;
+  const existing = document.getElementById('install-banner');
+  if (existing) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.style.cssText = `
+    position:fixed; bottom:80px; left:12px; right:12px; z-index:2000;
+    background:#161a1f; border:1px solid #e8471a; border-radius:12px;
+    padding:14px 16px; display:flex; align-items:center; gap:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6);
+    animation: slideUp 0.3s ease;
+  `;
+  banner.innerHTML = `
+    <div style="font-size:24px;flex-shrink:0;">🔥</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#eef1f5;">Add to Home Screen</div>
+      <div style="font-size:12px;color:#7a8897;margin-top:1px;">Install Fire Ground Board as an app</div>
+    </div>
+    <button onclick="installApp()" style="background:#e8471a;color:white;border:none;border-radius:8px;padding:8px 14px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">Install</button>
+    <button onclick="dismissInstall()" style="background:transparent;border:none;color:#7a8897;font-size:20px;cursor:pointer;padding:2px 4px;flex-shrink:0;">✕</button>
+  `;
+  document.body.appendChild(banner);
+}
+
+function installApp() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') dismissInstall();
+      deferredInstallPrompt = null;
+    });
+  }
+}
+
+function dismissInstall() {
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.remove();
+  localStorage.setItem('fgb-install-dismissed', '1');
+}
+
+// iOS Safari — show manual instructions since beforeinstallprompt doesn't fire
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandalone = window.navigator.standalone;
+  const dismissed = localStorage.getItem('fgb-ios-dismissed');
+  if (isIOS && !isInStandalone && !dismissed) {
+    setTimeout(() => {
+      const existing = document.getElementById('install-banner');
+      if (existing) return;
+      const banner = document.createElement('div');
+      banner.id = 'install-banner';
+      banner.style.cssText = `
+        position:fixed; bottom:80px; left:12px; right:12px; z-index:2000;
+        background:#161a1f; border:1px solid #e8471a; border-radius:12px;
+        padding:14px 16px; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+        animation: slideUp 0.3s ease;
+      `;
+      banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <div style="font-size:22px;">🔥</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:#eef1f5;">Add to Home Screen</div>
+          <button onclick="document.getElementById('install-banner').remove();localStorage.setItem('fgb-ios-dismissed','1')" style="margin-left:auto;background:transparent;border:none;color:#7a8897;font-size:20px;cursor:pointer;padding:2px;">✕</button>
+        </div>
+        <div style="font-size:12px;color:#b8c4d0;line-height:1.6;">
+          Tap the <b style="color:#eef1f5;">Share button</b> (box with arrow) at the bottom of Safari, then tap <b style="color:#eef1f5;">"Add to Home Screen"</b>. Fire Ground Board will appear as an app on your phone.
+        </div>
+      `;
+      document.body.appendChild(banner);
+    }, 3000);
+  }
+});
 
 function formatTime(ts) {
   const d = new Date(ts);
