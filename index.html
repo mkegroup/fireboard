@@ -788,6 +788,10 @@ select option { background: var(--surface); }
     <strong>First time?</strong> You need a free Firebase database to sync across devices. Takes 5 minutes. <a href="https://fire.mkegroup.ca/setup.html" target="_blank">Read the setup guide →</a>
   </div>
 
+  <button onclick="startDemoMode()" style="background:var(--surface2);border:1px solid var(--accent);border-radius:10px;padding:13px;width:100%;max-width:400px;font-family:var(--font-head);font-size:14px;font-weight:800;color:var(--accent);cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">
+    ▶ Try Demo — No Firebase Needed
+  </button>
+
   <button onclick="openDeptPanelFromSetup()" style="background:transparent;border:1px solid var(--border);border-radius:10px;padding:13px;width:100%;max-width:400px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">
     🏛 Department Records
   </button>
@@ -1335,6 +1339,9 @@ select option { background: var(--surface); }
     </div>
     <div class="menu-item" onclick="signOut()">
       <span>🚪</span><div><div class="menu-item-label">Sign Out</div><div class="menu-item-desc">Return to login screen</div></div>
+    </div>
+    <div class="menu-item" id="menu-exit-demo" style="display:none;" onclick="exitDemoMode()">
+      <span>⚡</span><div><div class="menu-item-label" style="color:var(--yellow);">Exit Demo</div><div class="menu-item-desc">Return to setup screen</div></div>
     </div>
   </div>
 </div>
@@ -2805,7 +2812,9 @@ function submitAddMutualAid() {
 
 function showMenuModal() {
   const endBtn = document.getElementById('menu-end-incident');
-  if (endBtn) endBtn.style.display = currentUser && currentUser.isCaptain ? 'flex' : 'none';
+  if (endBtn) endBtn.style.display = currentUser && currentUser.isCaptain && !isDemoMode ? 'flex' : 'none';
+  const demoBtn = document.getElementById('menu-exit-demo');
+  if (demoBtn) demoBtn.style.display = isDemoMode ? 'flex' : 'none';
   document.getElementById('menu-modal').classList.remove('hidden');
 }
 
@@ -4049,6 +4058,93 @@ function deptDownload(text, filename) {
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// DEMO MODE — no Firebase required
+// ============================================================
+let isDemoMode = false;
+
+function startDemoMode() {
+  isDemoMode = true;
+  db = null; // no Firebase
+
+  // Pre-populate STATE with realistic demo data
+  STATE = {
+    incidentName: 'Structure Fire',
+    incidentAddr: '142 Mill Street, Barry\'s Bay ON',
+    captainPin: '0000',
+    deptName: 'Demo Fire Dept',
+    parActive: false,
+    parStart: null,
+    boardStatus: 'active',
+    log: [],
+    personnel: {
+      'demo1': { id:'demo1', name:'J. Kelley', role:'Captain/IC', team:'Command', status:'Staged', noRadio:false, time: Date.now()-480000 },
+      'demo2': { id:'demo2', name:'T. MacDonald', role:'Firefighter', team:'Alpha', status:'IN', noRadio:false, time: Date.now()-360000 },
+      'demo3': { id:'demo3', name:'S. Riopelle', role:'Firefighter', team:'Alpha', status:'IN', noRadio:false, time: Date.now()-320000 },
+      'demo4': { id:'demo4', name:'M. Brown', role:'Engineer/Driver', team:'Bravo', status:'OUT', noRadio:false, time: Date.now()-200000 },
+      'demo5': { id:'demo5', name:'A. Tremblay', role:'Firefighter', team:'Bravo', status:'Rehab', noRadio:false, time: Date.now()-180000 },
+      'demo6': { id:'demo6', name:'C. Walsh', role:'Medic', team:'Bravo', status:'Staged', noRadio:true, time: Date.now()-420000 },
+      'demo7': { id:'demo7', name:'D. Lafleur', role:'Firefighter', team:'Alpha', status:'Responding', noRadio:false, time: Date.now()-60000 },
+    },
+    apparatus: {
+      'app1': { id:'app1', name:'Tanker 1', icon:'🚒', station:'Barry\'s Bay Fire', status:'On Scene', crew:['T. MacDonald','S. Riopelle'] },
+      'app2': { id:'app2', name:'Pumper 2', icon:'🚒', station:'Barry\'s Bay Fire', status:'On Scene', crew:['M. Brown'] },
+      'app3': { id:'app3', name:'Rescue 1', icon:'🚑', station:'Renfrew County', status:'En Route', crew:[] },
+    },
+    mutualAid: {
+      'ma1': { id:'ma1', name:'Renfrew County', status:'En Route', notes:'ETA 12 min' },
+    },
+    roster: ['J. Kelley','T. MacDonald','S. Riopelle','M. Brown','A. Tremblay','C. Walsh','D. Lafleur'],
+    log: [
+      { time: Date.now()-480000, message:'J. Kelley joined as Captain/IC' },
+      { time: Date.now()-420000, message:'C. Walsh joined — Staged' },
+      { time: Date.now()-360000, message:'T. MacDonald joined — Responding → IN' },
+      { time: Date.now()-320000, message:'S. Riopelle joined — Responding → IN' },
+      { time: Date.now()-200000, message:'M. Brown status changed: IN → OUT' },
+      { time: Date.now()-180000, message:'A. Tremblay status changed: IN → Rehab' },
+      { time: Date.now()-60000,  message:'D. Lafleur joined — Responding' },
+    ]
+  };
+
+  // Set current user as captain
+  currentUser = { name:'J. Kelley', role:'Captain/IC', team:'Command', isCaptain:true };
+
+  // Show demo banner in app
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('topbar-dept-label').textContent = 'DEMO FIRE DEPT';
+  document.getElementById('topbar-user-chip').textContent = 'IC: J. Kelley';
+  document.getElementById('banner-incident-name').textContent = STATE.incidentName;
+  document.getElementById('banner-incident-addr').textContent = STATE.incidentAddr;
+  document.getElementById('banner-time').textContent = '8m';
+
+  // Show demo notice banner
+  const syncBanner = document.getElementById('sync-banner');
+  syncBanner.style.display = 'block';
+  syncBanner.textContent = '⚡ DEMO MODE — Changes are local only and not saved';
+  syncBanner.style.background = 'rgba(234,179,8,0.12)';
+  syncBanner.style.color = '#eab308';
+  syncBanner.style.borderBottom = '1px solid rgba(234,179,8,0.3)';
+
+  // Captain mode
+  document.body.classList.add('is-captain');
+  document.querySelectorAll('.captain-only').forEach(el => el.style.display='flex');
+  document.querySelectorAll('#add-member-btn-main, #add-apparatus-btn-main, #add-mutual-btn-main, #menu-end-incident').forEach(el => { if(el) el.style.display='flex'; });
+
+  renderAll();
+  history.pushState({ panel:'app' }, '');
+}
+
+function exitDemoMode() {
+  isDemoMode = false;
+  STATE = { incidentName:'New Incident', incidentAddr:'', captainPin:'1234', deptName:'', personnel:{}, apparatus:{}, mutualAid:{}, parActive:false, parStart:null, boardStatus:'setup', log:[], roster:[] };
+  currentUser = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('setup-screen').classList.remove('hidden');
+  document.getElementById('sync-banner').style.display = 'none';
+  document.body.classList.remove('is-captain');
 }
 
 function formatTime(ts) {
