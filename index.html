@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -40,7 +39,6 @@
 .loc-no-location { font-size:12px; color:var(--text2); padding:8px 14px; font-style:italic; }</style>
 
 <!-- Firebase SDK -->
-
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
   import { getDatabase, ref, set, onValue, get, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
@@ -155,80 +153,136 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   display: flex; flex-direction: column; padding: 0;
 }
 #login-screen.hidden { display: none; }
-.login-header {
-  background: var(--surface); border-bottom: 2px solid var(--accent);
-  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+
+/* ---- NEW LOGIN DESIGN ---- */
+.login-hero {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 28px 24px 20px;
+  position: relative;
+  overflow: hidden;
 }
-.login-logo-block {}
-.login-dept { font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
-.login-title { font-family: var(--font-head); font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; }
+.login-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.login-hero-eyebrow {
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; color: var(--accent); text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.login-hero-title {
+  font-family: var(--font-head); font-size: 28px; font-weight: 800;
+  color: var(--text); line-height: 1.0; margin-bottom: 4px;
+}
+.login-hero-sub {
+  font-size: 12px; color: var(--text2); line-height: 1.5;
+}
+.login-call-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(232,71,26,0.1); border: 1px solid rgba(232,71,26,0.3);
+  border-radius: 8px; padding: 8px 12px; margin-top: 12px;
+  width: 100%;
+}
+.login-call-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  animation: pulse 1.5s infinite; flex-shrink: 0;
+}
+.login-call-name {
+  font-family: var(--font-head); font-size: 16px; font-weight: 800; color: var(--text);
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.login-call-addr { font-size: 11px; color: var(--text2); }
 .login-body {
-  flex: 1; overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;
+  flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  -webkit-overflow-scrolling: touch;
 }
-.login-incident-info {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
-  font-size: 13px; color: var(--text2); text-align: center;
+.login-section-label {
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; color: var(--text2); text-transform: uppercase;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
-.login-incident-info strong { color: var(--text); font-family: var(--font-head); font-size: 16px; display: block; margin-bottom: 2px; }
-.login-section-title { font-family: var(--font-head); font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; }
-.roster-join-list { display: flex; flex-direction: column; gap: 8px; }
+.roster-join-list { display: flex; flex-direction: column; gap: 6px; }
 .roster-join-btn {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer;
-  transition: border-color 0.15s;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 .roster-join-btn:active { background: var(--surface2); }
-.roster-join-btn.selected { border-color: var(--accent); background: rgba(232,71,26,0.08); }
+.roster-join-btn.selected { border-color: var(--accent); background: rgba(232,71,26,0.07); }
 .roster-join-avatar {
-  width: 38px; height: 38px; border-radius: 50%; background: var(--surface2);
+  width: 36px; height: 36px; border-radius: 50%; background: var(--surface2);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text2); flex-shrink: 0;
+  font-family: var(--font-head); font-size: 13px; font-weight: 800; color: var(--text2); flex-shrink: 0;
 }
-.roster-join-info { flex: 1; }
-.roster-join-name { font-family: var(--font-head); font-size: 17px; font-weight: 700; }
-.roster-join-role { font-size: 12px; color: var(--text2); }
-.login-divider { display: flex; align-items: center; gap: 10px; }
-.login-divider-line { flex: 1; height: 1px; background: var(--border); }
-.login-divider-text { font-size: 12px; color: var(--text2); }
-.login-manual { display: flex; flex-direction: column; gap: 10px; }
+.roster-join-info { flex: 1; min-width: 0; }
+.roster-join-name { font-family: var(--font-head); font-size: 16px; font-weight: 800; line-height: 1.1; }
+.roster-join-role { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.roster-join-arrow { color: var(--text2); font-size: 16px; }
+.login-or {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; color: var(--text2); text-transform: uppercase;
+}
+.login-or::before, .login-or::after { content:''; flex:1; height:1px; background:var(--border); }
+.login-manual { display: flex; flex-direction: column; gap: 8px; }
 .login-row { display: flex; gap: 8px; }
 .login-input {
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 15px;
-  flex: 1; outline: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 13px 14px; color: var(--text); font-family: var(--font-body); font-size: 15px;
+  flex: 1; outline: none; min-width: 0;
 }
 .login-input:focus { border-color: var(--accent); }
 .login-input::placeholder { color: var(--text2); }
 .login-select {
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 14px;
-  flex: 1; outline: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 13px 14px; color: var(--text); font-family: var(--font-body); font-size: 13px;
+  flex: 1; outline: none; min-width: 0;
 }
+.login-join-btn {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; font-family: var(--font-head); font-size: 15px; font-weight: 800;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 1px; width: 100%;
+}
+.login-join-btn:active { background: var(--surface); }
 .login-captain-section {
-  background: rgba(232,71,26,0.06); border: 1px solid rgba(232,71,26,0.3); border-radius: 10px;
-  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+  background: rgba(232,71,26,0.05);
+  border: 1px solid rgba(232,71,26,0.25);
+  border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.login-captain-section h4 { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--accent); }
-.login-captain-section p { font-size: 12px; color: var(--text2); }
-.login-pin-row { display: flex; gap: 8px; align-items: center; }
+.login-captain-label {
+  font-family: var(--font-head); font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; color: var(--accent); text-transform: uppercase;
+}
+.login-captain-title {
+  font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--text); margin-top: 2px;
+}
+.login-captain-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.login-pin-row { display: flex; gap: 8px; }
 .login-pin-input {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; color: var(--text); font-family: var(--font-body); font-size: 18px;
-  letter-spacing: 4px; width: 130px; outline: none; text-align: center;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; color: var(--text); font-family: var(--font-head); font-size: 22px;
+  letter-spacing: 8px; width: 140px; outline: none; text-align: center; flex-shrink: 0;
 }
 .login-pin-input:focus { border-color: var(--accent); }
 .captain-join-btn {
-  background: var(--accent); color: white; border: none; border-radius: 8px;
-  padding: 12px 18px; font-family: var(--font-head); font-size: 15px; font-weight: 700;
-  cursor: pointer; flex: 1; text-transform: uppercase;
+  background: var(--accent); color: white; border: none; border-radius: 10px;
+  padding: 14px; font-family: var(--font-head); font-size: 15px; font-weight: 800;
+  cursor: pointer; flex: 1; text-transform: uppercase; letter-spacing: 0.5px;
 }
 .captain-join-btn:active { opacity: 0.85; }
-.login-join-btn {
-  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px; font-family: var(--font-head); font-size: 16px; font-weight: 700;
-  cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+.login-dept-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; width: 100%; font-family: var(--font-head); font-size: 13px;
+  font-weight: 700; color: var(--text2); cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.login-join-btn:active { background: var(--surface); }
+.login-dept-btn:active { background: var(--surface); }
 .sync-indicator {
   display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
   letter-spacing: 1px; text-transform: uppercase;
@@ -730,17 +784,20 @@ body.is-captain .captain-add-toolbar { display: flex; }
 
 select option { background: var(--surface); }
 @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
-</style>
 
+/* CHAT TAB */
+#tab-chat { display:none; flex-direction:column; overflow:hidden; }
+#tab-chat.active { display:flex; }
+#chat-messages { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; -webkit-overflow-scrolling:touch; min-height:0; }
+.chat-msg-system { text-align:center; font-size:11px; color:var(--text2); padding:3px 0; }
+#tab-chat .audio-bar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+</style>
 </head>
 <body>
 
 <!-- ============================================================ -->
-
 <!-- SETUP SCREEN -->
-
 <!-- ============================================================ -->
-
 <div id="setup-screen" class="hidden">
 
   <div class="setup-header">
@@ -808,11 +865,8 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
-
 <!-- CREW LOADING SCREEN -->
-
 <!-- ============================================================ -->
-
 <div id="crew-loading-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:1100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
   <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">MKE Group</div>
   <div style="font-family:var(--font-head);font-size:28px;font-weight:800;">Fire Ground Board</div>
@@ -823,108 +877,104 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
-
 <!-- LOGIN SCREEN -->
-
 <!-- ============================================================ -->
-
 <div id="login-screen" class="hidden">
-  <div class="login-header">
-    <div class="login-logo-block">
-      <div class="login-dept" id="login-dept-label">Fire Ground Board</div>
-      <div class="login-title">PAR Board</div>
-    </div>
-    <div id="login-sync-indicator" class="sync-indicator">
-      <div class="sync-dot" id="login-sync-dot"></div>
-      <span id="login-sync-label">connecting</span>
+
+  <!-- Hero header -->
+  <div class="login-hero">
+    <div class="login-hero-eyebrow" id="login-dept-label">Fire Ground Board</div>
+    <div class="login-hero-title">Join the Board</div>
+    <div class="login-hero-sub">Select your name or enter manually below.</div>
+    <div class="login-call-badge" id="login-incident-display">
+      <div class="login-call-dot"></div>
+      <div style="flex:1;min-width:0;">
+        <div class="login-call-name" id="login-incident-name-display">Loading...</div>
+        <div class="login-call-addr" id="login-incident-addr-display"></div>
+      </div>
+      <div id="login-sync-indicator" style="font-family:var(--font-head);font-size:10px;font-weight:700;color:var(--text2);letter-spacing:1px;">
+        <span id="login-sync-label">LIVE</span>
+      </div>
     </div>
   </div>
+
+  <!-- Body -->
   <div class="login-body">
-    <div class="login-incident-info" id="login-incident-display">
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;font-family:var(--font-head);margin-bottom:4px;">Active Call</div>
-      <strong id="login-incident-name-display" style="font-size:20px;font-family:var(--font-head);font-weight:800;display:block;line-height:1.1;">Loading...</strong>
-      <span id="login-incident-addr-display" style="font-size:13px;color:var(--text2);margin-top:3px;display:block;"></span>
+
+    <!-- Roster quick join -->
+    <div class="login-section-label">Quick Join</div>
+    <div class="roster-join-list" id="roster-join-list">
+      <div style="color:var(--text2);font-size:13px;padding:4px 0;">Loading roster...</div>
     </div>
 
-```
-<div class="login-section-title">Quick Join — Tap Your Name</div>
-<div class="roster-join-list" id="roster-join-list">
-  <div style="color:var(--text2);font-size:13px;padding:8px 0;">Loading roster...</div>
-</div>
+    <div class="login-or">or</div>
 
-<div class="login-divider">
-  <div class="login-divider-line"></div>
-  <div class="login-divider-text">OR JOIN MANUALLY</div>
-  <div class="login-divider-line"></div>
-</div>
+    <!-- Manual join -->
+    <div class="login-section-label">Join Manually</div>
+    <div class="login-manual">
+      <input class="login-input" id="login-name" placeholder="Your name" autocomplete="off">
+      <div class="login-row">
+        <select class="login-select" id="login-role">
+          <option>Firefighter</option>
+          <option>Engineer/Driver</option>
+          <option>Medic</option>
+          <option>Lieutenant</option>
+          <option>Captain/IC</option>
+          <option>Safety Officer</option>
+          <option>Chief</option>
+        </select>
+        <select class="login-select" id="login-team">
+          <option value="Alpha">Alpha</option>
+          <option value="Bravo">Bravo</option>
+          <option value="Charlie">Charlie</option>
+          <option value="RIC">RIC Team</option>
+        </select>
+      </div>
+      <button class="login-join-btn" onclick="loginManual()">Join as Crew</button>
+    </div>
 
-<div class="login-manual">
-  <input class="login-input" id="login-name" placeholder="Your name" autocomplete="off">
-  <div class="login-row">
-    <select class="login-select" id="login-role">
-      <option>Firefighter</option>
-      <option>Engineer/Driver</option>
-      <option>Medic</option>
-      <option>Lieutenant</option>
-      <option>Captain/IC</option>
-      <option>Safety Officer</option>
-      <option>Chief</option>
-    </select>
-    <select class="login-select" id="login-team">
-      <option value="Alpha">Alpha</option>
-      <option value="Bravo">Bravo</option>
-      <option value="Charlie">Charlie</option>
-      <option value="RIC">RIC Team</option>
-    </select>
-  </div>
-  <button class="login-join-btn" onclick="loginManual()">Join as Crew</button>
-</div>
+    <!-- Captain section -->
+    <div class="login-captain-section">
+      <div class="login-captain-label">Command Access</div>
+      <div class="login-captain-title">Captain / IC</div>
+      <div class="login-captain-desc">Enter the 4-digit PIN to take full control of the board.</div>
+      <div class="login-pin-row">
+        <input class="login-pin-input" id="login-pin" placeholder="····" maxlength="4" type="tel">
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+          <input class="login-input" id="captain-login-name" placeholder="Your name" autocomplete="off">
+          <select class="login-select" id="captain-login-role">
+            <option>Captain/IC</option>
+            <option>Lieutenant</option>
+            <option>Chief</option>
+            <option>Safety Officer</option>
+          </select>
+        </div>
+      </div>
+      <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
+    </div>
 
-<div class="login-captain-section">
-  <h4>🎖 Captain / IC Access</h4>
-  <p>Enter the 4-digit PIN to take control of this board.</p>
-  <div class="login-pin-row">
-    <input class="login-pin-input" id="login-pin" placeholder="PIN" maxlength="4" type="tel">
-    <div style="flex:1;"></div>
-  </div>
-  <input class="login-input" id="captain-login-name" placeholder="Your name" autocomplete="off" style="margin-top:4px;">
-  <select class="login-select" id="captain-login-role" style="margin-top:4px;">
-    <option>Captain/IC</option>
-    <option>Lieutenant</option>
-    <option>Chief</option>
-    <option>Safety Officer</option>
-  </select>
-  <button class="captain-join-btn" onclick="loginCaptain()">Enter as Captain</button>
-</div>
-
-<button onclick="openDeptPanel()" style="background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;width:100%;font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--text2);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">
-  🏛 Department Records
-</button>
-```
+    <button onclick="openDeptPanel()" class="login-dept-btn">🏛 Department Records</button>
 
   </div>
 </div>
 
 <!-- ============================================================ -->
-
 <!-- MAIN APP -->
-
 <!-- ============================================================ -->
-
 <div id="app" class="hidden">
 
   <!-- PAR Countdown Banner -->
-
   <div class="par-banner hidden" id="par-banner">
     ⚠️ PAR CHECK — ALL CREWS REPORT — <span id="par-countdown">2:00</span>
   </div>
 
-  <!-- Sync Status Banner -->
+  <!-- PTT Indicator -->
+  <div id="ptt-indicator" style="display:none;background:rgba(239,68,68,0.12);border-bottom:1px solid rgba(239,68,68,0.3);padding:6px 14px;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--red);letter-spacing:1px;text-transform:uppercase;text-align:center;animation:pulse 1s infinite;"></div>
 
+  <!-- Sync Status Banner -->
   <div id="sync-banner" style="display:none;background:#1a1a2e;border-bottom:1px solid var(--border);padding:6px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:center;"></div>
 
   <!-- Top Bar -->
-
   <div class="topbar">
     <div class="topbar-left">
       <div class="topbar-dept" id="topbar-dept-label">Fire Ground Board</div>
@@ -939,7 +989,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Call Info Banner -->
-
   <div id="call-info-banner" style="background:rgba(232,71,26,0.1);border-bottom:1px solid rgba(232,71,26,0.25);padding:8px 14px;display:flex;align-items:center;gap:10px;">
     <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 2s infinite;"></div>
     <div style="flex:1;min-width:0;">
@@ -950,17 +999,16 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Tabs -->
-
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('personnel', this)">👥 Personnel</button>
     <button class="tab-btn" onclick="showTab('apparatus', this)">🚒 Apparatus</button>
     <button class="tab-btn" onclick="showTab('iocanc', this)">📻 IOCANC</button>
     <button class="tab-btn" onclick="showTab('mutual', this)">🤝 Mutual Aid</button>
     <button class="tab-btn" onclick="showTab('locations', this)">📍 Locations</button>
+    <button class="tab-btn" id="chat-tab-btn" onclick="showTab('chat', this)">💬 Chat</button>
   </div>
 
   <!-- ---- PERSONNEL TAB ---- -->
-
   <div class="tab-panel active" id="tab-personnel">
     <div class="panel-toolbar">
       <div class="filter-pill all active" onclick="setFilter('all', this)">All</div>
@@ -974,25 +1022,21 @@ select option { background: var(--surface); }
       <button id="add-member-btn-main" onclick="showAddMemberModal()" style="display:none;background:var(--accent);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">+ Add</button>
     </div>
 
-```
-<!-- Quick roster chips (not-yet-added members) -->
-<div id="quick-roster-section" class="quick-roster-section captain-only-block" style="display:none;">
-  <div class="quick-roster-title">Quick Add from Roster</div>
-  <div class="quick-roster-grid" id="quick-roster-grid"></div>
-</div>
+    <!-- Quick roster chips (not-yet-added members) -->
+    <div id="quick-roster-section" class="quick-roster-section captain-only-block" style="display:none;">
+      <div class="quick-roster-title">Quick Add from Roster</div>
+      <div class="quick-roster-grid" id="quick-roster-grid"></div>
+    </div>
 
-<div class="member-cards" id="member-cards"></div>
-<div class="empty-state hidden" id="personnel-empty">
-  <div class="empty-icon">👥</div>
-  <div class="empty-title">No Personnel on Board</div>
-  <div class="empty-desc">Captain: tap "+ Add" or use Quick Add from the saved roster above.</div>
-</div>
-```
-
+    <div class="member-cards" id="member-cards"></div>
+    <div class="empty-state hidden" id="personnel-empty">
+      <div class="empty-icon">👥</div>
+      <div class="empty-title">No Personnel on Board</div>
+      <div class="empty-desc">Captain: tap "+ Add" or use Quick Add from the saved roster above.</div>
+    </div>
   </div>
 
   <!-- ---- APPARATUS TAB ---- -->
-
   <div class="tab-panel" id="tab-apparatus">
     <div class="panel-toolbar">
       <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Units on Scene</div>
@@ -1008,7 +1052,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- ---- IOCANC TAB ---- -->
-
   <div class="tab-panel" id="tab-iocanc">
     <div class="iocanc-container">
       <div class="iocanc-header-card">
@@ -1018,121 +1061,117 @@ select option { background: var(--surface); }
         <div class="iocanc-subtitle">Arrival radio report — fill each section, then generate your transmission script</div>
       </div>
 
-```
-  <!-- I -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter">I</div>
-      <div><div class="iocanc-section-title">Identify</div><div class="iocanc-section-hint">Who you are / unit arriving</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>Unit / Call Sign</label>
-      <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Tanker 1 arriving on scene..." style="min-height:44px;">
-    </div>
-  </div>
-  <!-- O -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter">O</div>
-      <div><div class="iocanc-section-title">Object</div><div class="iocanc-section-hint">What you're looking at</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>Structure / Incident Description</label>
-      <textarea class="iocanc-textarea" id="io-object" placeholder="e.g. two-storey wood frame residential, approx 1500 sq ft..."></textarea>
-    </div>
-  </div>
-  <!-- C -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter">C</div>
-      <div><div class="iocanc-section-title">Conditions</div><div class="iocanc-section-hint">Fire, smoke, hazards</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>Visible Fire / Smoke</label>
-      <select class="iocanc-select" id="io-fire-location">
-        <option value="">Select...</option>
-        <option>No visible fire or smoke</option>
-        <option>Light smoke showing</option>
-        <option>Heavy smoke showing</option>
-        <option>Fire showing — ground floor</option>
-        <option>Fire showing — upper floor</option>
-        <option>Fire showing — roof</option>
-        <option>Well-involved structure</option>
-        <option>Fire through roof</option>
-      </select>
-    </div>
-    <div class="iocanc-field">
-      <label>Additional Hazards</label>
-      <textarea class="iocanc-textarea" id="io-conditions" placeholder="e.g. propane tank on east side, power lines down..."></textarea>
-    </div>
-  </div>
-  <!-- A -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter">A</div>
-      <div><div class="iocanc-section-title">Actions</div><div class="iocanc-section-hint">What you're doing</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>Initial Action</label>
-      <select class="iocanc-select" id="io-action">
-        <option value="">Select...</option>
-        <option>Establishing command, offensive attack</option>
-        <option>Establishing command, defensive attack</option>
-        <option>Establishing command, investigation</option>
-        <option>Establishing command, rescue operations</option>
-        <option>Laying supply line, offensive attack</option>
-        <option>Conducting 360 walk-around</option>
-        <option>Evacuation in progress</option>
-      </select>
-    </div>
-    <div class="iocanc-field">
-      <label>Additional Actions</label>
-      <textarea class="iocanc-textarea" id="io-actions-extra" placeholder="e.g. crews advancing 1¾ line through front door..."></textarea>
-    </div>
-  </div>
-  <!-- N -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter">N</div>
-      <div><div class="iocanc-section-title">Needs</div><div class="iocanc-section-hint">Resources required</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>Resources Needed</label>
-      <textarea class="iocanc-textarea" id="io-needs" placeholder="e.g. request second tanker, hydrant, EMS standby..."></textarea>
-    </div>
-  </div>
-  <!-- C2 -->
-  <div class="iocanc-section">
-    <div class="iocanc-section-header">
-      <div class="iocanc-letter" style="background:var(--blue);">C</div>
-      <div><div class="iocanc-section-title">Command</div><div class="iocanc-section-hint">Who has command</div></div>
-    </div>
-    <div class="iocanc-field">
-      <label>IC Name</label>
-      <input class="iocanc-textarea" id="io-command" placeholder="e.g. Captain Smith has command" style="min-height:44px;">
-    </div>
-    <div class="iocanc-field">
-      <label>Command Location</label>
-      <select class="iocanc-select" id="io-command-loc">
-        <option value="">Select...</option>
-        <option>Command post at front of structure</option>
-        <option>Command post at road</option>
-        <option>Mobile command</option>
-        <option>Station command</option>
-      </select>
-    </div>
-  </div>
+      <!-- I -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter">I</div>
+          <div><div class="iocanc-section-title">Identify</div><div class="iocanc-section-hint">Who you are / unit arriving</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>Unit / Call Sign</label>
+          <input class="iocanc-textarea" id="io-identify" placeholder="e.g. Tanker 1 arriving on scene..." style="min-height:44px;">
+        </div>
+      </div>
+      <!-- O -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter">O</div>
+          <div><div class="iocanc-section-title">Object</div><div class="iocanc-section-hint">What you're looking at</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>Structure / Incident Description</label>
+          <textarea class="iocanc-textarea" id="io-object" placeholder="e.g. two-storey wood frame residential, approx 1500 sq ft..."></textarea>
+        </div>
+      </div>
+      <!-- C -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter">C</div>
+          <div><div class="iocanc-section-title">Conditions</div><div class="iocanc-section-hint">Fire, smoke, hazards</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>Visible Fire / Smoke</label>
+          <select class="iocanc-select" id="io-fire-location">
+            <option value="">Select...</option>
+            <option>No visible fire or smoke</option>
+            <option>Light smoke showing</option>
+            <option>Heavy smoke showing</option>
+            <option>Fire showing — ground floor</option>
+            <option>Fire showing — upper floor</option>
+            <option>Fire showing — roof</option>
+            <option>Well-involved structure</option>
+            <option>Fire through roof</option>
+          </select>
+        </div>
+        <div class="iocanc-field">
+          <label>Additional Hazards</label>
+          <textarea class="iocanc-textarea" id="io-conditions" placeholder="e.g. propane tank on east side, power lines down..."></textarea>
+        </div>
+      </div>
+      <!-- A -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter">A</div>
+          <div><div class="iocanc-section-title">Actions</div><div class="iocanc-section-hint">What you're doing</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>Initial Action</label>
+          <select class="iocanc-select" id="io-action">
+            <option value="">Select...</option>
+            <option>Establishing command, offensive attack</option>
+            <option>Establishing command, defensive attack</option>
+            <option>Establishing command, investigation</option>
+            <option>Establishing command, rescue operations</option>
+            <option>Laying supply line, offensive attack</option>
+            <option>Conducting 360 walk-around</option>
+            <option>Evacuation in progress</option>
+          </select>
+        </div>
+        <div class="iocanc-field">
+          <label>Additional Actions</label>
+          <textarea class="iocanc-textarea" id="io-actions-extra" placeholder="e.g. crews advancing 1¾ line through front door..."></textarea>
+        </div>
+      </div>
+      <!-- N -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter">N</div>
+          <div><div class="iocanc-section-title">Needs</div><div class="iocanc-section-hint">Resources required</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>Resources Needed</label>
+          <textarea class="iocanc-textarea" id="io-needs" placeholder="e.g. request second tanker, hydrant, EMS standby..."></textarea>
+        </div>
+      </div>
+      <!-- C2 -->
+      <div class="iocanc-section">
+        <div class="iocanc-section-header">
+          <div class="iocanc-letter" style="background:var(--blue);">C</div>
+          <div><div class="iocanc-section-title">Command</div><div class="iocanc-section-hint">Who has command</div></div>
+        </div>
+        <div class="iocanc-field">
+          <label>IC Name</label>
+          <input class="iocanc-textarea" id="io-command" placeholder="e.g. Captain Smith has command" style="min-height:44px;">
+        </div>
+        <div class="iocanc-field">
+          <label>Command Location</label>
+          <select class="iocanc-select" id="io-command-loc">
+            <option value="">Select...</option>
+            <option>Command post at front of structure</option>
+            <option>Command post at road</option>
+            <option>Mobile command</option>
+            <option>Station command</option>
+          </select>
+        </div>
+      </div>
 
-  <button class="generate-btn" onclick="generateRadioScript()">Generate Radio Script</button>
-  <div class="radio-script-box" id="radio-script-output"></div>
-  <button class="copy-btn" id="copy-script-btn" onclick="copyRadioScript()">Copy Script</button>
-</div>
-```
-
+      <button class="generate-btn" onclick="generateRadioScript()">Generate Radio Script</button>
+      <div class="radio-script-box" id="radio-script-output"></div>
+      <button class="copy-btn" id="copy-script-btn" onclick="copyRadioScript()">Copy Script</button>
+    </div>
   </div>
 
   <!-- ---- MUTUAL AID TAB ---- -->
-
   <div class="tab-panel" id="tab-mutual">
     <div class="panel-toolbar">
       <div style="flex:1;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Mutual Aid</div>
@@ -1164,14 +1203,36 @@ select option { background: var(--surface); }
     <div id="locations-list" style="position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(13,15,18,0.92);backdrop-filter:blur(8px);border-top:1px solid var(--border);max-height:40%;overflow-y:auto;"></div>
   </div>
 
+  <!-- ---- CHAT TAB ---- -->
+  <div class="tab-panel" id="tab-chat" style="position:relative;">
+    <!-- Audio stream bar (shown if configured) -->
+    <div id="audio-stream-bar" style="display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <div style="font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;flex:1;">📡 Scanner Feed</div>
+      <button id="audio-play-btn" onclick="toggleAudioStream()" style="background:var(--green);color:white;border:none;border-radius:7px;padding:5px 12px;font-family:var(--font-head);font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;">Play</button>
+    </div>
+    <audio id="scanner-audio" style="display:none;"></audio>
+
+    <!-- Chat messages -->
+    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;-webkit-overflow-scrolling:touch;min-height:0;"></div>
+
+    <!-- PTT + input bar -->
+    <div style="border-top:1px solid var(--border);background:var(--surface);padding:10px 12px;display:flex;gap:8px;align-items:center;flex-shrink:0;">
+      <button id="ptt-btn" ontouchstart="startPTT(event)" ontouchend="stopPTT(event)" onmousedown="startPTT(event)" onmouseup="stopPTT(event)"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;flex-shrink:0;user-select:none;-webkit-user-select:none;touch-action:none;">
+        🎙 Hold
+      </button>
+      <input id="chat-input" class="login-input" placeholder="Message crew..." autocomplete="off"
+        style="flex:1;padding:10px 13px;font-size:14px;"
+        onkeydown="if(event.key==='Enter')sendChatMessage()">
+      <button onclick="sendChatMessage()" style="background:var(--accent);color:white;border:none;border-radius:10px;padding:10px 16px;font-family:var(--font-head);font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;">Send</button>
+    </div>
+  </div>
+
 </div><!-- end #app -->
 
 <!-- ============================================================ -->
-
 <!-- CALL ENDED SCREEN -->
-
 <!-- ============================================================ -->
-
 <div id="call-ended-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:20px;">
   <div style="font-size:48px;">✅</div>
   <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;line-height:1.1;">Call Ended</div>
@@ -1182,11 +1243,8 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
-
 <!-- STANDBY SCREEN (shown to crew when call ends) -->
-
 <!-- ============================================================ -->
-
 <div id="standby-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;">
   <div style="font-size:48px;">🟡</div>
   <div style="font-family:var(--font-head);font-size:30px;font-weight:800;text-align:center;">Call Ended</div>
@@ -1195,11 +1253,8 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
-
 <!-- HISTORY SCREEN -->
-
 <!-- ============================================================ -->
-
 <div id="history-screen" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:960;display:flex;flex-direction:column;">
   <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
     <button onclick="closeHistoryScreen()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
@@ -1209,13 +1264,10 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ============================================================ -->
-
 <!-- MODALS -->
-
 <!-- ============================================================ -->
 
 <!-- Status Picker -->
-
 <div class="modal-overlay hidden" id="status-modal" onclick="closeStatusModal(event)">
   <div class="modal-sheet">
     <div class="modal-header">
@@ -1227,7 +1279,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Member Modal -->
-
 <div class="modal-overlay hidden" id="add-member-modal" onclick="closeAddMemberModal(event)">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1275,7 +1326,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Share Modal -->
-
 <div class="modal-overlay hidden" id="share-modal" onclick="closeShareModal(event)">
   <div class="share-modal-sheet">
     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
@@ -1297,7 +1347,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Select Person for Apparatus -->
-
 <div class="modal-overlay hidden" id="assign-modal" onclick="closeAssignModal(event)">
   <div class="select-modal-sheet">
     <div class="modal-header">
@@ -1309,7 +1358,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Log Drawer -->
-
 <div class="log-drawer hidden" id="log-drawer" onclick="closeLogDrawer(event)">
   <div class="log-sheet">
     <div class="log-header">
@@ -1324,7 +1372,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Menu Modal -->
-
 <div class="modal-overlay hidden" id="menu-modal" onclick="if(event.target.id==='menu-modal')this.classList.add('hidden')">
   <div class="modal-sheet" style="gap:6px;">
     <div class="modal-header">
@@ -1333,6 +1380,12 @@ select option { background: var(--surface); }
     </div>
     <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');openDeptPanel()">
       <span>🏛</span><div><div class="menu-item-label">Department</div><div class="menu-item-desc">Training logs, roster profiles, equipment</div></div>
+    </div>
+    <div class="menu-item captain-only" id="menu-audio-stream" onclick="document.getElementById('menu-modal').classList.add('hidden');showAudioStreamModal()">
+      <span>📡</span><div><div class="menu-item-label">Scanner Feed</div><div class="menu-item-desc">Configure a live audio stream URL</div></div>
+    </div>
+    <div class="menu-item captain-only" id="menu-dispatch" onclick="document.getElementById('menu-modal').classList.add('hidden');showDispatchModal()">
+      <span>🖥</span><div><div class="menu-item-label">Dispatch Integration</div><div class="menu-item-desc">Webhook URL for CAD connection</div></div>
     </div>
     <div class="menu-item" onclick="showLogDrawer();document.getElementById('menu-modal').classList.add('hidden')">
       <span>📋</span><div><div class="menu-item-label">Activity Log</div><div class="menu-item-desc">Full timestamped log of all changes</div></div>
@@ -1356,7 +1409,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Apparatus Modal -->
-
 <div class="modal-overlay hidden" id="add-apparatus-modal" onclick="if(event.target.id==='add-apparatus-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1385,7 +1437,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- Add Mutual Aid Modal -->
-
 <div class="modal-overlay hidden" id="add-mutual-modal" onclick="if(event.target.id==='add-mutual-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1400,16 +1451,13 @@ select option { background: var(--surface); }
   </div>
 </div>
 
-<!-- ============================================================ -->
 
+<!-- ============================================================ -->
 <!-- DEPARTMENT PANEL -->
-
 <!-- ============================================================ -->
-
 <div id="dept-panel" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:970;display:flex;flex-direction:column;height:100%;height:100dvh;">
 
   <!-- Dept Header -->
-
   <div style="background:var(--surface);border-bottom:2px solid var(--accent);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
     <button onclick="closeDeptPanel()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;">← Back</button>
     <div style="font-family:var(--font-head);font-size:20px;font-weight:800;">🏛 Department</div>
@@ -1417,7 +1465,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- Dept Tabs -->
-
   <div style="background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-shrink:0;">
     <button class="dept-tab active" id="dtab-training" onclick="showDeptTab('training',this)">📚 Training</button>
     <button class="dept-tab" id="dtab-roster" onclick="showDeptTab('roster',this)">👤 Roster</button>
@@ -1425,7 +1472,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- TRAINING TAB -->
-
   <div class="dept-panel-tab active" id="dpanel-training">
     <div class="dept-toolbar captain-only" id="training-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddTrainingModal()">+ Log Training</button>
@@ -1448,7 +1494,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- ROSTER TAB -->
-
   <div class="dept-panel-tab" id="dpanel-roster">
     <div class="dept-toolbar captain-only" id="roster-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddRosterMemberModal()">+ Add Member</button>
@@ -1463,7 +1508,6 @@ select option { background: var(--surface); }
   </div>
 
   <!-- EQUIPMENT TAB -->
-
   <div class="dept-panel-tab" id="dpanel-equipment">
     <div class="dept-toolbar captain-only" id="equipment-captain-toolbar" style="display:none;">
       <button class="add-member-btn" onclick="showAddEquipmentModal()">+ Add Item</button>
@@ -1490,7 +1534,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD TRAINING MODAL -->
-
 <div class="modal-overlay hidden" id="add-training-modal" onclick="if(event.target.id==='add-training-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:90vh;">
     <div class="modal-header">
@@ -1521,7 +1564,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- TRAINING DETAIL MODAL -->
-
 <div class="modal-overlay hidden" id="training-detail-modal" onclick="if(event.target.id==='training-detail-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:90vh;">
     <div class="modal-header">
@@ -1533,7 +1575,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD ROSTER MEMBER MODAL -->
-
 <div class="modal-overlay hidden" id="add-roster-member-modal" onclick="if(event.target.id==='add-roster-member-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1598,7 +1639,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- ADD EQUIPMENT MODAL -->
-
 <div class="modal-overlay hidden" id="add-equipment-modal" onclick="if(event.target.id==='add-equipment-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1649,7 +1689,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- MANAGE LOCATIONS MODAL -->
-
 <div class="modal-overlay hidden" id="manage-locations-modal" onclick="if(event.target.id==='manage-locations-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet">
     <div class="modal-header">
@@ -1665,7 +1704,6 @@ select option { background: var(--surface); }
 </div>
 
 <!-- MEMBER PROFILE VIEW MODAL -->
-
 <div class="modal-overlay hidden" id="member-profile-modal" onclick="if(event.target.id==='member-profile-modal')this.classList.add('hidden')">
   <div class="add-modal-sheet" style="max-height:92vh;">
     <div class="modal-header">
@@ -1749,6 +1787,46 @@ select option { background: var(--surface); }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- AUDIO STREAM MODAL -->
+<div class="modal-overlay hidden" id="audio-stream-modal" onclick="if(event.target.id==='audio-stream-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">📡 Scanner Feed</div>
+      <div class="modal-close" onclick="document.getElementById('audio-stream-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div class="callout">Paste any live audio stream URL (MP3, AAC, or HLS). Your crew will see a Play button in the Chat tab. Works with Broadcastify, county streams, or any public scanner feed.</div>
+    <div><div class="modal-label">Stream URL</div>
+      <input class="modal-input" id="audio-stream-url" placeholder="https://..." type="url" autocomplete="off" autocapitalize="off">
+    </div>
+    <div><div class="modal-label">Label (optional)</div>
+      <input class="modal-input" id="audio-stream-label" placeholder="e.g. Renfrew County Dispatch" autocomplete="off">
+    </div>
+    <button class="btn-modal-add" onclick="saveAudioStream()">Save Stream</button>
+    <button onclick="clearAudioStream()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;width:100%;">Remove Stream</button>
+  </div>
+</div>
+
+<!-- DISPATCH INTEGRATION MODAL -->
+<div class="modal-overlay hidden" id="dispatch-modal" onclick="if(event.target.id==='dispatch-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">🖥 Dispatch Integration</div>
+      <div class="modal-close" onclick="document.getElementById('dispatch-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div class="callout">Give your county IT department the webhook URL below. When a call comes in from your CAD system, it will automatically start a new incident on Fire Ground Board and alert your crew.</div>
+    <div><div class="modal-label">Your Department Webhook URL</div>
+      <div id="webhook-url-display" style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:11px 13px;font-family:monospace;font-size:12px;color:var(--accent2);word-break:break-all;line-height:1.5;"></div>
+      <button onclick="copyWebhookUrl()" style="margin-top:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;width:100%;">Copy URL</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;">
+      <div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:6px;">What to tell your IT department</div>
+      Send a POST request to the URL above with JSON containing: <code style="background:var(--surface2);border-radius:4px;padding:1px 5px;font-size:11px;">incident_name</code>, <code style="background:var(--surface2);border-radius:4px;padding:1px 5px;font-size:11px;">address</code>, and optionally <code style="background:var(--surface2);border-radius:4px;padding:1px 5px;font-size:11px;">call_type</code>. Fire Ground Board will auto-start the incident.
+    </div>
+    <div style="font-size:11px;color:var(--text2);line-height:1.5;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px;">
+      📧 No CAD integration yet? Your county can also configure automated email alerts from their dispatch system. Forward those emails to your webhook URL and it will work the same way.
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -2097,7 +2175,6 @@ function loginCaptain() {
 }
 
 function enterApp() {
-  // If board is in standby and this is crew, show standby screen
   if (STATE.boardStatus === 'standby' && !currentUser.isCaptain) {
     showStandbyScreen();
     return;
@@ -2111,18 +2188,19 @@ function enterApp() {
       if (el) el.style.display = 'inline-flex';
     });
   }
-  // Apparatus add is open to all logged-in users
   const appBtn = document.getElementById('add-apparatus-btn-main');
   if (appBtn) appBtn.style.display = 'inline-flex';
   document.getElementById('topbar-user-chip').textContent = currentUser.isCaptain ? `IC: ${currentUser.name}` : currentUser.name;
-  document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
-  document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
   const dept = STATE.deptName || 'Fire Ground Board';
-  document.getElementById('topbar-dept-label').textContent = dept;
+  document.getElementById('topbar-dept-label').textContent = dept.toUpperCase();
   updateCallBanner();
   renderAll();
   if (STATE.parActive) startParCountdownDisplay(STATE.parStart);
-  // Push state so browser back doesn't exit the app
+  // Init chat, push notifications, PTT listener
+  initChat();
+  listenForPTT();
+  listenForIncidentStart();
+  requestPushPermission();
   history.pushState({ panel: 'app' }, '');
 }
 
@@ -2134,14 +2212,11 @@ function renderAll() {
   renderApparatus();
   renderMutualAid();
   updateCallBanner();
-  // Update incident header
-  if (document.getElementById('topbar-incident-view')) {
-    document.getElementById('topbar-incident-view').textContent = STATE.incidentName;
-    document.getElementById('topbar-addr-view').textContent = STATE.incidentAddr;
-  }
   // Update login display if visible
   const incEl = document.getElementById('login-incident-name-display');
-  if (incEl) { incEl.textContent = STATE.incidentName; }
+  if (incEl) incEl.textContent = STATE.incidentName;
+  const addrEl = document.getElementById('login-incident-addr-display');
+  if (addrEl) addrEl.textContent = STATE.incidentAddr;
   renderLoginRoster();
   if (STATE.parActive && !parInterval) startParCountdownDisplay(STATE.parStart);
 }
@@ -3833,10 +3908,15 @@ function showTab(name, el) {
   el.classList.add('active');
   if (name === 'locations') {
     initMap();
-    // Multiple invalidateSize calls to ensure map fills after layout
     setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 50);
     setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 300);
     renderLocationsMap();
+  }
+  if (name === 'chat') {
+    clearChatUnread();
+    updateAudioStreamBar();
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 100);
   }
 }
 
@@ -4256,6 +4336,5 @@ function formatTime(ts) {
 }
 
 </script>
-
 </body>
 </html>
