@@ -2895,10 +2895,16 @@ function submitAddMutualAid() {
 }
 
 function showMenuModal() {
+  const isCap = currentUser && currentUser.isCaptain;
   const endBtn = document.getElementById('menu-end-incident');
-  if (endBtn) endBtn.style.display = currentUser && currentUser.isCaptain && !isDemoMode ? 'flex' : 'none';
+  if (endBtn) endBtn.style.display = isCap && !isDemoMode ? 'flex' : 'none';
   const demoBtn = document.getElementById('menu-exit-demo');
   if (demoBtn) demoBtn.style.display = isDemoMode ? 'flex' : 'none';
+  // Always show captain items when captain (including demo)
+  ['menu-audio-stream','menu-dispatch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isCap ? 'flex' : 'none';
+  });
   document.getElementById('menu-modal').classList.remove('hidden');
 }
 
@@ -3901,24 +3907,6 @@ function initMap() {
   setTimeout(() => locMap.invalidateSize(), 200);
 }
 
-function showTab(name, el) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  el.classList.add('active');
-  if (name === 'locations') {
-    initMap();
-    setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 50);
-    setTimeout(() => { if (locMap) locMap.invalidateSize(); }, 300);
-    renderLocationsMap();
-  }
-  if (name === 'chat') {
-    clearChatUnread();
-    updateAudioStreamBar();
-    const msgs = document.getElementById('chat-messages');
-    if (msgs) setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 100);
-  }
-}
 
 function toggleLocationSharing() {
   if (isSharingLocation) {
@@ -4333,6 +4321,263 @@ window.addEventListener('load', () => {
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+let chatUnread = 0;
+let demoChatMessages = [];
+
+function initChat() {
+  if (isDemoMode || !db) {
+    demoChatMessages = [
+      { sender:'J. Kelley', role:'Captain/IC', text:'Board is live. All units check in.', ts:Date.now()-300000, type:'text' },
+      { sender:'T. MacDonald', role:'Firefighter', text:'Tanker 1 on scene, crew ready.', ts:Date.now()-240000, type:'text' },
+      { sender:'M. Brown', role:'Engineer/Driver', text:'Pumper 2 staged at road.', ts:Date.now()-180000, type:'text' },
+    ];
+    renderChat(demoChatMessages);
+    return;
+  }
+  const { ref, onValue } = window._firebaseModules;
+  onValue(ref(db, 'chat'), (snap) => {
+    const messages = snap.exists() ? Object.values(snap.val()).sort((a,b)=>a.ts-b.ts) : [];
+    renderChat(messages);
+  });
+}
+
+function renderChat(messages) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
+  if (!messages.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:13px;padding:20px;">No messages yet.</div>';
+    return;
+  }
+  container.innerHTML = messages.map(m => {
+    const isMe = currentUser && m.sender === currentUser.name;
+    const time = new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    if (m.type === 'system') return `<div style="text-align:center;font-size:11px;color:var(--text2);padding:4px 0;">${m.text}</div>`;
+    return `<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'};gap:2px;">
+      ${!isMe?`<div style="font-family:var(--font-head);font-size:11px;font-weight:700;color:var(--text2);padding:0 4px;">${m.sender}</div>`:''}
+      <div style="max-width:78%;background:${isMe?'var(--accent)':'var(--surface)'};border:1px solid ${isMe?'var(--accent)':'var(--border)'};border-radius:${isMe?'12px 12px 4px 12px':'12px 12px 12px 4px'};padding:9px 12px;">
+        <div style="font-size:14px;color:${isMe?'white':'var(--text)'};line-height:1.4;">${m.text}</div>
+        <div style="font-size:10px;color:${isMe?'rgba(255,255,255,0.65)':'var(--text2)'};margin-top:3px;text-align:right;">${time}</div>
+      </div>
+    </div>`;
+  }).join('');
+  if (atBottom) container.scrollTop = container.scrollHeight;
+  const panel = document.getElementById('tab-chat');
+  if (panel && !panel.classList.contains('active')) {
+    chatUnread++;
+    const btn = document.getElementById('chat-tab-btn');
+    if (btn) btn.textContent = `💬 Chat (${chatUnread})`;
+  }
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = (input ? input.value.trim() : '');
+  if (!text || !currentUser) return;
+  const msg = { sender:currentUser.name, role:currentUser.role||'', text, ts:Date.now(), type:'text' };
+  if (isDemoMode || !db) {
+    demoChatMessages.push(msg);
+    renderChat(demoChatMessages);
+    const c = document.getElementById('chat-messages');
+    if (c) c.scrollTop = c.scrollHeight;
+    if (input) input.value = '';
+    return;
+  }
+  const { ref, set } = window._firebaseModules;
+  set(ref(db, 'chat/msg_'+Date.now()), msg);
+  if (input) input.value = '';
+}
+
+function clearChatUnread() {
+  chatUnread = 0;
+  const btn = document.getElementById('chat-tab-btn');
+  if (btn) btn.textContent = '💬 Chat';
+}
+
+// ============================================================
+// PUSH-TO-TALK (Firebase signaling groundwork — PTT not demoed)
+// ============================================================
+let pttActive = false;
+let pttStream = null;
+
+function startPTT(e) {
+  e.preventDefault();
+  if (pttActive || isDemoMode) return;
+  pttActive = true;
+  const btn = document.getElementById('ptt-btn');
+  if (btn) { btn.style.background='var(--red)'; btn.style.color='white'; btn.style.borderColor='var(--red)'; btn.textContent='🎙 Talking...'; }
+  navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(stream => {
+    pttStream = stream;
+    if (db && currentUser) {
+      const { ref, set } = window._firebaseModules;
+      set(ref(db,'ptt/'+currentUser.name.replace(/[^a-z0-9]/gi,'_')), { name:currentUser.name, ts:Date.now(), active:true });
+    }
+  }).catch(() => {
+    pttActive = false;
+    if (btn) { btn.style.background='var(--surface2)'; btn.style.color='var(--text2)'; btn.style.borderColor='var(--border)'; btn.textContent='🎙 Hold'; }
+    alert('Microphone access required for push-to-talk.');
+  });
+}
+
+function stopPTT(e) {
+  e.preventDefault();
+  if (!pttActive) return;
+  pttActive = false;
+  const btn = document.getElementById('ptt-btn');
+  if (btn) { btn.style.background='var(--surface2)'; btn.style.color='var(--text2)'; btn.style.borderColor='var(--border)'; btn.textContent='🎙 Hold'; }
+  if (pttStream) { pttStream.getTracks().forEach(t=>t.stop()); pttStream=null; }
+  if (db && currentUser) {
+    const { ref, set } = window._firebaseModules;
+    set(ref(db,'ptt/'+currentUser.name.replace(/[^a-z0-9]/gi,'_')), null);
+  }
+}
+
+function listenForPTT() {
+  if (isDemoMode || !db) return;
+  const { ref, onValue } = window._firebaseModules;
+  onValue(ref(db,'ptt'), (snap) => {
+    const ind = document.getElementById('ptt-indicator');
+    if (!snap.exists()) { if(ind) ind.style.display='none'; return; }
+    const active = Object.values(snap.val()).filter(t=>t&&t.active&&(!currentUser||t.name!==currentUser.name));
+    if (!ind) return;
+    if (active.length) { ind.style.display='block'; ind.textContent=`🎙 ${active[0].name} is transmitting...`; }
+    else { ind.style.display='none'; }
+  });
+}
+
+// ============================================================
+// AUDIO STREAM (Scanner Feed)
+// ============================================================
+let audioPlaying = false;
+
+function showAudioStreamModal() {
+  const urlEl = document.getElementById('audio-stream-url');
+  const lblEl = document.getElementById('audio-stream-label');
+  if (urlEl) urlEl.value = ssGet('fgb_audio_url')||'';
+  if (lblEl) lblEl.value = ssGet('fgb_audio_label')||'';
+  document.getElementById('audio-stream-modal').classList.remove('hidden');
+}
+
+function saveAudioStream() {
+  const url = (document.getElementById('audio-stream-url').value||'').trim();
+  const lbl = (document.getElementById('audio-stream-label').value||'').trim();
+  if (!url) { alert('Enter a stream URL.'); return; }
+  ssSet('fgb_audio_url', url);
+  ssSet('fgb_audio_label', lbl||'Scanner Feed');
+  updateAudioStreamBar();
+  document.getElementById('audio-stream-modal').classList.add('hidden');
+}
+
+function clearAudioStream() {
+  ssSet('fgb_audio_url',''); ssSet('fgb_audio_label','');
+  const bar = document.getElementById('audio-stream-bar');
+  if (bar) bar.style.display='none';
+  const audio = document.getElementById('scanner-audio');
+  if (audio) { audio.pause(); audio.src=''; }
+  audioPlaying = false;
+  document.getElementById('audio-stream-modal').classList.add('hidden');
+}
+
+function updateAudioStreamBar() {
+  const url = ssGet('fgb_audio_url');
+  const lbl = ssGet('fgb_audio_label')||'Scanner Feed';
+  const bar = document.getElementById('audio-stream-bar');
+  if (!bar) return;
+  if (url) {
+    bar.style.display = 'flex';
+    const lblEl = bar.querySelector('div');
+    if (lblEl) lblEl.textContent = `📡 ${lbl}`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function toggleAudioStream() {
+  const audio = document.getElementById('scanner-audio');
+  const btn = document.getElementById('audio-play-btn');
+  const url = ssGet('fgb_audio_url');
+  if (!audio || !url) return;
+  if (audioPlaying) {
+    audio.pause(); audioPlaying = false;
+    if (btn) { btn.textContent='Play'; btn.style.background='var(--green)'; }
+  } else {
+    audio.src = url;
+    audio.play().catch(()=>alert('Could not play stream. Check the URL is a valid audio stream.'));
+    audioPlaying = true;
+    if (btn) { btn.textContent='Stop'; btn.style.background='var(--red)'; }
+  }
+}
+
+// ============================================================
+// DISPATCH WEBHOOK
+// ============================================================
+function showDispatchModal() {
+  const dbUrl = db ? db.app.options.databaseURL : (ssGet('fgb_db')||'YOUR-DB-URL');
+  const encoded = encodeURIComponent(dbUrl);
+  const webhookUrl = `https://fire.mkegroup.ca/api/webhook?db=${encoded}`;
+  const display = document.getElementById('webhook-url-display');
+  if (display) display.textContent = webhookUrl;
+  document.getElementById('dispatch-modal').classList.remove('hidden');
+}
+
+function copyWebhookUrl() {
+  const display = document.getElementById('webhook-url-display');
+  if (!display) return;
+  navigator.clipboard.writeText(display.textContent).then(() => {
+    const btn = display.nextElementSibling;
+    if (btn) { btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy URL',2000); }
+  });
+}
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+function requestPushPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+
+function sendPushNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible') return;
+  new Notification(title, { body, icon:'/icon-192.png', tag:'fgb-alert', renotify:true });
+}
+
+function listenForIncidentStart() {
+  if (isDemoMode || !db) return;
+  const { ref, onValue } = window._firebaseModules;
+  let first = true;
+  onValue(ref(db,'state/incidentName'), (snap) => {
+    if (first) { first=false; return; }
+    if (snap.exists() && snap.val()) sendPushNotification('New Incident', snap.val()+' — Open Fire Ground Board');
+  });
+}
+
+// ============================================================
+// SHOW TAB — handles chat unread + map init
+// ============================================================
+function showTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'locations') {
+    initMap();
+    setTimeout(()=>{ if(locMap) locMap.invalidateSize(); }, 50);
+    setTimeout(()=>{ if(locMap) locMap.invalidateSize(); }, 300);
+    renderLocationsMap();
+  }
+  if (name === 'chat') {
+    clearChatUnread();
+    updateAudioStreamBar();
+    const msgs = document.getElementById('chat-messages');
+    if (msgs) setTimeout(()=>msgs.scrollTop=msgs.scrollHeight, 100);
+  }
 }
 
 </script>
