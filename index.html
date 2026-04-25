@@ -428,9 +428,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .badge-missing { background: rgba(249,115,22,0.25); color: var(--orange); border: 1px solid var(--orange); }
 .member-time { font-size: 10px; color: var(--text2); }
 
-.quick-roster-section { padding: 8px 12px 4px; border-bottom: 1px solid var(--border); }
-.quick-roster-title { font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 8px; }
-.quick-roster-grid { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 8px; }
+.quick-roster-section { padding: 6px 12px 2px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.quick-roster-title { font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 6px; }
+.quick-roster-grid { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+.quick-roster-grid::-webkit-scrollbar { display: none; }
 .quick-add-chip {
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px 12px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
@@ -2282,11 +2283,9 @@ function enterApp() {
   renderAll();
   initChat();
   showChatFab();
-  history.pushState({ panel: 'app' }, '');
   listenForPTT();
   listenForIncidentStart();
   requestPushPermission();
-  showChatFab();
   history.pushState({ panel: 'app' }, '');
 }
 
@@ -4328,6 +4327,8 @@ function startDemoMode() {
   document.querySelectorAll('#add-member-btn-main, #add-apparatus-btn-main, #add-mutual-btn-main, #menu-end-incident').forEach(el => { if(el) el.style.display='flex'; });
 
   renderAll();
+  initChat();
+  showChatFab();
   history.pushState({ panel:'app' }, '');
 }
 
