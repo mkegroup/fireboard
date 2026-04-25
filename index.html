@@ -3049,7 +3049,8 @@ function endIncident() {
       parActive: false,
       parStart: null,
       iocanc: {},
-      boardStatus: 'standby' // signals all devices to go to standby
+      boardStatus: 'standby', // signals all devices to go to standby
+      chat: {} // clear chat for new incident
     };
     set(dbRef, clearedState).then(() => {
       STATE = clearedState;
@@ -4458,7 +4459,7 @@ function initChat() {
     return;
   }
   const { ref, onValue } = window._firebaseModules;
-  onValue(ref(db, 'chat'), (snap) => {
+  onValue(ref(db, 'state/chat'), (snap) => {
     const messages = snap.exists() ? Object.values(snap.val()).sort((a,b)=>a.ts-b.ts) : [];
     renderChat(messages);
   });
@@ -4502,7 +4503,7 @@ function sendChatMessage() {
     return;
   }
   const { ref, set } = window._firebaseModules;
-  set(ref(db, 'chat/msg_'+Date.now()), msg);
+  set(ref(db, 'state/chat/msg_'+Date.now()), msg);
   if (input) input.value = '';
 }
 
@@ -4548,10 +4549,23 @@ function updateChatBadge() {
 }
 
 // ============================================================
-// PUSH-TO-TALK (Firebase signaling groundwork — PTT not demoed)
+// PUSH-TO-TALK — WebRTC with Firebase signaling
 // ============================================================
 let pttActive = false;
 let pttStream = null;
+let pttPeerConnections = {}; // uid -> RTCPeerConnection
+let pttAudioElements = {};   // uid -> <audio>
+
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+function pttKey() {
+  return currentUser ? currentUser.name.replace(/[^a-z0-9]/gi,'_') : 'unknown';
+}
 
 function startPTT(e) {
   e.preventDefault();
@@ -4560,45 +4574,184 @@ function startPTT(e) {
     alert('Push-to-talk requires a live Firebase connection. Try it with your department at fire.mkegroup.ca.');
     return;
   }
-  pttActive = true;
-  const btn = document.getElementById('ptt-btn');
-  if (btn) { btn.style.background='var(--red)'; btn.style.color='white'; btn.style.borderColor='var(--red)'; btn.textContent='🎙 Talking...'; }
-  navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(stream => {
-    pttStream = stream;
-    if (db && currentUser) {
+  if (!db || !currentUser) return;
+
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(stream => {
+      pttActive = true;
+      pttStream = stream;
+      updatePTTBtn(true);
+
+      // Signal to all peers that we are transmitting
       const { ref, set } = window._firebaseModules;
-      set(ref(db,'ptt/'+currentUser.name.replace(/[^a-z0-9]/gi,'_')), { name:currentUser.name, ts:Date.now(), active:true });
-    }
-  }).catch(() => {
-    pttActive = false;
-    if (btn) { btn.style.background='var(--surface2)'; btn.style.color='var(--text2)'; btn.style.borderColor='var(--border)'; btn.textContent='🎙 Hold'; }
-    alert('Microphone access required for push-to-talk.');
-  });
+      set(ref(db, `state/ptt/${pttKey()}`), {
+        name: currentUser.name,
+        ts: Date.now(),
+        active: true
+      });
+
+      // Create offers to all current personnel
+      const peers = Object.values(STATE.personnel || {})
+        .filter(p => p.name !== currentUser.name);
+      peers.forEach(p => createPTTOffer(p.name.replace(/[^a-z0-9]/gi,'_'), stream));
+    })
+    .catch(() => {
+      alert('Microphone access required for push-to-talk.');
+    });
 }
 
 function stopPTT(e) {
   e.preventDefault();
   if (!pttActive) return;
   pttActive = false;
-  const btn = document.getElementById('ptt-btn');
-  if (btn) { btn.style.background='var(--surface2)'; btn.style.color='var(--text2)'; btn.style.borderColor='var(--border)'; btn.textContent='🎙 Hold'; }
-  if (pttStream) { pttStream.getTracks().forEach(t=>t.stop()); pttStream=null; }
+  updatePTTBtn(false);
+
+  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
+
+  // Close all peer connections
+  Object.values(pttPeerConnections).forEach(pc => pc.close());
+  pttPeerConnections = {};
+
+  // Clear transmission signal
   if (db && currentUser) {
     const { ref, set } = window._firebaseModules;
-    set(ref(db,'ptt/'+currentUser.name.replace(/[^a-z0-9]/gi,'_')), null);
+    set(ref(db, `state/ptt/${pttKey()}`), null);
+    // Clean up signaling
+    set(ref(db, `state/ptt_signals/${pttKey()}`), null);
   }
+}
+
+function updatePTTBtn(active) {
+  ['ptt-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (active) {
+      btn.style.background = 'var(--red)';
+      btn.style.color = 'white';
+      btn.style.borderColor = 'var(--red)';
+      btn.textContent = '🎙 Talking...';
+    } else {
+      btn.style.background = 'var(--surface2)';
+      btn.style.color = 'var(--text2)';
+      btn.style.borderColor = 'var(--border)';
+      btn.textContent = '🎙 Hold';
+    }
+  });
+}
+
+async function createPTTOffer(targetKey, stream) {
+  if (!db) return;
+  const { ref, set, onValue } = window._firebaseModules;
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  pttPeerConnections[targetKey] = pc;
+
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      set(ref(db, `state/ptt_signals/${pttKey()}/ice_to_${targetKey}/${Date.now()}`), {
+        candidate: JSON.stringify(e.candidate)
+      });
+    }
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  set(ref(db, `state/ptt_signals/${pttKey()}/offer_to_${targetKey}`), {
+    sdp: JSON.stringify(offer), ts: Date.now()
+  });
+
+  // Listen for answer
+  onValue(ref(db, `state/ptt_signals/${targetKey}/answer_to_${pttKey()}`), async snap => {
+    if (!snap.exists() || !snap.val().sdp) return;
+    if (pc.signalingState === 'have-local-offer') {
+      await pc.setRemoteDescription(JSON.parse(snap.val().sdp));
+    }
+  });
+}
+
+async function handlePTTOffer(fromKey, offerData) {
+  if (!db || !pttStream === false) {
+    // We need mic access to answer — request it silently
+  }
+  const { ref, set, onValue } = window._firebaseModules;
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  pttPeerConnections[fromKey] = pc;
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      set(ref(db, `state/ptt_signals/${pttKey()}/ice_to_${fromKey}/${Date.now()}`), {
+        candidate: JSON.stringify(e.candidate)
+      });
+    }
+  };
+
+  pc.ontrack = e => {
+    if (!pttAudioElements[fromKey]) {
+      const audio = document.createElement('audio');
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+      pttAudioElements[fromKey] = audio;
+    }
+    pttAudioElements[fromKey].srcObject = e.streams[0];
+  };
+
+  await pc.setRemoteDescription(JSON.parse(offerData.sdp));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  set(ref(db, `state/ptt_signals/${pttKey()}/answer_to_${fromKey}`), {
+    sdp: JSON.stringify(answer), ts: Date.now()
+  });
+
+  // Listen for ICE from sender
+  onValue(ref(db, `state/ptt_signals/${fromKey}/ice_to_${pttKey()}`), snap => {
+    if (!snap.exists()) return;
+    Object.values(snap.val()).forEach(async icePkg => {
+      try {
+        await pc.addIceCandidate(JSON.parse(icePkg.candidate));
+      } catch(e) {}
+    });
+  });
 }
 
 function listenForPTT() {
   if (isDemoMode || !db) return;
   const { ref, onValue } = window._firebaseModules;
-  onValue(ref(db,'ptt'), (snap) => {
+
+  // Listen for active transmissions
+  onValue(ref(db, 'state/ptt'), snap => {
     const ind = document.getElementById('ptt-indicator');
-    if (!snap.exists()) { if(ind) ind.style.display='none'; return; }
-    const active = Object.values(snap.val()).filter(t=>t&&t.active&&(!currentUser||t.name!==currentUser.name));
+    if (!snap.exists()) { if (ind) ind.style.display = 'none'; return; }
+    const active = Object.values(snap.val())
+      .filter(t => t && t.active && (!currentUser || t.name !== currentUser.name));
     if (!ind) return;
-    if (active.length) { ind.style.display='block'; ind.textContent=`🎙 ${active[0].name} is transmitting...`; }
-    else { ind.style.display='none'; }
+    if (active.length) {
+      ind.style.display = 'block';
+      ind.textContent = `🎙 ${active[0].name} is transmitting...`;
+    } else {
+      ind.style.display = 'none';
+    }
+  });
+
+  // Listen for incoming WebRTC offers directed at us
+  onValue(ref(db, `state/ptt_signals`), snap => {
+    if (!snap.exists() || !currentUser) return;
+    const myKey = pttKey();
+    const signals = snap.val();
+    Object.entries(signals).forEach(([fromKey, data]) => {
+      if (fromKey === myKey) return;
+      const offerKey = `offer_to_${myKey}`;
+      if (data[offerKey] && data[offerKey].sdp) {
+        // Only answer if we don't already have a connection to this peer
+        if (!pttPeerConnections[fromKey] ||
+            pttPeerConnections[fromKey].signalingState === 'closed') {
+          handlePTTOffer(fromKey, data[offerKey]);
+        }
+      }
+    });
   });
 }
 
