@@ -1268,9 +1268,11 @@ select option { background: var(--surface); }
     <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;-webkit-overflow-scrolling:touch;min-height:0;"></div>
     <!-- Input bar -->
     <div style="border-top:1px solid var(--border);padding:8px 10px;display:flex;gap:7px;align-items:center;flex-shrink:0;padding-bottom:max(8px,env(safe-area-inset-bottom));">
-      <button id="ptt-btn" ontouchstart="startPTT(event)" ontouchend="stopPTT(event)" onmousedown="startPTT(event)" onmouseup="stopPTT(event)"
-        style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 13px;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;flex-shrink:0;user-select:none;-webkit-user-select:none;touch-action:none;">
-        🎙 Hold
+      <button id="ptt-btn"
+        ontouchstart="startPTT(event)" ontouchend="stopPTT(event)" ontouchcancel="stopPTT(event)"
+        onmousedown="startPTT(event)" onmouseup="stopPTT(event)" onmouseleave="stopPTT(event)"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 13px;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;flex-shrink:0;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none;">
+        🎙 Hold to Talk
       </button>
       <input id="chat-input" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-family:var(--font-body);font-size:14px;outline:none;min-width:0;"
         placeholder="Message crew..." autocomplete="off"
@@ -1445,6 +1447,9 @@ select option { background: var(--surface); }
     <div class="modal-header">
       <div class="modal-title">Menu</div>
       <div class="modal-close" onclick="document.getElementById('menu-modal').classList.add('hidden')">✕</div>
+    </div>
+    <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');showLicenseModal()">
+      <span>⚡</span><div><div class="menu-item-label">Department License</div><div class="menu-item-desc">Unlock premium features for your department</div></div>
     </div>
     <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');openDeptPanel()">
       <span>🏛</span><div><div class="menu-item-label">Department</div><div class="menu-item-desc">Training logs, roster profiles, equipment</div></div>
@@ -1914,6 +1919,90 @@ select option { background: var(--surface); }
   </div>
 </div>
 
+<!-- LICENSE MODAL -->
+
+<div class="modal-overlay hidden" id="license-modal" onclick="if(event.target.id==='license-modal')this.classList.add('hidden')">
+  <div class="add-modal-sheet" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">⚡ Department License</div>
+      <div class="modal-close" onclick="document.getElementById('license-modal').classList.add('hidden')">✕</div>
+    </div>
+
+```
+<!-- Current status -->
+<div id="license-status-bar" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+  <div>
+    <div style="font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Current Plan</div>
+    <div id="license-current-label" style="font-family:var(--font-head);font-size:17px;font-weight:800;color:var(--text);margin-top:2px;">Free</div>
+    <div id="license-expiry-label" style="font-size:12px;color:var(--text2);margin-top:1px;"></div>
+  </div>
+  <div id="license-status-badge" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:5px 12px;font-family:var(--font-head);font-size:12px;font-weight:800;color:var(--green);">ACTIVE</div>
+</div>
+
+<!-- Free features -->
+<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:6px;">Always Free</div>
+<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+  <div style="font-size:13px;color:var(--text3);">✓ Live PAR board — unlimited crew</div>
+  <div style="font-size:13px;color:var(--text3);">✓ Apparatus + mutual aid tracking</div>
+  <div style="font-size:13px;color:var(--text3);">✓ GPS locations map</div>
+  <div style="font-size:13px;color:var(--text3);">✓ IOCANC builder</div>
+  <div style="font-size:13px;color:var(--text3);">✓ Incident history + exports</div>
+  <div style="font-size:13px;color:var(--text3);">✓ Chat</div>
+</div>
+
+<!-- Premium features -->
+<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">Premium Features</div>
+<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px;">
+  <div style="font-size:13px;color:var(--text3);">⚡ Push-to-talk radio</div>
+  <div style="font-size:13px;color:var(--text3);">⚡ Push notifications to crew</div>
+  <div style="font-size:13px;color:var(--text3);">⚡ CAD/dispatch webhook integration</div>
+  <div style="font-size:13px;color:var(--text3);">⚡ Training compliance PDF exports</div>
+  <div style="font-size:13px;color:var(--text3);">⚡ Department logo + white-label</div>
+  <div style="font-size:13px;color:var(--text3);">⚡ Priority support</div>
+</div>
+
+<!-- License tiers -->
+<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:10px;">Choose a Plan</div>
+<div id="license-tiers" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+<!-- Checkout button -->
+<button id="license-checkout-btn" onclick="startLicenseCheckout()" style="display:none;background:var(--accent);color:white;border:none;border-radius:10px;padding:14px;font-family:var(--font-head);font-size:15px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:1px;width:100%;margin-top:4px;">
+  Continue to Checkout
+</button>
+
+<div style="font-size:11px;color:var(--text2);text-align:center;line-height:1.5;margin-top:4px;">
+  Secure checkout via Stripe. Licenses are per-department and tied to your Firebase database.
+</div>
+```
+
+  </div>
+</div>
+
+<style>
+.license-tier {
+  border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  display: flex; align-items: center; gap: 12px;
+}
+.license-tier:active { background: var(--surface2); }
+.license-tier.selected { border-color: var(--accent); background: rgba(232,71,26,0.06); }
+.license-tier-radio {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.license-tier.selected .license-tier-radio { border-color: var(--accent); background: var(--accent); }
+.license-tier.selected .license-tier-radio::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: white; }
+.license-tier-info { flex: 1; min-width: 0; }
+.license-tier-name { font-family: var(--font-head); font-size: 15px; font-weight: 800; }
+.license-tier-desc { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.license-tier-price { font-family: var(--font-head); font-size: 16px; font-weight: 800; color: var(--accent); flex-shrink: 0; }
+.license-tier-popular {
+  font-family: var(--font-head); font-size: 9px; font-weight: 800;
+  background: var(--accent); color: white; border-radius: 4px; padding: 2px 6px;
+  text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px;
+}
+</style>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
@@ -1976,6 +2065,14 @@ const STATUS_DESC = {
 // Safe sessionStorage wrapper — private mode blocks it
 function ssGet(key) { try { return sessionStorage.getItem(key); } catch(e) { return null; } }
 function ssSet(key, val) { try { sessionStorage.setItem(key, val); } catch(e) {} }
+
+// Init AudioContext on first touch (iOS requirement for audio)
+document.addEventListener('touchstart', function initAudio() {
+  if (!window._audioCtx) {
+    window._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  document.removeEventListener('touchstart', initAudio);
+}, { once: true });
 
 window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
@@ -4437,6 +4534,104 @@ window.addEventListener('load', () => {
   }
 });
 
+// ============================================================
+// LICENSING
+// ============================================================
+const LICENSE_TIERS = [
+  { id: 'payg',    name: 'Pay As You Go',  desc: 'Per active incident day',     price: 'TBD',  days: 1,   popular: false },
+  { id: '3day',    name: '3-Day Pass',     desc: 'Great for a weekend event',   price: 'TBD',  days: 3,   popular: false },
+  { id: '1week',   name: '1-Week Pass',    desc: 'Training exercise or event',  price: 'TBD',  days: 7,   popular: false },
+  { id: '1month',  name: '1-Month License',desc: 'Most popular for departments',price: 'TBD',  days: 30,  popular: true  },
+  { id: '3month',  name: '3-Month License',desc: 'Seasonal coverage',           price: 'TBD',  days: 90,  popular: false },
+  { id: '1year',   name: 'Annual License', desc: 'Best value — full year',      price: 'TBD',  days: 365, popular: false },
+];
+
+let selectedLicenseTier = null;
+
+function getLicenseStatus() {
+  const expiry = ssGet('fgb_license_expiry');
+  if (!expiry) return { active: false, tier: null, expiry: null };
+  const exp = parseInt(expiry);
+  if (Date.now() > exp) return { active: false, tier: null, expiry: null };
+  return {
+    active: true,
+    tier: ssGet('fgb_license_tier') || 'unknown',
+    expiry: new Date(exp).toLocaleDateString()
+  };
+}
+
+function showLicenseModal() {
+  selectedLicenseTier = null;
+  renderLicenseTiers();
+  updateLicenseStatus();
+  document.getElementById('license-checkout-btn').style.display = 'none';
+  document.getElementById('license-modal').classList.remove('hidden');
+}
+
+function updateLicenseStatus() {
+  const status = getLicenseStatus();
+  const label = document.getElementById('license-current-label');
+  const expiry = document.getElementById('license-expiry-label');
+  const badge = document.getElementById('license-status-badge');
+  if (status.active) {
+    if (label) label.textContent = status.tier;
+    if (expiry) expiry.textContent = `Expires ${status.expiry}`;
+    if (badge) { badge.textContent = 'ACTIVE'; badge.style.color = 'var(--green)'; badge.style.borderColor = 'rgba(34,197,94,0.3)'; badge.style.background = 'rgba(34,197,94,0.15)'; }
+  } else {
+    if (label) label.textContent = 'Free';
+    if (expiry) expiry.textContent = 'Premium features locked';
+    if (badge) { badge.textContent = 'FREE'; badge.style.color = 'var(--text2)'; badge.style.borderColor = 'var(--border)'; badge.style.background = 'var(--surface2)'; }
+  }
+}
+
+function renderLicenseTiers() {
+  const container = document.getElementById('license-tiers');
+  if (!container) return;
+  container.innerHTML = '';
+  LICENSE_TIERS.forEach(tier => {
+    const div = document.createElement('div');
+    div.className = 'license-tier' + (selectedLicenseTier === tier.id ? ' selected' : '');
+    div.innerHTML = `
+      <div class="license-tier-radio"></div>
+      <div class="license-tier-info">
+        <div class="license-tier-name">${tier.name}${tier.popular ? '<span class="license-tier-popular">Popular</span>' : ''}</div>
+        <div class="license-tier-desc">${tier.desc}</div>
+      </div>
+      <div class="license-tier-price">${tier.price}</div>
+    `;
+    div.onclick = () => selectLicenseTier(tier.id);
+    container.appendChild(div);
+  });
+}
+
+function selectLicenseTier(tierId) {
+  selectedLicenseTier = tierId;
+  renderLicenseTiers();
+  const btn = document.getElementById('license-checkout-btn');
+  if (btn) btn.style.display = 'block';
+}
+
+function startLicenseCheckout() {
+  if (!selectedLicenseTier) return;
+  const tier = LICENSE_TIERS.find(t => t.id === selectedLicenseTier);
+  if (!tier) return;
+
+  const dbUrl = db ? db.app.options.databaseURL : (ssGet('fgb_db') || '');
+  const dept = STATE.deptName || 'Unknown';
+
+  // When Stripe is configured, this will redirect to a Stripe Checkout session
+  // For now show a placeholder with the parameters that will be passed
+  const msg = `Checkout coming soon.\n\nPlan: ${tier.name}\nDepartment: ${dept}\nFirebase: ${dbUrl ? dbUrl.split('//')[1].split('.')[0] : 'not set'}\n\nStripe integration will be added once pricing is confirmed.`;
+  alert(msg);
+
+  // Future Stripe implementation:
+  // window.location.href = `https://fire.mkegroup.ca/checkout?tier=${tier.id}&db=${encodeURIComponent(dbUrl)}&dept=${encodeURIComponent(dept)}`;
+}
+
+function isLicensed() {
+  return getLicenseStatus().active;
+}
+
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -4569,6 +4764,7 @@ function pttKey() {
 
 function startPTT(e) {
   e.preventDefault();
+  e.stopPropagation();
   if (pttActive) return;
   if (isDemoMode) {
     alert('Push-to-talk requires a live Firebase connection. Try it with your department at fire.mkegroup.ca.');
@@ -4576,27 +4772,34 @@ function startPTT(e) {
   }
   if (!db || !currentUser) return;
 
-  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+  // Resume AudioContext on iOS (required from user gesture)
+  if (window._audioCtx && window._audioCtx.state === 'suspended') {
+    window._audioCtx.resume();
+  }
+
+  navigator.mediaDevices.getUserMedia({ audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }, video: false })
     .then(stream => {
       pttActive = true;
       pttStream = stream;
       updatePTTBtn(true);
 
-      // Signal to all peers that we are transmitting
       const { ref, set } = window._firebaseModules;
       set(ref(db, `state/ptt/${pttKey()}`), {
-        name: currentUser.name,
-        ts: Date.now(),
-        active: true
+        name: currentUser.name, ts: Date.now(), active: true
       });
 
       // Create offers to all current personnel
       const peers = Object.values(STATE.personnel || {})
-        .filter(p => p.name !== currentUser.name);
+        .filter(p => p.name !== currentUser.name && p.status !== 'OUT');
       peers.forEach(p => createPTTOffer(p.name.replace(/[^a-z0-9]/gi,'_'), stream));
     })
-    .catch(() => {
-      alert('Microphone access required for push-to-talk.');
+    .catch(err => {
+      console.error('PTT mic error:', err);
+      alert('Microphone access denied. Enable microphone access in your browser settings.');
     });
 }
 
@@ -4688,14 +4891,22 @@ async function handlePTTOffer(fromKey, offerData) {
   };
 
   pc.ontrack = e => {
+    const stream = e.streams[0];
     if (!pttAudioElements[fromKey]) {
       const audio = document.createElement('audio');
       audio.autoplay = true;
+      audio.playsInline = true;
+      audio.muted = false;
       audio.style.display = 'none';
       document.body.appendChild(audio);
       pttAudioElements[fromKey] = audio;
     }
-    pttAudioElements[fromKey].srcObject = e.streams[0];
+    pttAudioElements[fromKey].srcObject = stream;
+    // iOS requires explicit play() call from within a handler
+    pttAudioElements[fromKey].play().catch(err => console.warn('PTT audio play failed:', err));
+    // Show indicator
+    const ind = document.getElementById('ptt-indicator');
+    if (ind) { ind.style.display = 'block'; ind.textContent = `🎙 ${fromKey.replace(/_/g,' ')} is transmitting...`; }
   };
 
   await pc.setRemoteDescription(JSON.parse(offerData.sdp));
