@@ -1448,9 +1448,6 @@ select option { background: var(--surface); }
       <div class="modal-title">Menu</div>
       <div class="modal-close" onclick="document.getElementById('menu-modal').classList.add('hidden')">✕</div>
     </div>
-    <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');showLicenseModal()">
-      <span>⚡</span><div><div class="menu-item-label">Department License</div><div class="menu-item-desc">Unlock premium features for your department</div></div>
-    </div>
     <div class="menu-item" onclick="document.getElementById('menu-modal').classList.add('hidden');openDeptPanel()">
       <span>🏛</span><div><div class="menu-item-label">Department</div><div class="menu-item-desc">Training logs, roster profiles, equipment</div></div>
     </div>
@@ -1918,90 +1915,6 @@ select option { background: var(--surface); }
     </div>
   </div>
 </div>
-
-<!-- LICENSE MODAL -->
-
-<div class="modal-overlay hidden" id="license-modal" onclick="if(event.target.id==='license-modal')this.classList.add('hidden')">
-  <div class="add-modal-sheet" style="max-width:480px;">
-    <div class="modal-header">
-      <div class="modal-title">⚡ Department License</div>
-      <div class="modal-close" onclick="document.getElementById('license-modal').classList.add('hidden')">✕</div>
-    </div>
-
-```
-<!-- Current status -->
-<div id="license-status-bar" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-  <div>
-    <div style="font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text2);text-transform:uppercase;">Current Plan</div>
-    <div id="license-current-label" style="font-family:var(--font-head);font-size:17px;font-weight:800;color:var(--text);margin-top:2px;">Free</div>
-    <div id="license-expiry-label" style="font-size:12px;color:var(--text2);margin-top:1px;"></div>
-  </div>
-  <div id="license-status-badge" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:5px 12px;font-family:var(--font-head);font-size:12px;font-weight:800;color:var(--green);">ACTIVE</div>
-</div>
-
-<!-- Free features -->
-<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:6px;">Always Free</div>
-<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
-  <div style="font-size:13px;color:var(--text3);">✓ Live PAR board — unlimited crew</div>
-  <div style="font-size:13px;color:var(--text3);">✓ Apparatus + mutual aid tracking</div>
-  <div style="font-size:13px;color:var(--text3);">✓ GPS locations map</div>
-  <div style="font-size:13px;color:var(--text3);">✓ IOCANC builder</div>
-  <div style="font-size:13px;color:var(--text3);">✓ Incident history + exports</div>
-  <div style="font-size:13px;color:var(--text3);">✓ Chat</div>
-</div>
-
-<!-- Premium features -->
-<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;">Premium Features</div>
-<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px;">
-  <div style="font-size:13px;color:var(--text3);">⚡ Push-to-talk radio</div>
-  <div style="font-size:13px;color:var(--text3);">⚡ Push notifications to crew</div>
-  <div style="font-size:13px;color:var(--text3);">⚡ CAD/dispatch webhook integration</div>
-  <div style="font-size:13px;color:var(--text3);">⚡ Training compliance PDF exports</div>
-  <div style="font-size:13px;color:var(--text3);">⚡ Department logo + white-label</div>
-  <div style="font-size:13px;color:var(--text3);">⚡ Priority support</div>
-</div>
-
-<!-- License tiers -->
-<div style="font-family:var(--font-head);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:10px;">Choose a Plan</div>
-<div id="license-tiers" style="display:flex;flex-direction:column;gap:8px;"></div>
-
-<!-- Checkout button -->
-<button id="license-checkout-btn" onclick="startLicenseCheckout()" style="display:none;background:var(--accent);color:white;border:none;border-radius:10px;padding:14px;font-family:var(--font-head);font-size:15px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:1px;width:100%;margin-top:4px;">
-  Continue to Checkout
-</button>
-
-<div style="font-size:11px;color:var(--text2);text-align:center;line-height:1.5;margin-top:4px;">
-  Secure checkout via Stripe. Licenses are per-department and tied to your Firebase database.
-</div>
-```
-
-  </div>
-</div>
-
-<style>
-.license-tier {
-  border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px;
-  cursor: pointer; transition: border-color 0.15s, background 0.15s;
-  display: flex; align-items: center; gap: 12px;
-}
-.license-tier:active { background: var(--surface2); }
-.license-tier.selected { border-color: var(--accent); background: rgba(232,71,26,0.06); }
-.license-tier-radio {
-  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border);
-  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-}
-.license-tier.selected .license-tier-radio { border-color: var(--accent); background: var(--accent); }
-.license-tier.selected .license-tier-radio::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: white; }
-.license-tier-info { flex: 1; min-width: 0; }
-.license-tier-name { font-family: var(--font-head); font-size: 15px; font-weight: 800; }
-.license-tier-desc { font-size: 12px; color: var(--text2); margin-top: 1px; }
-.license-tier-price { font-family: var(--font-head); font-size: 16px; font-weight: 800; color: var(--accent); flex-shrink: 0; }
-.license-tier-popular {
-  font-family: var(--font-head); font-size: 9px; font-weight: 800;
-  background: var(--accent); color: white; border-radius: 4px; padding: 2px 6px;
-  text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px;
-}
-</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -4534,104 +4447,6 @@ window.addEventListener('load', () => {
   }
 });
 
-// ============================================================
-// LICENSING
-// ============================================================
-const LICENSE_TIERS = [
-  { id: 'payg',    name: 'Pay As You Go',  desc: 'Per active incident day',     price: 'TBD',  days: 1,   popular: false },
-  { id: '3day',    name: '3-Day Pass',     desc: 'Great for a weekend event',   price: 'TBD',  days: 3,   popular: false },
-  { id: '1week',   name: '1-Week Pass',    desc: 'Training exercise or event',  price: 'TBD',  days: 7,   popular: false },
-  { id: '1month',  name: '1-Month License',desc: 'Most popular for departments',price: 'TBD',  days: 30,  popular: true  },
-  { id: '3month',  name: '3-Month License',desc: 'Seasonal coverage',           price: 'TBD',  days: 90,  popular: false },
-  { id: '1year',   name: 'Annual License', desc: 'Best value — full year',      price: 'TBD',  days: 365, popular: false },
-];
-
-let selectedLicenseTier = null;
-
-function getLicenseStatus() {
-  const expiry = ssGet('fgb_license_expiry');
-  if (!expiry) return { active: false, tier: null, expiry: null };
-  const exp = parseInt(expiry);
-  if (Date.now() > exp) return { active: false, tier: null, expiry: null };
-  return {
-    active: true,
-    tier: ssGet('fgb_license_tier') || 'unknown',
-    expiry: new Date(exp).toLocaleDateString()
-  };
-}
-
-function showLicenseModal() {
-  selectedLicenseTier = null;
-  renderLicenseTiers();
-  updateLicenseStatus();
-  document.getElementById('license-checkout-btn').style.display = 'none';
-  document.getElementById('license-modal').classList.remove('hidden');
-}
-
-function updateLicenseStatus() {
-  const status = getLicenseStatus();
-  const label = document.getElementById('license-current-label');
-  const expiry = document.getElementById('license-expiry-label');
-  const badge = document.getElementById('license-status-badge');
-  if (status.active) {
-    if (label) label.textContent = status.tier;
-    if (expiry) expiry.textContent = `Expires ${status.expiry}`;
-    if (badge) { badge.textContent = 'ACTIVE'; badge.style.color = 'var(--green)'; badge.style.borderColor = 'rgba(34,197,94,0.3)'; badge.style.background = 'rgba(34,197,94,0.15)'; }
-  } else {
-    if (label) label.textContent = 'Free';
-    if (expiry) expiry.textContent = 'Premium features locked';
-    if (badge) { badge.textContent = 'FREE'; badge.style.color = 'var(--text2)'; badge.style.borderColor = 'var(--border)'; badge.style.background = 'var(--surface2)'; }
-  }
-}
-
-function renderLicenseTiers() {
-  const container = document.getElementById('license-tiers');
-  if (!container) return;
-  container.innerHTML = '';
-  LICENSE_TIERS.forEach(tier => {
-    const div = document.createElement('div');
-    div.className = 'license-tier' + (selectedLicenseTier === tier.id ? ' selected' : '');
-    div.innerHTML = `
-      <div class="license-tier-radio"></div>
-      <div class="license-tier-info">
-        <div class="license-tier-name">${tier.name}${tier.popular ? '<span class="license-tier-popular">Popular</span>' : ''}</div>
-        <div class="license-tier-desc">${tier.desc}</div>
-      </div>
-      <div class="license-tier-price">${tier.price}</div>
-    `;
-    div.onclick = () => selectLicenseTier(tier.id);
-    container.appendChild(div);
-  });
-}
-
-function selectLicenseTier(tierId) {
-  selectedLicenseTier = tierId;
-  renderLicenseTiers();
-  const btn = document.getElementById('license-checkout-btn');
-  if (btn) btn.style.display = 'block';
-}
-
-function startLicenseCheckout() {
-  if (!selectedLicenseTier) return;
-  const tier = LICENSE_TIERS.find(t => t.id === selectedLicenseTier);
-  if (!tier) return;
-
-  const dbUrl = db ? db.app.options.databaseURL : (ssGet('fgb_db') || '');
-  const dept = STATE.deptName || 'Unknown';
-
-  // When Stripe is configured, this will redirect to a Stripe Checkout session
-  // For now show a placeholder with the parameters that will be passed
-  const msg = `Checkout coming soon.\n\nPlan: ${tier.name}\nDepartment: ${dept}\nFirebase: ${dbUrl ? dbUrl.split('//')[1].split('.')[0] : 'not set'}\n\nStripe integration will be added once pricing is confirmed.`;
-  alert(msg);
-
-  // Future Stripe implementation:
-  // window.location.href = `https://fire.mkegroup.ca/checkout?tier=${tier.id}&db=${encodeURIComponent(dbUrl)}&dept=${encodeURIComponent(dept)}`;
-}
-
-function isLicensed() {
-  return getLicenseStatus().active;
-}
-
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -4748,220 +4563,242 @@ function updateChatBadge() {
 // ============================================================
 let pttActive = false;
 let pttStream = null;
-let pttPeerConnections = {}; // uid -> RTCPeerConnection
-let pttAudioElements = {};   // uid -> <audio>
+let pttPeers = {};  // key -> { pc, answered }
+let pttAudio = {};  // key -> HTMLAudioElement
+let pttListenerActive = false;
 
-const RTC_CONFIG = {
+const RTC_CFG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
   ]
 };
 
-function pttKey() {
-  return currentUser ? currentUser.name.replace(/[^a-z0-9]/gi,'_') : 'unknown';
+function myPTTKey() {
+  return currentUser ? currentUser.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'anon';
 }
 
 function startPTT(e) {
-  e.preventDefault();
-  e.stopPropagation();
+  if (e) { e.preventDefault(); e.stopPropagation(); }
   if (pttActive) return;
   if (isDemoMode) {
-    alert('Push-to-talk requires a live Firebase connection. Try it with your department at fire.mkegroup.ca.');
+    alert('Push-to-talk requires a live Firebase connection.');
     return;
   }
   if (!db || !currentUser) return;
 
-  // Resume AudioContext on iOS (required from user gesture)
-  if (window._audioCtx && window._audioCtx.state === 'suspended') {
-    window._audioCtx.resume();
-  }
+  navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: false
+  }).then(stream => {
+    pttActive = true;
+    pttStream = stream;
+    setPTTBtnState(true);
 
-  navigator.mediaDevices.getUserMedia({ audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true
-  }, video: false })
-    .then(stream => {
-      pttActive = true;
-      pttStream = stream;
-      updatePTTBtn(true);
-
-      const { ref, set } = window._firebaseModules;
-      set(ref(db, `state/ptt/${pttKey()}`), {
-        name: currentUser.name, ts: Date.now(), active: true
-      });
-
-      // Create offers to all current personnel
-      const peers = Object.values(STATE.personnel || {})
-        .filter(p => p.name !== currentUser.name && p.status !== 'OUT');
-      peers.forEach(p => createPTTOffer(p.name.replace(/[^a-z0-9]/gi,'_'), stream));
-    })
-    .catch(err => {
-      console.error('PTT mic error:', err);
-      alert('Microphone access denied. Enable microphone access in your browser settings.');
-    });
-}
-
-function stopPTT(e) {
-  e.preventDefault();
-  if (!pttActive) return;
-  pttActive = false;
-  updatePTTBtn(false);
-
-  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
-
-  // Close all peer connections
-  Object.values(pttPeerConnections).forEach(pc => pc.close());
-  pttPeerConnections = {};
-
-  // Clear transmission signal
-  if (db && currentUser) {
+    // Flag us as transmitting
     const { ref, set } = window._firebaseModules;
-    set(ref(db, `state/ptt/${pttKey()}`), null);
-    // Clean up signaling
-    set(ref(db, `state/ptt_signals/${pttKey()}`), null);
-  }
-}
+    set(ref(db, `ptt_active/${myPTTKey()}`), { name: currentUser.name, ts: Date.now() });
 
-function updatePTTBtn(active) {
-  ['ptt-btn'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    if (active) {
-      btn.style.background = 'var(--red)';
-      btn.style.color = 'white';
-      btn.style.borderColor = 'var(--red)';
-      btn.textContent = '🎙 Talking...';
-    } else {
-      btn.style.background = 'var(--surface2)';
-      btn.style.color = 'var(--text2)';
-      btn.style.borderColor = 'var(--border)';
-      btn.textContent = '🎙 Hold';
-    }
+    // Offer to every other person on the board
+    Object.values(STATE.personnel || {})
+      .filter(p => p.name !== currentUser.name)
+      .forEach(p => {
+        const targetKey = p.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        initiateCall(targetKey, stream);
+      });
+  }).catch(err => {
+    console.error('PTT mic:', err);
+    alert('Microphone access required. Check your browser settings.');
   });
 }
 
-async function createPTTOffer(targetKey, stream) {
+function stopPTT(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  if (!pttActive) return;
+  pttActive = false;
+  setPTTBtnState(false);
+
+  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
+
+  Object.values(pttPeers).forEach(({ pc }) => { try { pc.close(); } catch(e) {} });
+  pttPeers = {};
+
+  if (db && currentUser) {
+    const { ref, remove, set } = window._firebaseModules;
+    remove(ref(db, `ptt_active/${myPTTKey()}`));
+    set(ref(db, `ptt_sig/${myPTTKey()}`), null);
+  }
+}
+
+function setPTTBtnState(active) {
+  ['ptt-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.style.background = active ? 'var(--red)' : 'var(--surface2)';
+    btn.style.color = active ? 'white' : 'var(--text2)';
+    btn.style.borderColor = active ? 'var(--red)' : 'var(--border)';
+    btn.textContent = active ? '🎙 Talking...' : '🎙 Hold to Talk';
+  });
+}
+
+async function initiateCall(targetKey, stream) {
   if (!db) return;
-  const { ref, set, onValue } = window._firebaseModules;
-  const pc = new RTCPeerConnection(RTC_CONFIG);
-  pttPeerConnections[targetKey] = pc;
+  const { ref, set, onValue, remove } = window._firebaseModules;
+  const myKey = myPTTKey();
 
-  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+  const pc = new RTCPeerConnection(RTC_CFG);
+  pttPeers[targetKey] = { pc, pendingCandidates: [] };
 
-  pc.onicecandidate = e => {
-    if (e.candidate) {
-      set(ref(db, `state/ptt_signals/${pttKey()}/ice_to_${targetKey}/${Date.now()}`), {
-        candidate: JSON.stringify(e.candidate)
-      });
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+  // Buffer ICE candidates until remote desc is set
+  const iceBuf = [];
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      set(ref(db, `ptt_sig/${myKey}/to_${targetKey}/ice/${Date.now()}`),
+        { c: JSON.stringify(candidate) });
     }
   };
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  set(ref(db, `state/ptt_signals/${pttKey()}/offer_to_${targetKey}`), {
-    sdp: JSON.stringify(offer), ts: Date.now()
+  await set(ref(db, `ptt_sig/${myKey}/to_${targetKey}/offer`), {
+    sdp: JSON.stringify(pc.localDescription),
+    ts: Date.now()
   });
 
-  // Listen for answer
-  onValue(ref(db, `state/ptt_signals/${targetKey}/answer_to_${pttKey()}`), async snap => {
-    if (!snap.exists() || !snap.val().sdp) return;
-    if (pc.signalingState === 'have-local-offer') {
-      await pc.setRemoteDescription(JSON.parse(snap.val().sdp));
-    }
+  // Wait for answer
+  const answerRef = ref(db, `ptt_sig/${targetKey}/to_${myKey}/answer`);
+  const unsubAnswer = onValue(answerRef, async snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    if (!data.sdp || pc.signalingState !== 'have-local-offer') return;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.sdp)));
+      // Apply buffered ICE
+      iceBuf.forEach(c => pc.addIceCandidate(c).catch(() => {}));
+    } catch(err) { console.warn('PTT answer err:', err); }
+  });
+
+  // Listen for ICE from target
+  const iceRef = ref(db, `ptt_sig/${targetKey}/to_${myKey}/ice`);
+  onValue(iceRef, snap => {
+    if (!snap.exists()) return;
+    Object.values(snap.val()).forEach(pkg => {
+      const c = new RTCIceCandidate(JSON.parse(pkg.c));
+      if (pc.remoteDescription) pc.addIceCandidate(c).catch(() => {});
+      else iceBuf.push(c);
+    });
   });
 }
 
-async function handlePTTOffer(fromKey, offerData) {
-  if (!db || !pttStream === false) {
-    // We need mic access to answer — request it silently
-  }
+async function answerCall(fromKey, offerData) {
+  if (!db) return;
   const { ref, set, onValue } = window._firebaseModules;
-  const pc = new RTCPeerConnection(RTC_CONFIG);
-  pttPeerConnections[fromKey] = pc;
+  const myKey = myPTTKey();
 
-  pc.onicecandidate = e => {
-    if (e.candidate) {
-      set(ref(db, `state/ptt_signals/${pttKey()}/ice_to_${fromKey}/${Date.now()}`), {
-        candidate: JSON.stringify(e.candidate)
-      });
+  // Don't answer our own offers
+  if (fromKey === myKey) return;
+
+  // Close existing connection to this peer if any
+  if (pttPeers[fromKey]) {
+    try { pttPeers[fromKey].pc.close(); } catch(e) {}
+  }
+
+  const pc = new RTCPeerConnection(RTC_CFG);
+  pttPeers[fromKey] = { pc };
+
+  const iceBuf = [];
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) {
+      set(ref(db, `ptt_sig/${myKey}/to_${fromKey}/ice/${Date.now()}`),
+        { c: JSON.stringify(candidate) });
     }
   };
 
-  pc.ontrack = e => {
-    const stream = e.streams[0];
-    if (!pttAudioElements[fromKey]) {
-      const audio = document.createElement('audio');
-      audio.autoplay = true;
-      audio.playsInline = true;
-      audio.muted = false;
-      audio.style.display = 'none';
-      document.body.appendChild(audio);
-      pttAudioElements[fromKey] = audio;
+  pc.ontrack = ({ streams: [stream] }) => {
+    // Create or reuse audio element
+    if (!pttAudio[fromKey]) {
+      const a = document.createElement('audio');
+      a.autoplay = true; a.playsInline = true; a.volume = 1.0;
+      a.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+      document.body.appendChild(a);
+      pttAudio[fromKey] = a;
     }
-    pttAudioElements[fromKey].srcObject = stream;
-    // iOS requires explicit play() call from within a handler
-    pttAudioElements[fromKey].play().catch(err => console.warn('PTT audio play failed:', err));
+    pttAudio[fromKey].srcObject = stream;
+    pttAudio[fromKey].play().catch(err => console.warn('PTT play:', err));
+
     // Show indicator
     const ind = document.getElementById('ptt-indicator');
-    if (ind) { ind.style.display = 'block'; ind.textContent = `🎙 ${fromKey.replace(/_/g,' ')} is transmitting...`; }
+    const nameDisplay = fromKey.replace(/_/g, ' ');
+    if (ind) { ind.style.display = 'block'; ind.textContent = `🎙 ${nameDisplay} transmitting`; }
   };
 
-  await pc.setRemoteDescription(JSON.parse(offerData.sdp));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(offerData.sdp)));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-  set(ref(db, `state/ptt_signals/${pttKey()}/answer_to_${fromKey}`), {
-    sdp: JSON.stringify(answer), ts: Date.now()
-  });
+    await set(ref(db, `ptt_sig/${myKey}/to_${fromKey}/answer`), {
+      sdp: JSON.stringify(pc.localDescription), ts: Date.now()
+    });
+  } catch(err) {
+    console.warn('PTT answer failed:', err);
+    return;
+  }
 
-  // Listen for ICE from sender
-  onValue(ref(db, `state/ptt_signals/${fromKey}/ice_to_${pttKey()}`), snap => {
+  // Apply ICE from caller
+  onValue(ref(db, `ptt_sig/${fromKey}/to_${myKey}/ice`), snap => {
     if (!snap.exists()) return;
-    Object.values(snap.val()).forEach(async icePkg => {
-      try {
-        await pc.addIceCandidate(JSON.parse(icePkg.candidate));
-      } catch(e) {}
+    Object.values(snap.val()).forEach(pkg => {
+      const c = new RTCIceCandidate(JSON.parse(pkg.c));
+      if (pc.remoteDescription) pc.addIceCandidate(c).catch(() => {});
+      else iceBuf.push(c);
     });
   });
 }
 
 function listenForPTT() {
-  if (isDemoMode || !db) return;
-  const { ref, onValue } = window._firebaseModules;
+  if (isDemoMode || !db || pttListenerActive) return;
+  pttListenerActive = true;
 
-  // Listen for active transmissions
-  onValue(ref(db, 'state/ptt'), snap => {
+  const { ref, onValue } = window._firebaseModules;
+  const myKey = myPTTKey();
+
+  // Show who is transmitting
+  onValue(ref(db, 'ptt_active'), snap => {
     const ind = document.getElementById('ptt-indicator');
-    if (!snap.exists()) { if (ind) ind.style.display = 'none'; return; }
-    const active = Object.values(snap.val())
-      .filter(t => t && t.active && (!currentUser || t.name !== currentUser.name));
     if (!ind) return;
+    if (!snap.exists()) { ind.style.display = 'none'; return; }
+    const active = Object.entries(snap.val())
+      .filter(([k, v]) => v && k !== myKey);
     if (active.length) {
       ind.style.display = 'block';
-      ind.textContent = `🎙 ${active[0].name} is transmitting...`;
+      ind.textContent = `🎙 ${active[0][1].name} transmitting...`;
     } else {
       ind.style.display = 'none';
     }
   });
 
-  // Listen for incoming WebRTC offers directed at us
-  onValue(ref(db, `state/ptt_signals`), snap => {
-    if (!snap.exists() || !currentUser) return;
-    const myKey = pttKey();
-    const signals = snap.val();
-    Object.entries(signals).forEach(([fromKey, data]) => {
-      if (fromKey === myKey) return;
-      const offerKey = `offer_to_${myKey}`;
-      if (data[offerKey] && data[offerKey].sdp) {
-        // Only answer if we don't already have a connection to this peer
-        if (!pttPeerConnections[fromKey] ||
-            pttPeerConnections[fromKey].signalingState === 'closed') {
-          handlePTTOffer(fromKey, data[offerKey]);
-        }
-      }
+  // Listen for offers directed at us — watch our specific incoming slot
+  onValue(ref(db, `ptt_sig`), snap => {
+    if (!snap.exists()) return;
+    const all = snap.val();
+    Object.entries(all).forEach(([fromKey, data]) => {
+      if (fromKey === myKey || !data) return;
+      const slot = data[`to_${myKey}`];
+      if (!slot || !slot.offer || !slot.offer.sdp) return;
+      // Only answer fresh offers (within last 10 seconds)
+      if (Date.now() - (slot.offer.ts || 0) > 10000) return;
+      // Don't re-answer same offer
+      const existing = pttPeers[fromKey];
+      if (existing && existing.pc.signalingState !== 'closed' && existing.answeredTs === slot.offer.ts) return;
+      if (existing) { try { existing.pc.close(); } catch(e) {} }
+      pttPeers[fromKey] = { pc: null, answeredTs: slot.offer.ts };
+      answerCall(fromKey, slot.offer);
     });
   });
 }
