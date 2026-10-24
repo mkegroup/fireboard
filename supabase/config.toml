@@ -1,0 +1,20 @@
+# Only the bits of Supabase config this project relies on.
+project_id = "fire-ground-board"
+
+[functions.billing]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+# Stripe calls this one. It checks the Stripe signature instead of a JWT.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Dispatch / CAD systems call this one. It checks the department token instead.
+[functions.dispatch]
+verify_jwt = false
+
+# Nightly seat reconcile. Checks RECONCILE_SECRET instead of a JWT.
+[functions.reconcile-seats]
+verify_jwt = false

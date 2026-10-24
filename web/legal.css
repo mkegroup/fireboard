@@ -1,0 +1,8 @@
+body{background:#14171c;color:#eceff3;font:400 17px/1.6 Barlow,system-ui,sans-serif;margin:0}
+main{max-width:680px;margin:0 auto;padding:40px 20px 80px}
+h1{font:800 38px/1.05 "Barlow Condensed","Arial Narrow",sans-serif;margin:0 0 6px}
+h2{font:700 23px/1.2 "Barlow Condensed","Arial Narrow",sans-serif;margin:32px 0 6px}
+p,li{color:#c9cfd8}a{color:#eceff3}.muted{color:#9aa3b0;font-size:15px}
+.note{border:1px solid #6a5418;background:rgba(242,178,51,.08);padding:12px 14px;border-radius:10px;font-size:15px;color:#f2d38a}
+@font-face{font-family:"Barlow Condensed";font-weight:700 800;src:url(vendor/fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
+@font-face{font-family:Barlow;font-weight:400;src:url(vendor/fonts/barlow-latin-400-normal.woff2) format("woff2")}

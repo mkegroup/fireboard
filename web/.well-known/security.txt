@@ -1,0 +1,4 @@
+Contact: mailto:hello@mkegroup.ca
+Expires: 2027-10-31T00:00:00.000Z
+Preferred-Languages: en, fr
+Canonical: https://fire.mkegroup.ca/.well-known/security.txt

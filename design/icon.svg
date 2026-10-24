@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#14171c"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="#d7261e"/>
+  <g transform="translate(192 202)">
+    <!-- three accountability tags -->
+    <rect x="0" y="0" width="640" height="160" rx="26" fill="#14171c"/>
+    <rect x="0" y="0" width="170" height="150" rx="26" fill="#4c8dff"/><rect x="140" y="0" width="30" height="150" fill="#4c8dff"/>
+    <rect x="215" y="52" width="320" height="46" rx="23" fill="#eceff3"/>
+    <rect x="0" y="215" width="640" height="160" rx="26" fill="#14171c"/>
+    <rect x="0" y="215" width="170" height="150" rx="26" fill="#f2b233"/><rect x="140" y="215" width="30" height="150" fill="#f2b233"/>
+    <rect x="215" y="267" width="260" height="46" rx="23" fill="#eceff3"/>
+    <rect x="0" y="430" width="640" height="160" rx="26" fill="#14171c"/>
+    <rect x="0" y="430" width="170" height="150" rx="26" fill="#3dd68c"/><rect x="140" y="430" width="30" height="150" fill="#3dd68c"/>
+    <rect x="215" y="482" width="290" height="46" rx="23" fill="#eceff3"/>
+  </g>
+</svg>
