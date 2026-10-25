@@ -118,9 +118,8 @@ jobs:
         run: |
           supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
           supabase db push --password "$SUPABASE_DB_PASSWORD"
-          for fn in billing stripe-webhook dispatch delete-account reconcile-seats; do
-            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
-          done
+          # Deploys every function in supabase/functions (folders starting with _ are shared code).
+          supabase functions deploy --project-ref "$PROJECT_REF"
 
   deploy-web:
     needs: [unpack, test-database, test-code]
