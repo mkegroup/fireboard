@@ -456,7 +456,10 @@ export function boardView(root, incidentId) {
           close();
           if (!(await confirmSheet({ title: `Mark ${p.name} missing?`, message: "Every device on this incident will alarm.", confirmLabel: "Mark missing", danger: true }))) return;
         } else close();
-        return run(() => S.api.updatePersonnel(p.id, { status: s }));
+        return run(async () => {
+          await S.api.updatePersonnel(p.id, { status: s });
+          if (s === "MISSING") S.api.notify("missing", incidentId, p.id);
+        });
       }
       if (e.target.closest("[data-ack]")) { close(); return run(() => S.api.ackPar(p.id)); }
       if (e.target.closest("[data-profile]")) { close(); return openMemberProfile(p.member_id); }
@@ -689,7 +692,7 @@ export function boardView(root, incidentId) {
     "start-par": async () => {
       if (!(await confirmSheet({ title: "Call PAR?", message: "Every phone on this incident gets the PAR banner. Crew confirm with one tap. Call it on the radio as usual.", confirmLabel: "Call PAR" }))) return;
       iCalledPar = true;
-      try { await S.api.startPar(incidentId); } catch (e) { iCalledPar = false; toast(friendlyError(e), true); }
+      try { await S.api.startPar(incidentId); S.api.notify("par", incidentId); } catch (e) { iCalledPar = false; toast(friendlyError(e), true); }
     },
     "end-par": async () => {
       const pool = st.personnel.filter((p) => p.status !== "OUT");

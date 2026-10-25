@@ -9,10 +9,16 @@
     "check:fn": "cd supabase/functions && deno check */index.ts"
   },
   "devDependencies": {
+    "@capacitor/cli": "7.6.9",
     "@fontsource/barlow": "^5.3.0",
     "@fontsource/barlow-condensed": "^5.3.0",
     "@supabase/supabase-js": "^2.118.0",
     "leaflet": "^1.9.4",
     "qrcode-generator": "^2.0.4"
+  },
+  "dependencies": {
+    "@capacitor/core": "7.6.9",
+    "@capacitor/ios": "7.6.9",
+    "onesignal-cordova-plugin": "5.6.1"
   }
 }

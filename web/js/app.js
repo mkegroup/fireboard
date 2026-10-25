@@ -5,6 +5,7 @@ import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, 
 import { esc, initials, colorFor, dateTime, elapsed, ago, daysUntil, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select } from "./ui.js";
 import { boardView } from "./board.js";
+import { startPush, stopPush, pushState, askForPush } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 
 const root = document.getElementById("root");
@@ -49,7 +50,7 @@ async function boot() {
   S.api = createApi();
   S.api.onAuth(async (event, session) => {
     if (event === "PASSWORD_RECOVERY") return renderNewPassword();
-    if (event === "SIGNED_OUT") { S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
+    if (event === "SIGNED_OUT") { stopPush(); S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
     if (event === "SIGNED_IN" && session && !S.user) { S.user = session.user; await afterSignIn(); }
   });
   const session = await S.api.getSession();
@@ -92,6 +93,7 @@ async function afterSignIn() {
     localStorage.setItem("fgb_dept", already.dept.id);
     clearJoinCode();
   }
+  if (!S.api.isDemo) startPush(S.user.id, (id) => go(`#/incident/${id}`));
   if (!S.memberships.length) return renderOnboarding();
   const saved = localStorage.getItem("fgb_dept");
   const pick = S.memberships.find((m) => m.dept.id === saved) || S.memberships[0];
@@ -177,11 +179,11 @@ export function helpSheet() {
       ${q("I didn't get the sign-in code", "Check your junk or spam folder and search for Fire Ground Board. It can take a minute. Codes work for 10 minutes. You can ask for a new one after 60 seconds.")}
       ${q("I got a new phone", "Open the app and sign in with the same email. Everything is saved to your account, not the phone.")}
       ${q("Put the app on my home screen", "iPhone: open it in Safari, tap Share, then Add to Home Screen. Android: tap the menu, then Install app. It opens like a normal app after that.")}
-      ${q("My phone didn't sound for PAR", "The alarm plays while the app is open. Keep your ringer on and test it in Me, On a call.")}
+      ${q("My phone didn't sound for PAR", IS_NATIVE ? "Check that call alerts are on in Me, On a call, and that Fire Ground is allowed notifications in your iPhone Settings. Keep your ringer on." : "The alarm plays while the app is open. Keep your ringer on and test it in Me, On a call.")}
       ${q("Make someone else the owner", "Department, Members, tap the person, Make owner. Do this before the old owner leaves.")}
       ${q("I removed someone by mistake", "Department, Members, Removed people, Allow back. Then they can rejoin with the invite code.")}
       ${q("Someone shouldn't have the invite code", "Department, Make a new code. The old code and link stop working. People already in stay in.")}
-      ${q("Receipts, card or cancelling", "The department owner opens Department, Plan, Manage plan, card and receipts. Everything is there.")}
+      ${IS_NATIVE ? "" : q("Receipts, card or cancelling", "The department owner opens Department, Plan, Manage plan, card and receipts. Everything is there.")}
       ${q("Getting our records out", "Records has a download button on each tab. Incident reports download from the incident menu.")}
       <p class="muted small" style="margin-top:16px">Still stuck? Email <a href="mailto:${CONFIG.SUPPORT_EMAIL}">${CONFIG.SUPPORT_EMAIL}</a> with your department name.</p>`,
   });
@@ -221,8 +223,8 @@ export function accessBanner() {
   // Inside the iOS app we never point people at buying. Owners manage the plan on the web.
   const canBuy = isOwner() && !IS_NATIVE;
   if (!hasAccess(d)) {
-    const title = d.subscription_status && d.subscription_status !== "incomplete" ? "This department's plan has ended." : "Your free trial has ended.";
-    const msg = canBuy ? "Choose a plan to start new incidents again." : IS_NATIVE ? "New incidents are paused." : "Ask your chief to choose a plan.";
+    const title = IS_NATIVE ? "New incidents are paused for this department." : d.subscription_status && d.subscription_status !== "incomplete" ? "This department's plan has ended." : "Your free trial has ended.";
+    const msg = canBuy ? "Choose a plan to start new incidents again." : IS_NATIVE ? "Your department owner can sort this out." : "Ask your chief to choose a plan.";
     return `<div class="banner bad">${icon("alert")}<div class="grow"><b>${title}</b><br>${msg} Your records are safe and still readable.</div>
       ${canBuy ? '<a class="btn sm primary" href="#/dept">Plans</a>' : ""}</div>`;
   }
@@ -269,7 +271,7 @@ function renderAuth(mode = "email") {
       <h1>${code ? "Check your email." : pendingJoinCode ? "You're invited." : "Know where every firefighter is."}</h1>
       <p>${code ? `We sent a 6-digit code to <b class="text">${esc(authEmail)}</b>. It works for 10 minutes.`
         : pendingJoinCode ? "Enter your email to join your department's board. No password needed."
-        : `Live PAR accountability for volunteer and career departments. Free for ${P.trialDays} days.`}</p>
+        : `Live PAR accountability for volunteer and career departments.${IS_NATIVE ? "" : ` Free for ${P.trialDays} days.`}`}</p>
     </div>
     <div class="auth-body">
       ${!HAS_BACKEND ? `<div class="banner warn" style="margin-bottom:18px">${icon("alert")}<div class="grow">This copy of the app isn't connected to a server yet. Try the demo to look around.</div></div>` : ""}
@@ -412,12 +414,12 @@ async function renderOnboarding(code = "") {
 
       <form class="panel section" id="create-form" novalidate style="margin-bottom:24px">
         <div class="h3">I'm setting up my department</div>
-        <p class="muted small" style="margin:4px 0 12px">For chiefs and officers. Free for ${P.trialDays} days, no card needed. Then ${money(P.monthly)} a month or ${money(P.annual)} a year per member with the app.</p>
+        <p class="muted small" style="margin:4px 0 12px">For chiefs and officers.${IS_NATIVE ? " You'll get an invite code for your crew." : ` Free for ${P.trialDays} days, no card needed. Then ${money(P.monthly)} a month or ${money(P.annual)} a year per member with the app.`}</p>
         ${field("Department name", input("dept", "", 'placeholder="e.g. Madawaska Valley Fire" autocapitalize="words"'))}
         ${field("Your name", input("name", "", 'autocomplete="name" autocapitalize="words"'))}
         <details class="more"><summary class="muted small">Your rank (optional)</summary><div style="margin-top:10px">${field("Rank", select("rank", RANKS, "Chief"))}</div></details>
         <div class="error-text" data-err hidden></div>
-        <button class="btn block" style="margin-top:16px">Start free trial</button>
+        <button class="btn block" style="margin-top:16px">${IS_NATIVE ? "Create department" : "Start free trial"}</button>
       </form>`}
       <div style="text-align:center;margin:10px 0 40px"><button class="btn quiet" data-act="help">Help</button><button class="btn quiet" data-act="signout">Sign out</button></div>
     </div>
@@ -500,6 +502,7 @@ function homeView() {
       isOfficer() ? S.api.listMembers(S.dept.id).catch(() => []) : Promise.resolve([]),
     ]);
     const states = await Promise.all(active.map((i) => S.api.incidentState(i.id).catch(() => null)));
+    const push = await pushState();
     if (!alive) return;
     memberCount = members.length;
     const openTraining = training.filter((t) => t.attendance_open && !attendance.some((a) => a.session_id === t.id && a.member_id === S.me.id));
@@ -512,7 +515,7 @@ function homeView() {
         <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1;min-width:0">
             <div class="dept-name">${esc(S.dept.name)}</div>
-            <div class="muted small" style="margin-top:4px">${esc(planLabel())}</div>
+            ${IS_NATIVE ? "" : `<div class="muted small" style="margin-top:4px">${esc(planLabel())}</div>`}
           </div>
           ${S.memberships.length > 1 ? `<button class="iconbtn" data-act="switch" aria-label="Switch department">${icon("shield")}</button>` : ""}
         </div>
@@ -520,6 +523,7 @@ function homeView() {
       <div class="wrap stack" style="margin-top:12px">
         ${accessBanner()}
         ${openTraining.map((t) => `<div class="banner"><div class="grow"><b>${esc(t.title)}</b><br><span class="muted">Attendance is open. Mark yourself present.</span></div><button class="btn sm primary" data-act="attend" data-id="${t.id}">I was there</button></div>`).join("")}
+        ${alertsCard(push)}
         ${installCard(dismissed("install"))}
         ${isOfficer() ? setupCard(recent.length + active.length) : howItWorks()}
       </div>
@@ -576,6 +580,17 @@ function homeView() {
     </div>`;
   }
 
+  // iPhone app: ask for alerts in context, with a reason, instead of on launch.
+  function alertsCard(state) {
+    if (state === "ask") {
+      return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Turn on call alerts</b><br><span class="muted">Get buzzed for new calls, PAR checks and Missing firefighters, even with the app closed.</span></div><button class="btn sm primary" data-act="alerts-on">Turn on</button></div>`;
+    }
+    if (state === "off" && !dismissed("alerts")) {
+      return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Call alerts are off</b><br><span class="muted">Turn them on in iPhone Settings, Fire Ground, Notifications.</span></div><button class="btn sm" data-act="alerts-on">Settings</button><button class="iconbtn ghost" data-act="dismiss" data-k="alerts" aria-label="Hide">${icon("close", "sm")}</button></div>`;
+    }
+    return "";
+  }
+
   // Three lines for regular members on how the board works.
   function howItWorks() {
     if (dismissed("howto")) return "";
@@ -593,6 +608,7 @@ function homeView() {
   const offClicks = bindActions(root, {
     start: () => startIncidentSheet(),
     switch: () => switchDeptSheet(),
+    "alerts-on": async () => { await askForPush(); paint().catch(() => {}); },
     install: async () => {
       if (!installEvt) return;
       installEvt.prompt();
@@ -670,6 +686,7 @@ function startIncidentSheet() {
       const name = f.name || f.call_type || "";
       if (!name) throw new Error("Pick a call type or give the incident a name.");
       const id = await S.api.startIncident(S.dept.id, { name, address: f.address, call_type: f.call_type });
+      S.api.notify("incident", id);
       const picked = units.filter((_, i) => f[`unit_${i}`]);
       await Promise.all(picked.map((u) => S.api.addApparatus(id, { name: u.name, kind: u.kind, status: "Responding" }).catch(() => {})));
       go(`#/incident/${id}`);
@@ -752,7 +769,7 @@ function deptView() {
             <div class="list" style="margin-top:10px">${removed.map((r) => `<div class="row"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">Removed ${esc(ago(r.removed_at))}. They can't rejoin with the code.</div></div><button class="btn sm" data-act="allow-back" data-id="${r.id}">Allow back</button></div>`).join("")}</div></details>` : ""}
         </section>
 
-        <section class="section">
+        ${IS_NATIVE ? "" : `<section class="section">
           <div class="section-head"><div class="h2">Plan</div></div>
           <div class="panel">
             <div style="display:flex;align-items:center;gap:10px">
@@ -761,7 +778,7 @@ function deptView() {
             </div>
             ${planActions(paid)}
           </div>
-        </section>
+        </section>`}
 
         ${isOfficer() ? `
         <section class="section">
@@ -1111,7 +1128,8 @@ function meView() {
           <p class="hint">Sunlight is easier to read outside in daylight.</p>
           <label class="check" style="margin-top:10px"><input type="checkbox" data-sound ${soundOn() ? "checked" : ""}> Sound an alarm for PAR and Missing</label>
           <button class="btn sm" data-act="test-sound">Test the alarm</button>
-          <p class="hint">Keep your ringer on. Phones only play sound while the app is open.</p>
+          <p class="hint">${IS_NATIVE ? "The alarm plays while the app is open. Call alerts below reach you when it's closed." : "Keep your ringer on. Phones only play sound while the app is open."}</p>
+          ${IS_NATIVE ? `<div class="label" style="margin-top:16px">Call alerts</div><div id="push-row" class="muted small">Checking...</div>` : ""}
         </div>
       </section>
 
@@ -1149,6 +1167,18 @@ function meView() {
     } catch (ex) { toast(friendlyError(ex), true); }
   });
 
+  const pushRow = root.querySelector("#push-row");
+  if (pushRow) {
+    const show = async () => {
+      const st = await pushState();
+      pushRow.innerHTML = st === "on" ? `${icon("check", "sm")} On. You'll get new calls, PAR checks and Missing alerts.`
+        : st === "ask" ? `<button class="btn sm primary" data-act="alerts-on">Turn on call alerts</button>`
+        : st === "off" ? `Off. <button class="btn sm" data-act="alerts-on">Open Settings</button>`
+        : "Not available on this device.";
+    };
+    show();
+    pushRow.addEventListener("click", async (e) => { if (e.target.closest('[data-act="alerts-on"]')) { await askForPush(); show(); } });
+  }
   root.querySelector("[data-sound]").addEventListener("change", (e) => { setSound(e.target.checked); toast(e.target.checked ? "Alarm sound on." : "Alarm sound off. You'll still see the banner."); });
 
   return bindActions(root, {

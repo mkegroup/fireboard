@@ -1,9 +1,9 @@
 // Caches the app shell so the board opens even with weak signal.
 // Data always comes from the network. Bump VERSION on every release.
-const VERSION = "fgb-2.2.0";
+const VERSION = "fgb-2.3.0";
 const SHELL = [
   "./", "index.html", "css/app.css", "manifest.json",
-  "js/app.js", "js/api.js", "js/demo.js", "js/board.js", "js/records.js", "js/state.js", "js/ui.js", "js/util.js", "js/config.js",
+  "js/app.js", "js/api.js", "js/native.js", "js/demo.js", "js/board.js", "js/records.js", "js/state.js", "js/ui.js", "js/util.js", "js/config.js",
   "vendor/supabase.js", "vendor/leaflet.js", "vendor/leaflet.css", "vendor/qrcode.js",
   "vendor/fonts/barlow-condensed-latin-600-normal.woff2", "vendor/fonts/barlow-condensed-latin-700-normal.woff2",
   "vendor/fonts/barlow-condensed-latin-800-normal.woff2", "vendor/fonts/barlow-latin-400-normal.woff2",

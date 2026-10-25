@@ -1,0 +1,11 @@
+{
+  "appId": "ca.mkegroup.fireground",
+  "appName": "Fire Ground",
+  "webDir": "web",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#14171c",
+    "limitsNavigationsToAppBoundDomains": false,
+    "scheme": "Fire Ground"
+  }
+}

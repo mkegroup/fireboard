@@ -428,6 +428,7 @@ export function createDemoApi() {
 
     async billing() { throw new Error("Billing is not available in the demo."); },
     async syncSeats() { return {}; },
+    async notify() {},
   };
   return api;
 }

@@ -11,6 +11,7 @@
 //   call_type | type | nature                -> call type
 //   notes | body | text | body-plain         -> logged to the activity log
 import { adminClient, corsHeaders, json } from "../_shared/util.ts";
+import { sendIncidentPush } from "../_shared/push.ts";
 
 function pick(o: Record<string, unknown>, keys: string[]): string {
   for (const k of keys) {
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
 
   const { data: inc, error } = await admin.from("incidents").insert({
     dept_id: dept.id, name, address, call_type: callType, source: "dispatch",
-  }).select("id").single();
+  }).select("id, dept_id, name, address, status, par_started_at").single();
   if (error || !inc) {
     console.error("dispatch insert failed", error);
     return json({ error: "Could not create incident" }, 500);
@@ -94,5 +95,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  return json({ ok: true, incident_id: inc.id });
+  // Page everyone's phone. A push failure never fails the dispatch.
+  const push = await sendIncidentPush(admin, inc, "incident").catch((e) => { console.error("push failed", e); return { sent: 0 }; });
+
+  return json({ ok: true, incident_id: inc.id, alerted: push.sent });
 });

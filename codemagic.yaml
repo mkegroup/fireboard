@@ -1,0 +1,69 @@
+# Builds the Fire Ground iPhone app and sends it to TestFlight.
+# Set up once in Codemagic (see SETUP.md, "iPhone app"):
+#   - App Store Connect API key integration named "MKE Group" (same one as Scrub Club)
+#   - Environment variable group "fireground" with:
+#       SUPABASE_URL, SUPABASE_ANON_KEY, ONESIGNAL_APP_ID   (public values, same as the website)
+#       CERTIFICATE_PRIVATE_KEY                             (same as Scrub Club)
+#       APP_STORE_APPLE_ID                                  (the app's Apple ID number from App Store Connect)
+workflows:
+  ios-testflight:
+    name: Fire Ground iOS to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: MKE Group
+    environment:
+      groups:
+        - fireground
+      vars:
+        BUNDLE_ID: ca.mkegroup.fireground
+        XCODE_WORKSPACE: ios/App/App.xcworkspace
+        XCODE_SCHEME: App
+        APP_DOMAIN: fire.mkegroup.ca
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Check settings
+        script: |
+          #!/usr/bin/env bash
+          for v in SUPABASE_URL SUPABASE_ANON_KEY ONESIGNAL_APP_ID CERTIFICATE_PRIVATE_KEY APP_STORE_APPLE_ID; do
+            if [ -z "${!v}" ]; then echo "Missing $v in the fireground environment group"; exit 1; fi
+          done
+      - name: Fill in app settings
+        script: |
+          node -e '
+            const fs = require("fs"); const p = "web/js/config.js";
+            let s = fs.readFileSync(p, "utf8");
+            const set = (k, v) => { s = s.replace(new RegExp(k + ": \".*?\""), k + ": " + JSON.stringify(v)); };
+            set("SUPABASE_URL", process.env.SUPABASE_URL.replace(/\/$/, ""));
+            set("SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY);
+            set("APP_URL", "https://" + process.env.APP_DOMAIN);
+            set("ONESIGNAL_APP_ID", process.env.ONESIGNAL_APP_ID);
+            fs.writeFileSync(p, s);
+          '
+          grep -q "ONESIGNAL_APP_ID: \"$ONESIGNAL_APP_ID\"" web/js/config.js
+      - name: Install and copy the app into Xcode
+        script: |
+          npm install --no-audit --no-fund
+          npx cap sync ios
+      - name: Signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build number
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          cd ios/App && agvtool new-version -all $((LATEST + 1))
+      - name: Build
+        script: |
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

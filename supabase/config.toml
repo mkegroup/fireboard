@@ -18,3 +18,7 @@ verify_jwt = false
 # Nightly seat reconcile. Checks RECONCILE_SECRET instead of a JWT.
 [functions.reconcile-seats]
 verify_jwt = false
+
+# Push alerts. Needs the user's sign-in.
+[functions.notify]
+verify_jwt = true

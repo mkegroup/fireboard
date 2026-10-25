@@ -15,9 +15,10 @@ web/                 The app. Plain HTML, CSS and JS. No build step.
   js/app.js          Sign in, routing, home, department, profile
 supabase/
   migrations/        Database tables and security rules
-  functions/         Billing, Stripe webhook, dispatch intake, account deletion, seat reconcile
+  functions/         Billing, Stripe webhook, dispatch intake, push alerts, account deletion, seat reconcile
   tests/             Security tests
 .github/workflows/   fireground.yml: unpacks uploaded zips, tests, deploys, nightly seat check
+ios/                 iPhone app (Capacitor). Built by Codemagic from codemagic.yaml
 design/             Logo files (light, dark-screen version, badge) and old icon source
 ```
 

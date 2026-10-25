@@ -301,6 +301,11 @@ export function createApi() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
+    /** Asks the server to send a push alert. Never throws: alerts are best effort. */
+    notify(kind, incidentId, personnelId) {
+      return sb.functions.invoke("notify", { body: { kind, incident_id: incidentId, personnel_id: personnelId || null } })
+        .catch(() => {});
+    },
     syncSeats(deptId) {
       return api.billing("sync-seats", deptId);
     },

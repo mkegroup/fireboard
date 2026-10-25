@@ -281,11 +281,19 @@ The old version kept each department's data in its own Firebase project. There's
 
 ---
 
-## 12. iOS app (next step)
+## 12. iPhone app
 
-Not built yet. The plan:
+The iPhone app is the same app wrapped with Capacitor, built in the cloud by Codemagic (no Mac needed), with push alerts through OneSignal. Listing text, privacy answers and review notes are in `APPSTORE.md`.
 
-- Wrap `web/` with Capacitor, bundle ID `ca.mkegroup.fireground`.
-- Build and upload with Codemagic, same as Scrub Club, under the MKE Group Inc. Apple developer account.
-- No in-app purchase. The iOS app is sign-in only. The plan and billing screens are already hidden when the app runs inside Capacitor, so departments subscribe on the web. Apple allows this for business software sold to organizations, but the app must not link to or mention the web checkout.
-- App Store review needs a demo login, and reviewers can't read your email codes. Make one account with a password for them: in Supabase **Authentication > Users > Add user**, set an email and password, tick "Auto confirm". Give it a test department with a paid status (`update departments set subscription_status = 'active' where name = 'App Review FD';`). The sign-in screen has a small "Password sign-in" link for this.
+1. **Apple App ID.** developer.apple.com > Certificates, IDs & Profiles > Identifiers > +. App IDs, App. Description `Fire Ground Board`, explicit Bundle ID `ca.mkegroup.fireground`. Tick **Push Notifications**. Register.
+2. **APNs key.** Reuse the .p8 key you made for Scrub Club (one key covers every app in your team). No file? Keys > +, tick Apple Push Notifications service, download the .p8 (only shown once), note the Key ID. Your Team ID is in the top right of the developer site.
+3. **OneSignal.** New App, name `Fire Ground Board`, platform Apple iOS (APNs). Upload the .p8, Key ID, Team ID, Bundle ID `ca.mkegroup.fireground`. Pick the Cordova/Capacitor SDK and finish. Settings > Keys & IDs: copy the **App ID** and make a **REST API key**.
+4. **Supabase secrets:** add `ONESIGNAL_APP_ID` and `ONESIGNAL_REST_API_KEY`.
+5. **App Store Connect.** Apps > + > New App. iOS, name `Fire Ground Board`, Bundle ID `ca.mkegroup.fireground`, SKU `fireground`. Then App Information: copy the **Apple ID** number.
+6. **Codemagic.** Add application > GitHub > `mkegroup/fireboard` > use `codemagic.yaml`.
+   - Check Team settings > Integrations: the App Store Connect key name must match `MKE Group` in `codemagic.yaml`. If yours is named differently, change that line.
+   - Environment variables, group `fireground`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ONESIGNAL_APP_ID`, `APP_STORE_APPLE_ID`, and `CERTIFICATE_PRIVATE_KEY` (same as Scrub Club).
+   - Start a build of **Fire Ground iOS to TestFlight**. About 15 minutes.
+7. **TestFlight.** Install from the TestFlight app. Sign in, allow alerts, and have someone start an incident from the website. Your phone should buzz.
+8. **App Store review account.** Supabase > Authentication > Users > Add user > Create new user, email `appreview@mkegroup.ca`, a password, tick Auto Confirm. On fire.mkegroup.ca use Password sign-in, create `App Review FD`, start one incident. Then in SQL Editor: `update departments set subscription_status = 'active' where name = 'App Review FD';`
+9. **Submit.** Fill the listing from `APPSTORE.md`, upload the 6 screenshots, answer App Privacy, add the review account and notes, pick the build, Submit for Review.

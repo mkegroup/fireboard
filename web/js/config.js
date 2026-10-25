@@ -6,7 +6,7 @@ export const CONFIG = {
 
   APP_URL: "https://fire.mkegroup.ca",
   SUPPORT_EMAIL: "hello@mkegroup.ca",
-  VERSION: "2.2.0",
+  VERSION: "2.3.0",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.
@@ -17,6 +17,10 @@ export const CONFIG = {
     trialDays: 7,
     taxNote: "plus tax",
   },
+
+  // Push alerts in the iPhone app. Public value from OneSignal > Settings > Keys & IDs.
+  // Filled in by the Codemagic build. Empty = no alerts (the web app never uses it).
+  ONESIGNAL_APP_ID: "",
 
   // Map tiles. OpenStreetMap's free tiles are fine for testing; switch to a
   // paid provider (MapTiler, Stadia, Mapbox) before charging customers.
