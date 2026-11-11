@@ -68,4 +68,6 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # Builds land in TestFlight for internal testers (you) with no review.
+        # External beta review isn't needed: the App Store submission is done by hand.
+        submit_to_testflight: false
