@@ -122,12 +122,13 @@ jobs:
       - if: steps.ready.outputs.go == 'yes'
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned. Supabase CLI 3 changed how db push finds the project.
+          version: 2.122.1
       - if: steps.ready.outputs.go == 'yes'
         name: Database and functions
         run: |
           supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
           # Deploys every function in supabase/functions (folders starting with _ are shared code).
           supabase functions deploy --project-ref "$PROJECT_REF"
 
@@ -144,6 +145,8 @@ jobs:
       SUPABASE_URL: ${{ vars.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      MAPTILER_KEY: ${{ vars.MAPTILER_KEY }}
+      INBOX_DOMAIN: ${{ vars.INBOX_DOMAIN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -165,6 +168,8 @@ jobs:
             s = s.replace(/SUPABASE_URL: ".*?"/, "SUPABASE_URL: " + JSON.stringify(process.env.SUPABASE_URL.replace(/\/$/, "")));
             s = s.replace(/SUPABASE_ANON_KEY: ".*?"/, "SUPABASE_ANON_KEY: " + JSON.stringify(process.env.SUPABASE_ANON_KEY));
             if (process.env.APP_DOMAIN) s = s.replace(/APP_URL: ".*?"/, "APP_URL: " + JSON.stringify("https://" + process.env.APP_DOMAIN));
+            if (process.env.MAPTILER_KEY) s = s.replace(/MAPTILER_KEY: ".*?"/, "MAPTILER_KEY: " + JSON.stringify(process.env.MAPTILER_KEY.trim()));
+            if (process.env.INBOX_DOMAIN) s = s.replace(/INBOX_DOMAIN: ".*?"/, "INBOX_DOMAIN: " + JSON.stringify(process.env.INBOX_DOMAIN.trim().replace(/^@/, "")));
             fs.writeFileSync(p, s);
           '
           if [ -n "$APP_DOMAIN" ]; then echo "$APP_DOMAIN" > web/CNAME; fi
