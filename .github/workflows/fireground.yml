@@ -145,7 +145,7 @@ jobs:
       SUPABASE_URL: ${{ vars.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       APP_DOMAIN: ${{ vars.APP_DOMAIN }}
-      MAPTILER_KEY: ${{ vars.MAPTILER_KEY }}
+      GOOGLE_MAPS_KEY: ${{ vars.GOOGLE_MAPS_KEY }}
       INBOX_DOMAIN: ${{ vars.INBOX_DOMAIN }}
     steps:
       - uses: actions/checkout@v4
@@ -168,7 +168,7 @@ jobs:
             s = s.replace(/SUPABASE_URL: ".*?"/, "SUPABASE_URL: " + JSON.stringify(process.env.SUPABASE_URL.replace(/\/$/, "")));
             s = s.replace(/SUPABASE_ANON_KEY: ".*?"/, "SUPABASE_ANON_KEY: " + JSON.stringify(process.env.SUPABASE_ANON_KEY));
             if (process.env.APP_DOMAIN) s = s.replace(/APP_URL: ".*?"/, "APP_URL: " + JSON.stringify("https://" + process.env.APP_DOMAIN));
-            if (process.env.MAPTILER_KEY) s = s.replace(/MAPTILER_KEY: ".*?"/, "MAPTILER_KEY: " + JSON.stringify(process.env.MAPTILER_KEY.trim()));
+            if (process.env.GOOGLE_MAPS_KEY) s = s.replace(/GOOGLE_MAPS_KEY: ".*?"/, "GOOGLE_MAPS_KEY: " + JSON.stringify(process.env.GOOGLE_MAPS_KEY.trim()));
             if (process.env.INBOX_DOMAIN) s = s.replace(/INBOX_DOMAIN: ".*?"/, "INBOX_DOMAIN: " + JSON.stringify(process.env.INBOX_DOMAIN.trim().replace(/^@/, "")));
             fs.writeFileSync(p, s);
           '
