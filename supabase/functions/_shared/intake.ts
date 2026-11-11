@@ -70,7 +70,7 @@ export async function intake(
   }
 
   const { data: inc, error } = await admin.from("incidents").insert({
-    dept_id: dept.id, name: page.name, address: page.address, call_type: page.callType,
+    dept_id: dept.id, name: page.name, address: page.address, call_type: page.callType, lat: page.lat, lng: page.lng,
     source: channel === "email" ? "email" : "dispatch",
   }).select("id, dept_id, name, address, status, par_started_at").single();
   if (error || !inc) {

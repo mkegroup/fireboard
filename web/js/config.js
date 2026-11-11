@@ -22,10 +22,10 @@ export const CONFIG = {
   // Empty until inbound email is set up (see SETUP.md, "Dispatch email").
   INBOX_DOMAIN: "",
 
-  // Map tiles. OpenStreetMap's free tiles are fine for testing; switch to a
-  // paid provider (MapTiler, Stadia, Mapbox) before charging customers.
-  TILE_URL: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  TILE_ATTRIBUTION: "&copy; OpenStreetMap contributors",
+  // Maps (streets and satellite) and address lookup. Public key from
+  // cloud.maptiler.com, restricted to your app's address. Filled in by the
+  // deploy from the GitHub variable MAPTILER_KEY.
+  MAPTILER_KEY: "",
 };
 
 export const IS_NATIVE = typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.();

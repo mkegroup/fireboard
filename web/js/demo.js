@@ -71,7 +71,7 @@ function seed() {
   const inc = {
     id: "demo-inc", dept_id: DEPT, name: "Structure fire", address: "142 Mill Street", call_type: "Structure",
     status: "active", source: "dispatch", started_at: new Date(now - 23 * min).toISOString(), started_by: ME,
-    closed_at: null, par_started_at: null, iocanc: null,
+    closed_at: null, par_started_at: null, iocanc: null, lat: 45.4884, lng: -77.6797,
   };
   db.incidents.push(inc);
   const e1 = { id: "app-e1", incident_id: inc.id, dept_id: DEPT, name: "Engine 1", kind: "Engine", status: "On Scene", created_at: inc.started_at };

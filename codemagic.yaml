@@ -5,6 +5,7 @@
 #       SUPABASE_URL, SUPABASE_ANON_KEY                     (public values, same as the website)
 #       CERTIFICATE_PRIVATE_KEY                             (same as Scrub Club)
 #       APP_STORE_APPLE_ID                                  (the app's Apple ID number from App Store Connect)
+#       MAPTILER_KEY, INBOX_DOMAIN                          (optional, same values as the GitHub variables)
 workflows:
   ios-testflight:
     name: Fire Ground iOS to TestFlight
@@ -39,6 +40,8 @@ workflows:
             set("SUPABASE_URL", process.env.SUPABASE_URL.replace(/\/$/, ""));
             set("SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY);
             set("APP_URL", "https://" + process.env.APP_DOMAIN);
+            if (process.env.MAPTILER_KEY) set("MAPTILER_KEY", process.env.MAPTILER_KEY.trim());
+            if (process.env.INBOX_DOMAIN) set("INBOX_DOMAIN", process.env.INBOX_DOMAIN.trim());
             fs.writeFileSync(p, s);
           '
           grep -q "SUPABASE_URL: \"https://" web/js/config.js

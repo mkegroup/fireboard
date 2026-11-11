@@ -132,3 +132,9 @@ grant select (lang) on public.members to authenticated;
 -- Closing an incident can be posted to the group chat too (once).
 alter table public.push_log drop constraint if exists push_log_kind_check;
 alter table public.push_log add constraint push_log_kind_check check (kind in ('incident', 'par', 'missing', 'closed'));
+
+-- Where the incident is, for the map pin and directions. Set from coordinates
+-- in a dispatch page, or found from the address the first time the map opens.
+alter table public.incidents add column if not exists lat double precision check (lat is null or lat between -90 and 90);
+alter table public.incidents add column if not exists lng double precision check (lng is null or lng between -180 and 180);
+grant update (lat, lng) on public.incidents to authenticated;

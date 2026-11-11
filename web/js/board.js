@@ -1,5 +1,6 @@
 // The incident board: live accountability for one incident.
 import { t } from "./i18n.js";
+import { baseLayers, geocode, directions } from "./maps.js";
 import { CONFIG } from "./config.js";
 import { S, STATUSES, STATUS_HELP, STATUS_SHORT, APP_STATUSES, APP_KINDS, MA_STATUSES, RANKS, CREWS, isOfficer, hasAccess } from "./state.js";
 import { esc, initials, colorFor, clock, dateTime, elapsed, stopwatch, ago, formData, download, slug, copyText, vibrate, friendlyError, debounce, alertTone, keepAwake, setTheme } from "./util.js";
@@ -20,6 +21,8 @@ export function boardView(root, incidentId) {
   let alive = true;
   let map = null;
   let markers = {};
+  let incMarker = null;
+  let geoTried = "";
   let watchId = null;
   let chatOpen = false;
   let lastPar = undefined;
@@ -268,19 +271,32 @@ export function boardView(root, incidentId) {
   function paintMap(body) {
     if (!map) {
       const sharing = watchId !== null;
+      const dir = directions(st.incident);
       body.innerHTML = `
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <div class="grow muted small" style="flex:1">Positions update while people have this incident open. Accuracy drops inside buildings.</div>
+        <div class="map-tools">
+          <div class="grow muted small">Positions update while people have this incident open. Accuracy drops inside buildings.</div>
           ${active() && hasAccess() ? `<button class="btn sm ${sharing ? "danger" : "primary"}" data-act="share-loc">${icon("pin", "sm")} ${sharing ? "Stop sharing" : "Share my location"}</button>` : ""}
         </div>
+        ${dir ? `<div class="btn-row map-dir"><a class="btn sm" href="${esc(dir.apple)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Apple Maps</a><a class="btn sm" href="${esc(dir.google)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Google Maps</a></div>` : ""}
         <div id="map" role="application" aria-label="Map of crew positions"></div>
         <div id="map-list" class="section"></div>`;
       if (!window.L) { body.querySelector("#map").innerHTML = '<p class="muted" style="padding:20px">Map could not load.</p>'; return; }
       map = window.L.map("map", { zoomControl: true, attributionControl: true }).setView([45.5, -77.5], 13);
-      window.L.tileLayer(CONFIG.TILE_URL, { maxZoom: 19, attribution: CONFIG.TILE_ATTRIBUTION }).addTo(map);
+      const layers = baseLayers(window.L);
+      const names = Object.keys(layers);
+      let pick = names[0];
+      try { const saved = localStorage.getItem("fgb_map_layer"); if (saved && layers[saved]) pick = saved; } catch { /* private mode */ }
+      layers[pick].addTo(map);
+      if (names.length > 1) {
+        const labelled = Object.fromEntries(names.map((n) => [t(n), layers[n]]));
+        window.L.control.layers(labelled, null, { position: "topright", collapsed: false }).addTo(map);
+        map.on("baselayerchange", (e) => { const n = names.find((x) => layers[x] === e.layer); try { localStorage.setItem("fgb_map_layer", n); } catch { /* private mode */ } });
+      }
       setTimeout(() => map && map.invalidateSize(), 60);
       markers = {};
+      incMarker = null;
       updateMarkers(true);
+      placeIncident(true);
     } else {
       updateMarkers(false);
       const btn = body.querySelector('[data-act="share-loc"]');
@@ -289,6 +305,33 @@ export function boardView(root, incidentId) {
         btn.className = `btn sm ${sharing ? "danger" : "primary"}`;
         btn.innerHTML = `${icon("pin", "sm")} ${sharing ? "Stop sharing" : "Share my location"}`;
       }
+    }
+  }
+
+  /** Red pin where the incident is: from dispatch coordinates, or found from the address. */
+  async function placeIncident(fit) {
+    if (!map) return;
+    const inc = st.incident;
+    let pt = typeof inc.lat === "number" && typeof inc.lng === "number" ? [inc.lat, inc.lng] : null;
+    if (!pt && inc.address && geoTried !== inc.address) {
+      geoTried = inc.address;
+      pt = await geocode(inc.address);
+      if (pt && map) {
+        st.incident.lat = pt[0];
+        st.incident.lng = pt[1];
+        // Save it so nobody else has to look it up. Only officers can.
+        if (officer()) S.api.updateIncident(incidentId, { lat: pt[0], lng: pt[1] }).catch(() => {});
+      }
+    }
+    if (!pt || !map) return;
+    const L = window.L;
+    const ic = L.divIcon({ html: `<div class="map-pin inc">${icon("flame", "sm")}</div>`, className: "", iconSize: [38, 38], iconAnchor: [19, 19] });
+    if (incMarker) incMarker.setLatLng(pt);
+    else incMarker = L.marker(pt, { icon: ic, zIndexOffset: 1000 }).addTo(map).bindPopup(`<b>${esc(inc.name)}</b>${inc.address ? `<br>${esc(inc.address)}` : ""}`);
+    if (fit) {
+      const pts = [pt, ...st.locations.map((l) => [l.lat, l.lng])];
+      if (pts.length === 1) map.setView(pt, 16);
+      else map.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
     }
   }
 
@@ -618,6 +661,7 @@ export function boardView(root, incidentId) {
     const playing = scannerAudio && !scannerAudio.paused;
     const items = [];
     if (active()) items.push(["share", icon("share"), "Share this incident", "Send crew a link straight to this board"]);
+    if (directions(inc)) items.push(["directions", icon("pin"), "Directions", "Apple Maps or Google Maps"]);
     if (scanner) items.push(["scanner", icon(playing ? "stop" : "radio"), playing ? "Stop scanner" : "Listen to scanner", S.dept.scanner_label || "Live audio feed"]);
     if (active() && officer()) items.push(["iocanc", icon("radio"), "Arrival report (IOCANC)", inc.iocanc ? "Saved, tap to edit" : "Build the radio script"]);
     if (active() && officer()) items.push(["edit", icon("log"), "Edit incident details", "Name, address, call type"]);
@@ -651,6 +695,16 @@ export function boardView(root, incidentId) {
       scannerAudio.play().then(() => toast(`Playing ${S.dept.scanner_label || "scanner"}.`)).catch(() => toast("That stream couldn't be played. Check the address in Department.", true));
     },
     iocanc: iocancSheet,
+    directions: () => {
+      const d = directions(st.incident);
+      if (!d) return;
+      openSheet({
+        title: "Directions",
+        body: `<p class="muted small" style="margin-bottom:12px">${esc(st.incident.address || "")}</p>
+          <div class="stack"><a class="btn block" href="${esc(d.apple)}" target="_blank" rel="noopener noreferrer">Apple Maps</a>
+          <a class="btn block" href="${esc(d.google)}" target="_blank" rel="noopener noreferrer">Google Maps</a></div>`,
+      });
+    },
     theme: () => setTheme(document.documentElement.dataset.theme === "sun" ? "dark" : "sun"),
     edit: () => openSheet({
       title: "Edit incident",
@@ -659,7 +713,9 @@ export function boardView(root, incidentId) {
       onSubmit: async (form) => {
         const f = formData(form);
         if (!f.name) throw new Error("Name can't be empty.");
-        await S.api.updateIncident(incidentId, { name: f.name, address: f.address || null, call_type: f.call_type || null });
+        const moved = (f.address || null) !== (st.incident.address || null);
+        await S.api.updateIncident(incidentId, { name: f.name, address: f.address || null, call_type: f.call_type || null, ...(moved ? { lat: null, lng: null } : {}) });
+        if (moved && incMarker && map) { map.removeLayer(incMarker); incMarker = null; geoTried = ""; }
         reload();
       },
     }),

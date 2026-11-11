@@ -8,6 +8,7 @@ import { boardView } from "./board.js";
 import { startPush, stopPush, pushState, askForPush } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 import { connectionsView } from "./connections.js";
+import { bestDirections } from "./maps.js";
 import { getLocale, getLang, setLang, LANGS, startTranslating, t } from "./i18n.js";
 
 const root = document.getElementById("root");
@@ -751,6 +752,7 @@ function activeCard(inc, st) {
       </div>
     </a>
     ${!meOn && hasAccess() ? `<button class="btn primary block respond" data-act="respond" data-id="${inc.id}">I'm responding</button>` : ""}
+    ${bestDirections(inc) ? `<a class="btn block dir-btn" href="${esc(bestDirections(inc))}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Directions</a>` : ""}
   </div>`;
 }
 

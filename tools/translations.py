@@ -937,6 +937,13 @@ ROWS = [
 ("Duration: {x}", "Durée : {x}", "Duración: {x}"),
 ("Incident: {x}", "Intervention : {x}", "Incidente: {x}"),
 ("We email a yearly invoice ({x} per member) your treasurer or municipality can pay by cheque or EFT. Due in 30 days.", "Nous envoyons par courriel une facture annuelle ({x} par membre) que votre trésorier ou municipalité peut payer par chèque ou virement. Payable en 30 jours.", "Enviamos por correo una factura anual ({x} por miembro) que su tesorero o municipio puede pagar con cheque o transferencia. Vence en 30 días."),
+("Directions", "Itinéraire", "Cómo llegar"),
+("Apple Maps or Google Maps", "Apple Plans ou Google Maps", "Apple Maps o Google Maps"),
+("Apple Maps", "Apple Plans", "Apple Maps"),
+("Google Maps", "Google Maps", "Google Maps"),
+("Streets", "Rues", "Calles"),
+("Satellite", "Satellite", "Satélite"),
+("Map could not load.", "La carte n'a pas pu se charger.", "No se pudo cargar el mapa."),
 # ---------- me ----------
 ("My details", "Mes renseignements", "Mis datos"),
 ("Save my details", "Enregistrer mes renseignements", "Guardar mis datos"),

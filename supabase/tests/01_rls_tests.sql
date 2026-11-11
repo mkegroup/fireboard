@@ -298,4 +298,14 @@ update members set lang = 'fr' where user_id = auth.uid();
 reset role;
 select t_eq((select lang from members where user_id='00000000-0000-0000-0000-00000000000a' limit 1), 'fr', 'language saved');
 
+-- ---------- Incident map pin ----------
+reset role;
+insert into ids select 'incPin', id::text from incidents where dept_id=(select v::uuid from ids where k='deptA') limit 1;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+update incidents set lat = 45.36, lng = -77.62 where id = (select v::uuid from ids where k='incPin');
+select t_fail($$update incidents set lat = 95 where id = (select v::uuid from ids where k='incPin')$$, 'check');
+reset role;
+select t_eq((select lat from incidents where id=(select v::uuid from ids where k='incPin'))::numeric, 45.36::numeric, 'officer saves the map pin');
+
 \echo ALL_TESTS_PASSED

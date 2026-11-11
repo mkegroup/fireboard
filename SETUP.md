@@ -198,18 +198,14 @@ Every push that changes `web/` redeploys automatically. The service worker cache
 
 ---
 
-## 7. Map tiles
+## 7. Maps
 
-The map uses free OpenStreetMap tiles. Their rules don't allow commercial apps with real traffic. Before you charge anyone:
+Maps use MapTiler (streets and satellite) and address lookup for the incident pin. Directions open in Apple Maps or Google Maps.
 
-1. Sign up at MapTiler (or Stadia Maps). The free tier covers early customers.
-2. Get a key and restrict it to `fire.mkegroup.ca`.
-3. In `web/js/config.js` change:
-
-```js
-TILE_URL: "https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=YOUR_KEY",
-TILE_ATTRIBUTION: '&copy; MapTiler &copy; OpenStreetMap contributors',
-```
+1. Sign up at cloud.maptiler.com (free tier covers early customers).
+2. Account > API keys > copy the default key, or make one. Under Allowed HTTP origins add `fire.mkegroup.ca` and `capacitor://localhost`.
+3. GitHub repo > Settings > Secrets and variables > Actions > Variables > New variable: `MAPTILER_KEY` = the key. Add the same in Codemagic's `fireground` group for the iPhone app.
+4. Re-run the workflow (Actions > Fire Ground Board > Run workflow).
 
 ---
 
@@ -317,7 +313,7 @@ It runs on Cloudflare Email Routing, which is free and instant.
    - `SECRET`: any long random string
 5. Back in **Email Routing > Routing rules**, set the **Catch-all** rule to **Send to a Worker**, `fgb-calls`.
 6. In Supabase **Edge Functions > Secrets**, add `INBOUND_SECRET` with the same random string.
-7. Set `INBOX_DOMAIN` in `web/js/config.js` to the domain (for example `firegroundboard.com`) and upload again.
+7. GitHub repo > Settings > Secrets and variables > Actions > Variables > New variable: `INBOX_DOMAIN` = the domain (for example `firegroundboard.com`). Add the same in Codemagic's `fireground` group. Re-run the workflow.
 
 Test: on Connections, copy your address and send it an email like `CALL: STRUCTURE FIRE ADDR: 1 MAIN ST`. A call should start within seconds and show under Recent dispatch messages.
 
