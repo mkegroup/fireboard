@@ -1,6 +1,7 @@
 // Posts a short message to a department's group chat: Slack, Microsoft Teams,
 // Discord or Google Chat, using the incoming webhook link the owner pasted in.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { appUrl } from "./util.ts";
 
 export type ChatEvent = "incident" | "par" | "missing" | "closed";
 
@@ -45,7 +46,7 @@ export async function postToChat(admin: SupabaseClient, deptId: string, event: C
     const { data } = await admin.from("dept_integrations").select("chat_webhook_url, chat_events").eq("dept_id", deptId).maybeSingle();
     const url = safeWebhook(data?.chat_webhook_url);
     if (!url || (event !== "test" && !(data?.chat_events ?? []).includes(event))) return false;
-    const app = (Deno.env.get("APP_URL") ?? "https://fire.mkegroup.ca").replace(/\/$/, "");
+    const app = appUrl();
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },

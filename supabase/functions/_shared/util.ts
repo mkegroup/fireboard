@@ -19,6 +19,24 @@ export function env(name: string, fallback?: string): string {
   return v;
 }
 
+/**
+ * The web app's address, cleaned up. Forgives the usual typos in the APP_URL secret:
+ * spaces, quotes, a missing https://, a trailing slash or path. Always a valid https origin.
+ */
+export function appUrl(): string {
+  const fallback = "https://fire.mkegroup.ca";
+  let v = (Deno.env.get("APP_URL") ?? "").split(",")[0].trim().replace(/^["']|["']$/g, "").trim();
+  if (!v) return fallback;
+  if (!/^https?:\/\//i.test(v)) v = `https://${v}`;
+  try {
+    const u = new URL(v);
+    if (!u.hostname.includes(".") && u.hostname !== "localhost") return fallback;
+    return u.origin;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Service role client. Bypasses RLS, so every caller must check permissions itself. */
 export function adminClient(): SupabaseClient {
   return createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
@@ -58,7 +76,7 @@ export async function countSeats(admin: SupabaseClient, deptId: string): Promise
  */
 export function lockedCors(handler: (req: Request) => Promise<Response>) {
   const allowed = new Set(
-    (Deno.env.get("ALLOWED_ORIGINS") ?? `${Deno.env.get("APP_URL") ?? "https://fire.mkegroup.ca"},capacitor://localhost`)
+    (Deno.env.get("ALLOWED_ORIGINS") ?? `${appUrl()},capacitor://localhost`)
       .split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean),
   );
   return async (req: Request): Promise<Response> => {

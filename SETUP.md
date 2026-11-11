@@ -286,12 +286,12 @@ The new app doesn't use Firebase at all. Departments on the old version make a f
 The iPhone app is the same app wrapped with Capacitor, built in the cloud by Codemagic (no Mac needed). Push alerts go straight from Supabase to Apple. No OneSignal, no Firebase. Listing text, privacy answers and review notes are in `APPSTORE.md`.
 
 1. **Apple App ID.** developer.apple.com > Certificates, IDs & Profiles > Identifiers > +. App IDs, App. Description `Fire Ground Board`, explicit Bundle ID `ca.mkegroup.fireground`. Tick **Push Notifications**. Register.
-2. **Push key.** Reuse the .p8 key you made for Scrub Club (one key covers every app on your team). No file? Keys > +, tick Apple Push Notifications service (APNs), download the .p8 (only shown once). Note the Key ID and your Team ID (top right of the developer site).
+2. **Push key.** Make a separate key for Fire Ground: Keys > +, tick Apple Push Notifications service (APNs), download the .p8 (only shown once). Note the Key ID and your Team ID (top right of the developer site).
 3. **Supabase secrets:** `APNS_KEY` (open the .p8 in TextEdit and paste everything), `APNS_KEY_ID`, `APNS_TEAM_ID`.
 4. **App Store Connect.** Apps > + > New App. iOS, name `Fire Ground Board`, Bundle ID `ca.mkegroup.fireground`, SKU `fireground`. Then App Information: copy the **Apple ID** number.
 5. **Codemagic.** Add application > GitHub > `mkegroup/fireboard` > use `codemagic.yaml`.
-   - Team settings > Integrations: the App Store Connect key name must match `MKE Group` in `codemagic.yaml`.
-   - Environment variables, group `fireground`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_STORE_APPLE_ID`, and `CERTIFICATE_PRIVATE_KEY` (same as Scrub Club).
+   - Team settings > Integrations: the App Store Connect key name must match `Fire Ground` in `codemagic.yaml`.
+   - Environment variables, group `fireground`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_STORE_APPLE_ID`, and `CERTIFICATE_PRIVATE_KEY` (Fire Ground's own signing key).
    - Start a build of **Fire Ground iOS to TestFlight**. About 15 minutes.
 6. **TestFlight.** Install from the TestFlight app. Sign in, allow alerts, and have someone start an incident from the website. Your phone should buzz.
 7. **App Store review account.** Supabase > Authentication > Users > Add user > Create new user, email `appreview@mkegroup.ca`, a password, tick Auto Confirm. On fire.mkegroup.ca use Password sign-in, create `App Review FD`, start one incident. Then in SQL Editor: `update departments set subscription_status = 'active' where name = 'App Review FD';`

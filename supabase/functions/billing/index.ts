@@ -8,7 +8,7 @@
 //   sync-seats (member) -> pushes the current seat count to Stripe.
 // If the free trial is still running, billing starts when it ends.
 import { makeStripe } from "../_shared/stripe.ts";
-import { adminClient, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
+import { adminClient, appUrl as cleanAppUrl, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
 import { billedSeats, syncSeats } from "../_shared/seats.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
@@ -45,7 +45,8 @@ Deno.serve(lockedCors(async (req) => {
       .eq("id", dept_id).single();
     if (error || !dept) return json({ error: "Department not found" }, 404);
 
-    const appUrl = env("APP_URL", "https://fire.mkegroup.ca").replace(/\/$/, "");
+    // Stripe refuses return links with a # in them, so these come back to /?billing=... and the app opens Plan.
+    const appUrl = cleanAppUrl();
 
     if (action === "sync-seats") {
       const seats = await syncSeats(stripe, admin, dept, MIN_SEATS);
@@ -58,7 +59,7 @@ Deno.serve(lockedCors(async (req) => {
       if (!dept.stripe_customer_id) return json({ error: "No billing account yet" }, 400);
       const session = await stripe.billingPortal.sessions.create({
         customer: dept.stripe_customer_id,
-        return_url: `${appUrl}/?billing=portal#/plan`,
+        return_url: `${appUrl}/?billing=portal`,
       });
       return json({ url: session.url });
     }
@@ -74,7 +75,7 @@ Deno.serve(lockedCors(async (req) => {
       if (action === "invoice") return json({ error: "This department already has a plan." }, 400);
       const session = await stripe.billingPortal.sessions.create({
         customer: dept.stripe_customer_id!,
-        return_url: `${appUrl}/?billing=portal#/plan`,
+        return_url: `${appUrl}/?billing=portal`,
       });
       return json({ url: session.url });
     }
@@ -155,8 +156,8 @@ Deno.serve(lockedCors(async (req) => {
         metadata: { dept_id },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
       },
-      success_url: `${appUrl}/?billing=success#/plan`,
-      cancel_url: `${appUrl}/?billing=cancel#/plan`,
+      success_url: `${appUrl}/?billing=success`,
+      cancel_url: `${appUrl}/?billing=cancel`,
     });
     return json({ url: session.url });
   } catch (e) {

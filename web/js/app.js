@@ -70,7 +70,8 @@ async function boot() {
     const b = params.get("billing");
     if (b === "success") toast("You're all set. Your plan is saved.");
     if (b === "cancel") toast("Checkout closed. Nothing was charged.");
-    history.replaceState(null, "", location.pathname + location.hash);
+    history.replaceState(null, "", location.pathname + (IS_NATIVE ? location.hash : "#/plan"));
+    route();
     // Stripe tells us about the new plan a few seconds later.
     [2500, 8000, 20000].forEach((ms) => setTimeout(refreshDept, ms));
   }

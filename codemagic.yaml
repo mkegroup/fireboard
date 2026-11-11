@@ -1,9 +1,9 @@
 # Builds the Fire Ground iPhone app and sends it to TestFlight.
 # Set up once in Codemagic (see SETUP.md, "iPhone app"):
-#   - App Store Connect API key integration named "MKE Group" (same one as Scrub Club)
+#   - App Store Connect API key integration named "Fire Ground" (its own key, not Scrub Club's)
 #   - Environment variable group "fireground" with:
 #       SUPABASE_URL, SUPABASE_ANON_KEY                     (public values, same as the website)
-#       CERTIFICATE_PRIVATE_KEY                             (same as Scrub Club)
+#       CERTIFICATE_PRIVATE_KEY                             (Fire Ground's own signing key, from fireground-signing-key.pem)
 #       APP_STORE_APPLE_ID                                  (the app's Apple ID number from App Store Connect)
 #       GOOGLE_MAPS_KEY  (the iPhone app's own key, see SETUP.md "Maps"), INBOX_DOMAIN (same as GitHub)
 workflows:
@@ -12,7 +12,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     integrations:
-      app_store_connect: MKE Group
+      app_store_connect: Fire Ground
     environment:
       groups:
         - fireground
