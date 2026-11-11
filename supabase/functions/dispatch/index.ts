@@ -1,22 +1,26 @@
 // Dispatch / CAD webhook. Starts an incident on a department's board.
 //
 // POST https://<project>.supabase.co/functions/v1/dispatch
-//   header  x-dispatch-token: <token from Department > Dispatch>
+//   header  x-dispatch-token: <token from Department > Connections>
 //   (or ?token=<token> for systems that cannot set headers)
 //
 // Accepts JSON, form posts or plain text, so it works with CAD systems,
-// Zapier / Make, and email-to-webhook services.
+// Zapier / Make, and email-to-webhook services. Named fields win:
 //   name | incident_name | title | subject   -> incident name
 //   address | location                       -> address
 //   call_type | type | nature                -> call type
+//   units                                    -> trucks put on the call
 //   notes | body | text | body-plain         -> logged to the activity log
+// Anything missing is read out of the text, the same way dispatch emails are.
 import { adminClient, corsHeaders, json } from "../_shared/util.ts";
-import { sendIncidentPush } from "../_shared/push.ts";
+import { parsePage, callTypeFor, unitList } from "../_shared/page.ts";
+import { intake } from "../_shared/intake.ts";
 
 function pick(o: Record<string, unknown>, keys: string[]): string {
   for (const k of keys) {
     const v = o[k];
     if (typeof v === "string" && v.trim()) return v.trim();
+    if (Array.isArray(v) && k === "units") return v.join(", ");
   }
   return "";
 }
@@ -31,9 +35,7 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
       f.forEach((v, k) => { if (typeof v === "string") o[k] = v; });
       return o;
     }
-    const text = (await req.text()).trim();
-    const [first, ...rest] = text.split(/\r?\n/);
-    return { name: first ?? "", notes: rest.join("\n") };
+    return { text: (await req.text()).trim() };
   } catch {
     return {};
   }
@@ -49,54 +51,25 @@ Deno.serve(async (req) => {
 
   const admin = adminClient();
   const { data: dept } = await admin.from("departments")
-    .select("id, name, trial_ends_at, subscription_status, current_period_end")
-    .eq("dispatch_token", token).maybeSingle();
+    .select("id, name, settings").eq("dispatch_token", token).maybeSingle();
   if (!dept) return json({ error: "Invalid token" }, 401);
 
-  const { data: access } = await admin.rpc("dept_has_access", { d: dept.id });
-  if (!access) return json({ error: "Subscription inactive" }, 402);
-
   const body = await readBody(req);
-  const name = pick(body, ["name", "incident_name", "title", "subject"]).slice(0, 120) || "Dispatched Call";
-  const address = pick(body, ["address", "location"]).slice(0, 200) || null;
-  const callType = pick(body, ["call_type", "type", "nature"]).slice(0, 60) || null;
-  const notes = pick(body, ["notes", "body", "text", "body-plain"]).slice(0, 900);
+  const subject = pick(body, ["subject"]);
+  const text = pick(body, ["notes", "body", "text", "body-plain", "message"]);
+  // Read the free text first, then let any named fields override it.
+  const page = parsePage(text, subject);
+  const name = pick(body, ["name", "incident_name", "title"]);
+  const address = pick(body, ["address", "location"]);
+  const type = pick(body, ["call_type", "type", "nature"]);
+  const units = pick(body, ["units"]);
+  if (name) page.name = name.slice(0, 120);
+  if (address) page.address = address.slice(0, 200);
+  if (type) { page.callType = callTypeFor(type) ?? type.slice(0, 60); if (!name) page.name = type.slice(0, 120); }
+  if (units) page.units = unitList(units);
+  if (text) page.notes = text.slice(0, 900);
+  if (!name && !address && !type && !text && !subject) return json({ error: "Empty page" }, 400);
 
-  // Basic abuse protection.
-  const hourAgo = new Date(Date.now() - 3600_000).toISOString();
-  const { count } = await admin.from("incidents").select("id", { count: "exact", head: true })
-    .eq("dept_id", dept.id).eq("source", "dispatch").gte("started_at", hourAgo);
-  if ((count ?? 0) >= 20) return json({ error: "Rate limit reached" }, 429);
-
-  // Dedupe repeated pages for the same call.
-  const twoMin = new Date(Date.now() - 120_000).toISOString();
-  let q = admin.from("incidents").select("id").eq("dept_id", dept.id).eq("status", "active")
-    .eq("name", name).gte("started_at", twoMin);
-  q = address ? q.eq("address", address) : q.is("address", null);
-  const { data: dupes } = await q.limit(1);
-  const dupe = dupes?.[0];
-  if (dupe) return json({ ok: true, incident_id: dupe.id, duplicate: true });
-
-  const { data: inc, error } = await admin.from("incidents").insert({
-    dept_id: dept.id, name, address, call_type: callType, source: "dispatch",
-  }).select("id, dept_id, name, address, status, par_started_at").single();
-  if (error || !inc) {
-    console.error("dispatch insert failed", error);
-    return json({ error: "Could not create incident" }, 500);
-  }
-
-  await admin.from("incident_events").insert({
-    incident_id: inc.id, dept_id: dept.id, actor: "Dispatch", kind: "incident",
-    message: `Incident created from dispatch${callType ? ` (${callType})` : ""}`,
-  });
-  if (notes) {
-    await admin.from("incident_events").insert({
-      incident_id: inc.id, dept_id: dept.id, actor: "Dispatch", kind: "note", message: notes,
-    });
-  }
-
-  // Page everyone's phone. A push failure never fails the dispatch.
-  const push = await sendIncidentPush(admin, inc, "incident").catch((e) => { console.error("push failed", e); return { sent: 0 }; });
-
-  return json({ ok: true, incident_id: inc.id, alerted: push.sent });
+  const r = await intake(admin, dept, page, "webhook", { subject: subject || null, raw: text || JSON.stringify(body).slice(0, 600) });
+  return json(r.body, r.status);
 });

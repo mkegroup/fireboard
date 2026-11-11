@@ -75,7 +75,7 @@ Data collected, all **Linked to the user**, all for **App Functionality** only:
 | Location | Precise Location | Only while the member shares it on an incident |
 | User Content | Other User Content | Incident chat, notes and logs |
 | Identifiers | User ID | Account |
-| Identifiers | Device ID | Push alert token (OneSignal) |
+| Identifiers | Device ID | Push alert token from Apple |
 
 Not collected: financial info, purchases, browsing history, search history, contacts, photos, audio, diagnostics, usage data for advertising.
 
@@ -100,3 +100,43 @@ Notes for the reviewer (paste this):
 ## Export compliance
 
 Already answered in the app (ITSAppUsesNonExemptEncryption = NO). App Store Connect won't ask.
+
+## French (Canada) listing
+
+Subtitle: `Contrôle PAR des équipes`
+
+Promotional text: `Le contrôle des effectifs en direct pour votre service d'incendie. Voyez qui est en route, qui est dedans et qui a répondu au PAR, sur chaque téléphone.`
+
+Description:
+
+> Fire Ground Board met le tableau de contrôle de votre service sur le téléphone de chaque membre.
+>
+> Appelé? Touchez Je suis en route et le commandement vous voit arriver. Sur les lieux, touchez votre nom pour changer votre statut : En attente, Dedans, Dehors, Réhab ou Réserve.
+>
+> Lancez un PAR et chaque téléphone de l'intervention reçoit l'alerte. L'équipe confirme d'un toucher. Déclarez quelqu'un manquant et tous les appareils sonnent.
+>
+> Effectif, formations et équipement au même endroit. Vos données restent dans votre service.
+>
+> Fire Ground Board appuie votre système de contrôle. Il ne remplace pas votre radio ni vos procédures.
+
+Keywords: `pompier,incendie,PAR,service d'incendie,volontaire,intervention,équipe,sauvetage,premiers répondants`
+
+## Spanish listing
+
+Subtitle: `Control PAR de personal`
+
+Promotional text: `Control de personal en vivo para su departamento de bomberos. Vea quién va en camino, quién está dentro y quién respondió al PAR, en cada teléfono.`
+
+Description:
+
+> Fire Ground Board pone el tablero de control de su departamento en el teléfono de cada miembro.
+>
+> ¿Lo llamaron? Toque Voy en camino y el mando lo ve llegar. En escena, toque su nombre para cambiar su estado: En espera, Dentro, Fuera, Rehab o Reserva.
+>
+> Llame un PAR y cada teléfono del incidente recibe la alerta. El personal confirma con un toque. Marque a alguien como perdido y todos los dispositivos suenan.
+>
+> Plantilla, capacitación y equipo en un solo lugar. Sus datos se quedan en su departamento.
+>
+> Fire Ground Board apoya su sistema de control. No reemplaza su radio ni sus procedimientos.
+
+Keywords: `bomberos,incendio,PAR,departamento de bomberos,voluntario,incidente,rescate,emergencia`

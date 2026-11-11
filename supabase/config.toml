@@ -22,3 +22,9 @@ verify_jwt = false
 # Push alerts. Needs the user's sign-in.
 [functions.notify]
 verify_jwt = true
+
+[functions.inbound-email]
+verify_jwt = false
+
+[functions.calendar]
+verify_jwt = false

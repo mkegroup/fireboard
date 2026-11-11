@@ -14,6 +14,19 @@ function periodEnd(sub: Stripe.Subscription): string | null {
   return ts ? new Date(ts * 1000).toISOString() : null;
 }
 
+/** Monthly or yearly, card or invoice, and the end date if it's set to cancel. */
+function planDetails(sub: Stripe.Subscription) {
+  // deno-lint-ignore no-explicit-any
+  const s = sub as any;
+  const interval = s.items?.data?.[0]?.price?.recurring?.interval ?? s.items?.data?.[0]?.plan?.interval ?? null;
+  const cancelTs = s.cancel_at ?? (s.cancel_at_period_end ? (s.current_period_end ?? s.items?.data?.[0]?.current_period_end) : null);
+  return {
+    plan_interval: interval === "month" || interval === "year" ? interval : null,
+    plan_invoice: s.collection_method === "send_invoice",
+    plan_cancel_at: cancelTs && sub.status !== "canceled" ? new Date(cancelTs * 1000).toISOString() : null,
+  };
+}
+
 async function applySubscription(sub: Stripe.Subscription) {
   const admin = adminClient();
   const customer = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
@@ -36,6 +49,7 @@ async function applySubscription(sub: Stripe.Subscription) {
     subscription_status: status,
     current_period_end: periodEnd(sub),
     past_due_since: pastDueSince,
+    ...planDetails(sub),
   }).eq("id", deptId);
   if (error) throw error;
 }

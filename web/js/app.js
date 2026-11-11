@@ -2,11 +2,13 @@ import { CONFIG, HAS_BACKEND, IS_NATIVE } from "./config.js";
 import { createApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
-import { esc, initials, colorFor, dateTime, elapsed, ago, daysUntil, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
+import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select } from "./ui.js";
 import { boardView } from "./board.js";
 import { startPush, stopPush, pushState, askForPush } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
+import { connectionsView } from "./connections.js";
+import { getLocale, getLang, setLang, LANGS, startTranslating, t } from "./i18n.js";
 
 const root = document.getElementById("root");
 
@@ -18,7 +20,10 @@ if (window.top !== window.self) {
   throw new Error("framed");
 }
 
-document.addEventListener("click", (e) => { if (e.target.closest("[data-reload]")) location.reload(); });
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-reload]")) location.reload();
+  if (e.target.closest("[data-global=switch]")) { e.preventDefault(); switchDeptSheet(); }
+});
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
@@ -31,6 +36,7 @@ let pendingJoinCode = null;
 // ============================================================
 async function boot() {
   applyTheme();
+  startTranslating();
   const params = new URLSearchParams(location.search);
   const joinMatch = location.hash.match(/^#\/join\/([A-Za-z0-9]{4,10})/);
   if (joinMatch) pendingJoinCode = joinMatch[1].toUpperCase();
@@ -50,7 +56,7 @@ async function boot() {
   S.api = createApi();
   S.api.onAuth(async (event, session) => {
     if (event === "PASSWORD_RECOVERY") return renderNewPassword();
-    if (event === "SIGNED_OUT") { stopPush(); S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
+    if (event === "SIGNED_OUT") { S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
     if (event === "SIGNED_IN" && session && !S.user) { S.user = session.user; await afterSignIn(); }
   });
   const session = await S.api.getSession();
@@ -60,14 +66,17 @@ async function boot() {
 
   if (params.get("billing")) {
     const b = params.get("billing");
-    if (b === "success") toast("You're all set. Thanks for supporting the board.");
+    if (b === "success") toast("You're all set. Your plan is saved.");
+    if (b === "cancel") toast("Checkout closed. Nothing was charged.");
     history.replaceState(null, "", location.pathname + location.hash);
-    setTimeout(refreshDept, 2500);
+    // Stripe tells us about the new plan a few seconds later.
+    [2500, 8000, 20000].forEach((ms) => setTimeout(refreshDept, ms));
   }
 }
 
 async function startDemo() {
   sessionStorage.setItem("fgb_demo", "1");
+  document.documentElement.classList.add("is-demo");
   S.api = createDemoApi();
   const session = await S.api.getSession();
   S.user = session.user;
@@ -93,7 +102,15 @@ async function afterSignIn() {
     localStorage.setItem("fgb_dept", already.dept.id);
     clearJoinCode();
   }
-  if (!S.api.isDemo) startPush(S.user.id, (id) => go(`#/incident/${id}`));
+  if (!S.api.isDemo) {
+    S.api.setLanguage(S.user.id, getLang()).catch(() => {});
+    S.api.setBeforeSignOut(stopPush);
+    startPush({
+      save: (t) => S.api.registerPushDevice(t),
+      remove: (t) => S.api.unregisterPushDevice(t),
+      openIncident: (id) => go(`#/incident/${id}`),
+    });
+  }
   if (!S.memberships.length) return renderOnboarding();
   const saved = localStorage.getItem("fgb_dept");
   const pick = S.memberships.find((m) => m.dept.id === saved) || S.memberships[0];
@@ -116,12 +133,14 @@ function setDept(m) {
 export async function refreshDept() {
   if (!S.dept) return;
   try {
+    const before = JSON.stringify([S.dept, S.me, S.memberships.length]);
     S.memberships = await S.api.myDepartments(S.user.id);
     const m = S.memberships.find((x) => x.dept.id === S.dept.id);
     if (m) setDept(m);
     else if (S.memberships[0]) setDept(S.memberships[0]);
     else return renderOnboarding();
-    S.rerender();
+    // Only redraw when something actually changed, so the page doesn't jump.
+    if (JSON.stringify([S.dept, S.me, S.memberships.length]) !== before) S.rerender();
   } catch { /* keep current */ }
 }
 
@@ -138,6 +157,8 @@ function route() {
   else if ((m = h.match(/^#\/records(?:\/(\w+))?/))) cleanup = recordsView(root, m[1] || "roster");
   else if (h.startsWith("#/dept")) cleanup = deptView();
   else if (h.startsWith("#/me")) cleanup = meView();
+  else if (h.startsWith("#/plan") && !IS_NATIVE) cleanup = planView();
+  else if (h.startsWith("#/connections")) cleanup = connectionsView(root);
   else cleanup = homeView();
 }
 S.rerender = route;
@@ -160,8 +181,12 @@ export function logo(cls = "") {
 }
 
 export function money(n) {
-  const v = Number(n);
-  return `$${v % 1 ? v.toFixed(2) : v.toLocaleString("en-CA")}`;
+  const v = Math.round(Number(n) * 100) / 100;
+  const cents = Math.round(v * 100) % 100 !== 0;
+  const loc = getLocale();
+  // Canadian dollars read "$9.99" in English and "9,99 $" in French.
+  if (loc === "en-CA") return "$" + v.toLocaleString("en-CA", { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 });
+  return v.toLocaleString(loc, { style: "currency", currency: "CAD", currencyDisplay: "narrowSymbol", minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 });
 }
 
 /** What the department would pay per year right now. */
@@ -183,7 +208,7 @@ export function helpSheet() {
       ${q("Make someone else the owner", "Department, Members, tap the person, Make owner. Do this before the old owner leaves.")}
       ${q("I removed someone by mistake", "Department, Members, Removed people, Allow back. Then they can rejoin with the invite code.")}
       ${q("Someone shouldn't have the invite code", "Department, Make a new code. The old code and link stop working. People already in stay in.")}
-      ${IS_NATIVE ? "" : q("Receipts, card or cancelling", "The department owner opens Department, Plan, Manage plan, card and receipts. Everything is there.")}
+      ${IS_NATIVE ? "" : q("Receipts, card or cancelling", "The department owner opens Plan, then Open billing. Card, receipts, switching monthly or yearly, and cancelling are all there.")}
       ${q("Getting our records out", "Records has a download button on each tab. Incident reports download from the incident menu.")}
       <p class="muted small" style="margin-top:16px">Still stuck? Email <a href="mailto:${CONFIG.SUPPORT_EMAIL}">${CONFIG.SUPPORT_EMAIL}</a> with your department name.</p>`,
   });
@@ -207,14 +232,34 @@ export function demoStrip() {
   return `<div class="demo-strip">Demo department. Nothing here is saved. <button data-act="exit-demo">Exit demo</button></div>`;
 }
 
+/** Does the plan need the owner's attention? Shows a dot on the Plan tab. */
+function planNeedsAttention(d = S.dept) {
+  if (!d || IS_NATIVE) return false;
+  if (d.subscription_status === "past_due" || !hasAccess(d)) return true;
+  const paid = ["active", "trialing"].includes(d.subscription_status);
+  return !paid && isOwner();
+}
+
+/** Main navigation: tabs along the bottom on phones, a side menu on computers. */
 export function bottomNav(active) {
-  const item = (href, key, ic, label) => `<a href="${href}" class="${active === key ? "on" : ""}">${icon(ic)}${label}</a>`;
-  return `<nav class="bottomnav no-print"><div class="bottomnav-in">
-    ${item("#/", "home", "flame", "Incidents")}
-    ${item("#/records", "records", "book", "Records")}
-    ${item("#/dept", "dept", "shield", "Department")}
-    ${item("#/me", "me", "user", "Me")}
-  </div></nav>`;
+  const items = [
+    ["#/", "home", "flame", "Incidents"],
+    ["#/records", "records", "book", "Records"],
+    ["#/dept", "dept", "shield", "Department"],
+    ...(IS_NATIVE ? [] : [["#/plan", "plan", "card", "Plan"]]),
+    ["#/me", "me", "user", "Me"],
+  ];
+  const dot = planNeedsAttention();
+  const item = ([href, key, ic, label]) => `<a href="${href}" class="${active === key ? "on" : ""}" ${active === key ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span>${key === "plan" && dot ? '<i class="nav-dot" aria-label="Needs attention"></i>' : ""}</a>`;
+  const d = S.dept;
+  const many = S.memberships.length > 1;
+  return `<nav class="bottomnav no-print" aria-label="Main"><div class="bottomnav-in" style="--n:${items.length}">${items.map(item).join("")}</div></nav>
+  <aside class="sidenav no-print" aria-label="Main">
+    <a href="#/" class="sidenav-logo" aria-label="Fire Ground Board home">${logo()}</a>
+    ${d ? `<${many ? 'button data-global="switch"' : "div"} class="sidenav-dept"><span class="grow"><b>${esc(d.name)}</b><small>${esc(S.me?.rank || "")}${S.me?.role && S.me.role !== "member" ? `, ${S.me.role === "owner" ? "owner" : "officer"}` : ""}</small></span>${many ? icon("chev", "sm") : ""}</${many ? "button" : "div"}>` : ""}
+    <nav class="sidenav-links">${items.map(item).join("")}</nav>
+    <div class="sidenav-foot">${S.api?.isDemo ? '<button class="btn sm block" data-act="exit-demo">Exit demo</button>' : `<span class="faint small">Signed in as ${esc(S.user?.email || "")}</span>`}</div>
+  </aside>`;
 }
 
 export function accessBanner() {
@@ -224,18 +269,18 @@ export function accessBanner() {
   const canBuy = isOwner() && !IS_NATIVE;
   if (!hasAccess(d)) {
     const title = IS_NATIVE ? "New incidents are paused for this department." : d.subscription_status && d.subscription_status !== "incomplete" ? "This department's plan has ended." : "Your free trial has ended.";
-    const msg = canBuy ? "Choose a plan to start new incidents again." : IS_NATIVE ? "Your department owner can sort this out." : "Ask your chief to choose a plan.";
+    const msg = canBuy ? "Choose a plan to start new incidents again." : IS_NATIVE ? "Your department owner can sort this out." : "Ask your department owner to choose a plan.";
     return `<div class="banner bad">${icon("alert")}<div class="grow"><b>${title}</b><br>${msg} Your records are safe and still readable.</div>
-      ${canBuy ? '<a class="btn sm primary" href="#/dept">Plans</a>' : ""}</div>`;
+      ${canBuy ? '<a class="btn sm primary" href="#/plan">Choose a plan</a>' : ""}</div>`;
   }
   if (d.subscription_status === "past_due") {
     if (IS_NATIVE) return `<div class="banner warn">${icon("alert")}<div class="grow"><b>There's a billing problem with this department.</b> Let your chief know.</div></div>`;
-    return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Payment overdue.</b> ${isOwner() ? "Pay the open invoice or update your card to keep the board running." : "Let your chief know the department's payment is overdue."}</div>${isOwner() ? '<a class="btn sm" href="#/dept">Fix</a>' : ""}</div>`;
+    return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Payment overdue.</b> ${isOwner() ? "Pay the open invoice or update your card to keep the board running." : "Let your chief know the department's payment is overdue."}</div>${isOwner() ? '<a class="btn sm primary" href="#/plan">Fix billing</a>' : ""}</div>`;
   }
   const paid = ["active", "trialing"].includes(d.subscription_status);
   const left = daysUntil(d.trial_ends_at);
   if (!paid && left <= (isOwner() ? 7 : 2) && !IS_NATIVE) {
-    return `<div class="banner warn">${icon("alert")}<div class="grow"><b>${left} day${left === 1 ? "" : "s"} left in your free trial.</b> ${isOwner() ? "Pick a plan so the board keeps working." : "Your chief can pick a plan in Department."}</div>${isOwner() ? '<a class="btn sm" href="#/dept">Plans</a>' : ""}</div>`;
+    return `<div class="banner warn">${icon("alert")}<div class="grow"><b>${left} day${left === 1 ? "" : "s"} left in your free trial.</b> ${isOwner() ? "Pick a plan so the board keeps working." : "Your department owner picks the plan."}</div>${isOwner() ? '<a class="btn sm primary" href="#/plan">Choose a plan</a>' : ""}</div>`;
   }
   return "";
 }
@@ -267,13 +312,25 @@ function renderAuth(mode = "email") {
   root.innerHTML = `
   <div class="auth">
     <div class="auth-hero">
+      <div class="auth-hero-in">
       ${logo("auth-logo")}
       <h1>${code ? "Check your email." : pendingJoinCode ? "You're invited." : "Know where every firefighter is."}</h1>
       <p>${code ? `We sent a 6-digit code to <b class="text">${esc(authEmail)}</b>. It works for 10 minutes.`
         : pendingJoinCode ? "Enter your email to join your department's board. No password needed."
-        : `Live PAR accountability for volunteer and career departments.${IS_NATIVE ? "" : ` Free for ${P.trialDays} days.`}`}</p>
+        : "Live PAR accountability for volunteer and career fire departments."}</p>
+      ${code || pendingJoinCode ? "" : `<ul class="auth-points">
+        <li>${icon("check", "sm")}<span>See who's responding, staged, inside and out, live on every phone</span></li>
+        <li>${icon("check", "sm")}<span>Call a PAR and watch every confirmation come in</span></li>
+        <li>${icon("check", "sm")}<span>Roster, training and equipment records in one place</span></li>
+      </ul>
+      ${IS_NATIVE ? "" : `<div class="auth-price">
+        <div class="auth-price-row"><span><b>${money(P.monthly)}</b> a month</span><span class="or">or</span><span><b>${money(P.annual)}</b> a year</span></div>
+        <p>Per member who uses the app, in ${esc(P.currency)}. Roster-only names are free. Try it free for ${P.trialDays} days, no card needed.</p>
+      </div>`}`}
+      </div>
     </div>
-    <div class="auth-body">
+    <div class="auth-body"><div class="auth-body-in">
+      ${code ? "" : `<div class="h2 auth-form-title">${pw ? "Sign in with a password" : pendingJoinCode ? "Join your department" : "Sign in or start free"}</div>`}
       ${!HAS_BACKEND ? `<div class="banner warn" style="margin-bottom:18px">${icon("alert")}<div class="grow">This copy of the app isn't connected to a server yet. Try the demo to look around.</div></div>` : ""}
       <form id="auth-form" novalidate>
         ${code
@@ -281,21 +338,23 @@ function renderAuth(mode = "email") {
           : field("Email", input("email", authEmail, 'type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required'))}
         ${pw ? field("Password", input("password", "", 'type="password" autocomplete="current-password" required')) : ""}
         <div class="error-text" id="auth-err" hidden></div>
-        <button class="btn primary block" style="margin-top:18px" ${!HAS_BACKEND ? "disabled" : ""}>${code ? "Sign in" : pw ? "Sign in" : "Email me a code"}</button>
+        <button class="btn primary block" style="margin-top:18px" ${!HAS_BACKEND ? "disabled" : ""}>${code ? "Sign in" : pw ? "Sign in" : "Email me a sign-in code"}</button>
       </form>
       ${code ? `<div class="auth-switch"><button data-act="resend" id="resend">Send a new code</button> &nbsp; <button data-mode="email">Use a different email</button></div>`
-        : `<p class="hint" style="text-align:center;margin-top:12px">${pw ? "" : "New here? Same button. Your account is made when you sign in."}</p>`}
+        : `<p class="hint" style="text-align:center;margin-top:12px">${pw ? "" : "New here? Same button. No password needed."}</p>`}
       <div class="divider">or</div>
       <button class="btn block" id="try-demo">Try the demo department</button>
       <p class="small faint" style="margin-top:22px;text-align:center">
         <button class="faint" data-act="help" style="text-decoration:underline">Trouble signing in?</button> &nbsp;
         ${pw ? '<button class="faint" data-mode="email" style="text-decoration:underline">Use an email code</button>' : '<button class="faint" data-mode="password" style="text-decoration:underline">Password sign-in</button>'}<br><br>
-        <a href="privacy.html" class="faint">Privacy</a> &nbsp; <a href="terms.html" class="faint">Terms</a>
+        <a href="privacy.html" class="faint">Privacy</a> &nbsp; <a href="terms.html" class="faint">Terms</a> &nbsp; <a href="support.html" class="faint">Support</a>
       </p>
-    </div>
+      <div class="lang-pick" role="group" aria-label="Language" data-notr>${LANGS.map(([k, l]) => `<button data-lang="${k}" class="${getLang() === k ? "on" : ""}" lang="${k}">${l}</button>`).join("")}</div>
+    </div></div>
   </div>`;
   root.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAuth(b.dataset.mode)));
   root.querySelector("#try-demo").addEventListener("click", startDemo);
+  root.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   root.querySelector('[data-act="help"]').addEventListener("click", () => helpSheet());
   const err = root.querySelector("#auth-err");
   const showErr = (m) => { err.textContent = m; err.hidden = false; };
@@ -508,6 +567,13 @@ function homeView() {
     const openTraining = training.filter((t) => t.attendance_open && !attendance.some((a) => a.session_id === t.id && a.member_id === S.me.id));
     const canStart = isOfficer() && hasAccess();
 
+    const side = [
+      ...openTraining.map((t) => `<div class="banner"><div class="grow"><b>${esc(t.title)}</b><br><span class="muted">Attendance is open. Mark yourself present.</span></div><button class="btn sm primary" data-act="attend" data-id="${t.id}">I was there</button></div>`),
+      alertsCard(push),
+      installCard(dismissed("install")),
+      isOfficer() ? setupCard(recent.length + active.length) : howItWorks(),
+    ].filter(Boolean).join("");
+
     root.innerHTML = `
     ${demoStrip()}
     <div class="screen with-nav">
@@ -515,42 +581,41 @@ function homeView() {
         <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1;min-width:0">
             <div class="dept-name">${esc(S.dept.name)}</div>
-            ${IS_NATIVE ? "" : `<div class="muted small" style="margin-top:4px">${esc(planLabel())}</div>`}
+            ${IS_NATIVE ? "" : `<a class="plan-link small" href="#/plan">${icon("card", "sm")}${esc(planLabel())}</a>`}
           </div>
-          ${S.memberships.length > 1 ? `<button class="iconbtn" data-act="switch" aria-label="Switch department">${icon("shield")}</button>` : ""}
+          ${S.memberships.length > 1 ? `<button class="iconbtn hide-desk" data-act="switch" aria-label="Switch department">${icon("shield")}</button>` : ""}
+          ${canStart ? `<button class="btn primary show-desk" data-act="start">${icon("plus", "sm")} Start incident</button>` : ""}
         </div>
       </div>
-      <div class="wrap stack" style="margin-top:12px">
-        ${accessBanner()}
-        ${openTraining.map((t) => `<div class="banner"><div class="grow"><b>${esc(t.title)}</b><br><span class="muted">Attendance is open. Mark yourself present.</span></div><button class="btn sm primary" data-act="attend" data-id="${t.id}">I was there</button></div>`).join("")}
-        ${alertsCard(push)}
-        ${installCard(dismissed("install"))}
-        ${isOfficer() ? setupCard(recent.length + active.length) : howItWorks()}
-      </div>
-
-      <div class="wrap section">
-        <div class="section-head">
-          <div class="h2">Active</div>
-          ${canStart && active.length ? `<button class="btn sm primary" data-act="start">${icon("plus", "sm")} Start incident</button>` : ""}
-        </div>
-        ${active.length ? active.map((inc, i) => activeCard(inc, states[i])).join('<div style="height:12px"></div>') : canStart ? `
-          <button class="start-big" data-act="start">${icon("flame")}<span><b>Start incident</b><small>Paged out? Tap here. Your crew joins from their phones.</small></span></button>` : `
-          <div class="panel empty" style="padding:28px 20px">
-            <div class="h3">No active incidents</div>
-            <p>When an officer starts an incident it shows up here. Tap I'm responding and you're on the board.</p>
-          </div>`}
-      </div>
-
-      <div class="wrap section" style="margin-bottom:24px">
-        <div class="section-head"><div class="h2">Recent</div></div>
-        ${recent.length ? `<div class="list">${recent.map((inc) => `
-          <a class="row" href="#/incident/${inc.id}">
-            <div class="grow">
-              <div class="title">${esc(inc.name)}</div>
-              <div class="meta">${esc(inc.address || "No address")}, ${dateTime(inc.started_at)}${inc.closed_at ? `, ${elapsed(inc.started_at, inc.closed_at)}` : ""}</div>
+      ${accessBanner() ? `<div class="wrap" style="margin-top:12px">${accessBanner()}</div>` : ""}
+      <div class="wrap home-grid ${side ? "has-side" : ""}">
+        ${side ? `<aside class="home-side stack">${side}</aside>` : ""}
+        <div class="home-main">
+          <div class="section">
+            <div class="section-head">
+              <div class="h2">Active</div>
+              ${canStart && active.length ? `<button class="btn sm primary hide-desk" data-act="start">${icon("plus", "sm")} Start incident</button>` : ""}
             </div>
-            <span class="chev">${icon("chev", "sm")}</span>
-          </a>`).join("")}</div>` : `<p class="muted">Closed incidents and their reports will appear here.</p>`}
+            ${active.length ? `<div class="active-list">${active.map((inc, i) => activeCard(inc, states[i])).join("")}</div>` : canStart ? `
+              <button class="start-big" data-act="start">${icon("flame")}<span><b>Start incident</b><small>Paged out? Tap here. Your crew joins from their phones.</small></span></button>` : `
+              <div class="panel empty" style="padding:28px 20px">
+                <div class="h3">No active incidents</div>
+                <p>When an officer starts an incident it shows up here. Tap I'm responding and you're on the board.</p>
+              </div>`}
+          </div>
+
+          <div class="section" style="margin-bottom:24px">
+            <div class="section-head"><div class="h2">Recent</div>${recent.length && isOfficer() ? `<button class="btn sm quiet" data-act="export-incidents">${icon("download", "sm")} Download all</button>` : ""}</div>
+            ${recent.length ? `<div class="list">${recent.map((inc) => `
+              <a class="row" href="#/incident/${inc.id}">
+                <div class="grow">
+                  <div class="title">${esc(inc.name)}</div>
+                  <div class="meta">${esc(inc.address || t("No address"))}, ${dateTime(inc.started_at)}${inc.closed_at ? `, ${elapsed(inc.started_at, inc.closed_at)}` : ""}</div>
+                </div>
+                <span class="chev">${icon("chev", "sm")}</span>
+              </a>`).join("")}</div>` : `<p class="muted">Closed incidents and their reports will appear here.</p>`}
+          </div>
+        </div>
       </div>
     </div>
     ${bottomNav("home")}`;
@@ -565,6 +630,7 @@ function homeView() {
       ["Add people without the app", "Paste your roster so everyone can go on the board.", memberCount > S.dept.seat_count, "#/records/roster"],
       ["Add your trucks", "They show up as one-tap choices on every call.", apparatus.length > 0, "#/dept"],
       ["Run a practice incident", "Start one at training. Close it when you're done.", incidentCount > 0, null],
+      ...(isOwner() && !IS_NATIVE ? [["Choose a plan", "Monthly or yearly. Billing starts when the trial ends.", ["active", "trialing"].includes(S.dept.subscription_status), "#/plan"]] : []),
     ];
     const done = steps.filter((x) => x[2]).length;
     if (done === steps.length) return "";
@@ -622,6 +688,11 @@ function homeView() {
       try { await S.api.joinIncident(b.dataset.id); go(`#/incident/${b.dataset.id}`); }
       catch (e) { toast(friendlyError(e), true); b.disabled = false; }
     },
+    "export-incidents": async (b) => {
+      b.disabled = true;
+      try { await exportIncidents(); } catch (e) { toast(friendlyError(e), true); }
+      b.disabled = false;
+    },
     attend: async (b) => {
       try { await S.api.selfMarkAttendance(b.dataset.id); toast("Attendance recorded."); paint(); }
       catch (e) { toast(friendlyError(e), true); }
@@ -635,6 +706,24 @@ function homeView() {
   const onVis = () => { if (document.visibilityState === "visible") paint().catch(() => {}); };
   document.addEventListener("visibilitychange", onVis);
   return () => { alive = false; offClicks(); unsub(); clearInterval(tick); document.removeEventListener("visibilitychange", onVis); };
+}
+
+/** Every incident as a spreadsheet, for fire reports and the year-end summary. */
+async function exportIncidents() {
+  const list = await S.api.listIncidents(S.dept.id, { limit: 2000 });
+  const states = await Promise.all(list.map((i) => S.api.incidentState(i.id).catch(() => null)));
+  const rows = [["Started", "Closed", "Duration (minutes)", "Name", "Call type", "Address", "Source", "Personnel", "Apparatus", "Mutual aid"]];
+  list.forEach((inc, i) => {
+    const st = states[i];
+    const mins = inc.closed_at ? Math.round((new Date(inc.closed_at) - new Date(inc.started_at)) / 60000) : "";
+    rows.push([
+      new Date(inc.started_at).toISOString(), inc.closed_at ? new Date(inc.closed_at).toISOString() : "", mins,
+      inc.name, inc.call_type || "", inc.address || "", inc.source,
+      (st?.personnel || []).map((p) => p.name).join("; "), (st?.apparatus || []).map((a) => a.name).join("; "), (st?.mutualAid || []).map((m) => m.name).join("; "),
+    ]);
+  });
+  download(`${S.dept.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-incidents-${todayISO()}.csv`, csv(rows), "text/csv");
+  toast("Exported. Opens in Excel or Google Sheets.");
 }
 
 function activeCard(inc, st) {
@@ -653,7 +742,7 @@ function activeCard(inc, st) {
         ${meOn ? '<span class="pill good">You\'re on the board</span>' : ""}
       </div>
       <div class="name">${esc(inc.name)}</div>
-      <div class="muted">${esc(inc.address || "No address")}${inc.call_type && inc.call_type !== inc.name ? `, ${esc(inc.call_type)}` : ""}</div>
+      <div class="muted">${esc(inc.address || t("No address"))}${inc.call_type && inc.call_type !== inc.name ? `, ${esc(inc.call_type)}` : ""}</div>
       <div class="counts">
         <span class="count"><b class="c-IN">${n("IN")}</b>In</span>
         <span class="count"><b>${onScene}</b>On scene</span>
@@ -718,7 +807,6 @@ function deptView() {
   let alive = true;
   let members = [];
   let removed = [];
-  let dispatchToken = null;
 
   const paint = async () => {
     [members, removed] = await Promise.all([
@@ -739,7 +827,8 @@ function deptView() {
       <header class="topbar"><div class="wrap topbar-in"><h1>Department</h1></div></header>
       <div class="wrap" style="padding-top:16px">
         ${accessBanner()}
-
+        <div class="cols">
+        <div class="col">
         <section class="section">
           <div class="section-head"><div class="h2">Invite your crew</div></div>
           <div class="panel">
@@ -769,15 +858,15 @@ function deptView() {
             <div class="list" style="margin-top:10px">${removed.map((r) => `<div class="row"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">Removed ${esc(ago(r.removed_at))}. They can't rejoin with the code.</div></div><button class="btn sm" data-act="allow-back" data-id="${r.id}">Allow back</button></div>`).join("")}</div></details>` : ""}
         </section>
 
+        </div>
+        <div class="col">
         ${IS_NATIVE ? "" : `<section class="section">
           <div class="section-head"><div class="h2">Plan</div></div>
-          <div class="panel">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="grow" style="flex:1"><div class="h3">${esc(planLabel())}</div>
-              <div class="muted small">${d.seat_count} member${d.seat_count === 1 ? "" : "s"} with the app${d.current_period_end && paid ? `, renews ${new Date(d.current_period_end).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}` : ""}</div></div>
-            </div>
-            ${planActions(paid)}
-          </div>
+          <a class="panel plan-summary" href="#/plan">
+            <span class="grow"><b>${esc(planLabel())}</b>
+            <small>${d.seat_count} member${d.seat_count === 1 ? "" : "s"} with the app${d.current_period_end && paid ? `, renews ${dateLabel(d.current_period_end)}` : ""}</small></span>
+            <span class="btn sm ${paid ? "" : "primary"}">${paid ? "View plan" : isOwner() ? "Choose a plan" : "View plan"}</span>
+          </a>
         </section>`}
 
         ${isOfficer() ? `
@@ -793,13 +882,12 @@ function deptView() {
 
         ${isOwner() ? `
         <section class="section">
-          <div class="section-head"><div class="h2">Dispatch connection</div></div>
-          <div class="panel">
-            <p class="muted small">When your dispatch centre or CAD sends a page to this address, Fire Ground Board starts the incident automatically. Send this to your county IT or dispatch supervisor.</p>
-            <div id="dispatch-box" style="margin-top:12px">
-              <button class="btn block" data-act="show-dispatch">Show connection details</button>
-            </div>
-          </div>
+          <div class="section-head"><div class="h2">Connections</div></div>
+          <a class="panel plan-summary" href="#/connections">
+            <span class="grow"><b>Dispatch, group chat and calendar</b>
+            <small>Start calls from dispatch pages and emails, post alerts to your group chat, and share the training calendar.</small></span>
+            <span class="btn sm">Set up</span>
+          </a>
         </section>` : ""}
 
         ${isOfficer() ? `
@@ -838,61 +926,13 @@ function deptView() {
         <section class="section" style="margin-bottom:40px">
           <button class="btn danger block" data-act="leave">Leave ${esc(d.name)}</button>
         </section>
+        </div>
+        </div>
       </div>
     </div>
     ${bottomNav("dept")}`;
     bindForms();
   };
-
-  function planActions(paid) {
-    const P = CONFIG.PRICING;
-    if (IS_NATIVE) return `<p class="muted small" style="margin-top:10px">Your department's plan can't be changed in this app.</p>`;
-    if (paid) {
-      return isOwner()
-        ? `<button class="btn block" style="margin-top:14px" data-act="portal">Manage plan, card and receipts</button>
-           <p class="hint">Add or remove people any time. Your bill adjusts on its own. Switch monthly or yearly, or cancel, in the same place.</p>`
-        : `<p class="muted small" style="margin-top:10px">Your department's owner manages billing.</p>`;
-    }
-    const { n, monthly, annual } = priceFor(S.dept.seat_count);
-    const left = daysUntil(S.dept.trial_ends_at);
-    const save = Math.round((1 - P.annual / (P.monthly * 12)) * 100);
-    return `
-      <div class="price-box">
-        <div class="price"><b>${money(P.monthly)}</b><span>a month, or ${money(P.annual)} a year, per member</span></div>
-        <div class="muted small" style="margin-top:6px">For your ${n} member${n === 1 ? "" : "s"} with the app: <b class="text">${money(monthly)} a month</b> or <b class="text">${money(annual)} a year</b>, ${esc(P.taxNote)}. People on the roster without the app are free.</div>
-      </div>
-      ${S.api.isDemo ? `<p class="muted small" style="margin-top:12px">Payments are turned off in the demo.</p>`
-        : isOwner() ? `<div class="stack" style="margin-top:14px">
-          <button class="btn primary block plan-btn" data-act="checkout" data-plan="annual"><span>Pay yearly by card</span><small>Save ${save}%</small></button>
-          <button class="btn block plan-btn" data-act="checkout" data-plan="monthly"><span>Pay monthly by card</span></button>
-          <button class="btn quiet block" data-act="invoice">Pay yearly by invoice (cheque or EFT)</button>
-        </div>
-        <p class="hint">${left > 2 ? `Nothing is charged until your free trial ends in ${left} days. ` : ""}Cancel any time from the same screen.</p>`
-        : `<p class="muted small" style="margin-top:12px">Your department's owner can choose a plan here.</p>`}`;
-  }
-
-  function invoiceSheet() {
-    const PROV = ["ON", "QC", "NS", "NB", "MB", "SK", "AB", "BC", "PE", "NL", "YT", "NT", "NU"];
-    openSheet({
-      title: "Pay by invoice",
-      body: `<p class="muted small" style="margin-bottom:14px">We email a yearly invoice (${money(CONFIG.PRICING.annual)} per member) your treasurer or municipality can pay by cheque or EFT. Due in 30 days.${daysUntil(S.dept.trial_ends_at) > 2 ? " The first one is sent when your free trial ends." : ""}</p>
-        ${field("Bill to", input("org", S.dept.name, 'placeholder="Department or municipality name"'))}
-        ${field("Invoice email", input("email", S.user.email || "", 'type="email" inputmode="email" placeholder="treasurer@township.ca"'), "Usually your treasurer or clerk")}
-        ${field("Street address", input("line1", "", 'autocomplete="address-line1"'))}
-        <div class="grid2">${field("Town", input("city", "", 'autocomplete="address-level2"'))}${field("Province", select("province", PROV, "ON"))}</div>
-        <div class="grid2">${field("Postal code", input("postal", "", 'autocomplete="postal-code" autocapitalize="characters" maxlength="7"'))}${field("PO number", input("po", "", 'placeholder="Optional"'))}</div>`,
-      submitLabel: "Send invoices to this address",
-      errorText: friendlyError,
-      onSubmit: async (form) => {
-        const f = formData(form);
-        if (!/^\S+@\S+\.\S+$/.test(f.email)) throw new Error("Enter the email where invoices should go.");
-        if (!f.line1 || !f.city || !f.postal) throw new Error("Enter the full billing address.");
-        await S.api.billing("invoice", S.dept.id, f);
-        await refreshDept();
-        toast(`Done. Invoices go to ${f.email}.`);
-      },
-    });
-  }
 
   function printPoster() {
     const link = `${CONFIG.APP_URL}/#/join/${S.dept.invite_code}`;
@@ -901,7 +941,7 @@ function deptView() {
     qr.make();
     const w = window.open("", "_blank");
     if (!w) return toast("Allow pop-ups to print the poster.", true);
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Join ${esc(S.dept.name)} on Fire Ground Board</title>
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(t("Join {dept} on Fire Ground Board", { dept: S.dept.name }))}</title>
       <style>
         @page { size: letter; margin: 0.6in; }
         body { font-family: "Arial Narrow", Arial, sans-serif; color: #111; text-align: center; margin: 0; }
@@ -915,14 +955,14 @@ function deptView() {
       </style></head><body>
       <img class="logo" src="${location.origin}${location.pathname.replace(/[^/]*$/, "")}img/logo.png" alt="Fire Ground Board">
       <h1>${esc(S.dept.name)}</h1>
-      <p>Get on the accountability board</p>
+      <p>${t("Get on the accountability board")}</p>
       <div class="qr">${qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true })}</div>
       <div class="code">${esc(S.dept.invite_code)}</div>
       <ol>
-        <li>Scan the code with your phone camera, or go to ${esc(CONFIG.APP_URL.replace(/^https?:\/\//, ""))}</li>
-        <li>Create an account with your email</li>
-        <li>Enter the code above if it isn't filled in</li>
-        <li>Add the app to your home screen so it's one tap away on a call</li>
+        <li>${esc(t("Scan the code with your phone camera, or go to {url}", { url: CONFIG.APP_URL.replace(/^https?:\/\//, "") }))}</li>
+        <li>${t("Create an account with your email")}</li>
+        <li>${t("Enter the code above if it isn't filled in")}</li>
+        <li>${t("Add the app to your home screen so it's one tap away on a call")}</li>
       </ol>
       </body></html>`);
     w.document.close();
@@ -978,8 +1018,8 @@ function deptView() {
   const off = bindActions(root, {
     "share-invite": async () => {
       const link = root.querySelector("#invite-link").value;
-      const text = `Join ${S.dept.name} on Fire Ground Board. Invite code: ${S.dept.invite_code}\n${link}`;
-      if (navigator.share) { try { await navigator.share({ title: "Fire Ground Board invite", text }); return; } catch { /* cancelled */ } }
+      const text = `${t("Join {dept} on Fire Ground Board. Invite code: {code}", { dept: S.dept.name, code: S.dept.invite_code })}\n${link}`;
+      if (navigator.share) { try { await navigator.share({ title: t("Fire Ground Board invite"), text }); return; } catch { /* cancelled */ } }
       if (await copyText(text)) toast("Invite copied. Paste it in your group chat.");
     },
     qr: () => {
@@ -995,12 +1035,6 @@ function deptView() {
       catch (e) { toast(friendlyError(e), true); }
     },
     member: (b) => memberSheet(members.find((m) => m.id === b.dataset.id)),
-    checkout: async (b) => {
-      b.disabled = true;
-      try { const { url } = await S.api.billing("checkout", S.dept.id, { plan: b.dataset.plan }); location.href = url; }
-      catch (e) { toast(friendlyError(e), true); b.disabled = false; }
-    },
-    invoice: () => invoiceSheet(),
     "allow-back": async (b) => {
       try { await S.api.allowBack(b.dataset.id); toast("They can rejoin with the invite code now."); paint(); }
       catch (e) { toast(friendlyError(e), true); }
@@ -1010,21 +1044,6 @@ function deptView() {
       const list = [...(S.dept.settings?.apparatus || [])];
       list.splice(Number(b.dataset.i), 1);
       await saveSettings({ ...S.dept.settings, apparatus: list });
-    },
-    portal: async (b) => {
-      b.disabled = true;
-      try { const { url } = await S.api.billing("portal", S.dept.id); location.href = url; }
-      catch (e) { toast(friendlyError(e), true); b.disabled = false; }
-    },
-    "show-dispatch": async () => { dispatchToken = await S.api.getDispatchToken(S.dept.id).catch((e) => { toast(friendlyError(e), true); return null; }); showDispatch(); },
-    "copy-dispatch": async (b) => { if (await copyText(b.dataset.text)) toast("Copied."); },
-    "new-dispatch": async () => {
-      if (!(await confirmSheet({ title: "Reset dispatch key?", message: "The old address stops working immediately. You'll need to send the new one to dispatch.", confirmLabel: "Reset key", danger: true }))) return;
-      try {
-        dispatchToken = await S.api.regenerateDispatchToken(S.dept.id);
-        showDispatch();
-        toast("New dispatch key created.");
-      } catch (e) { toast(friendlyError(e), true); }
     },
     "loc-del": async (b) => {
       const locs = [...(S.dept.settings?.equipment_locations || [])];
@@ -1041,20 +1060,6 @@ function deptView() {
       } catch (e) { toast(friendlyError(e), true); }
     },
   });
-
-  function showDispatch() {
-    const box = root.querySelector("#dispatch-box");
-    if (!box || !dispatchToken) return;
-    const url = `${S.api.dispatchUrl()}?token=${dispatchToken}`;
-    box.innerHTML = `
-      <div class="label">Webhook address</div>
-      <div class="mono">${esc(url)}</div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn sm" data-act="copy-dispatch" data-text="${esc(url)}">${icon("copy", "sm")} Copy</button>
-        <button class="btn sm danger" data-act="new-dispatch">Reset key</button>
-      </div>
-      <p class="hint" style="margin-top:12px">Dispatch sends a POST with JSON like <span class="mono" style="display:inline;padding:1px 4px">{"name":"Structure fire","address":"12 Main St","call_type":"Structure"}</span>. Plain text and form posts also work, so email-to-webhook services and Zapier can connect too. Keep this address private.</p>`;
-  }
 
   function memberSheet(m) {
     if (!m) return;
@@ -1085,9 +1090,201 @@ function deptView() {
           toast(`${m.name} is now ${a === "owner" ? "an owner" : a === "officer" ? "an officer" : "a member"}.`);
         }
         await refreshDept();
+        if (alive) paint().catch(() => {});
       } catch (ex) { toast(friendlyError(ex), true); }
     });
   }
+
+  root.innerHTML = '<div class="spinner"></div>';
+  paint().catch((e) => toast(friendlyError(e), true));
+  return () => { alive = false; off(); };
+}
+
+// ============================================================
+// Plan: pick monthly or yearly, pay, or manage billing. Web only.
+// Apple doesn't allow paying outside the App Store inside an iPhone app,
+// so the iPhone app never shows this screen.
+// ============================================================
+function planView() {
+  let alive = true;
+  let owner = null;
+
+  const paint = async () => {
+    const d = S.dept;
+    const P = CONFIG.PRICING;
+    if (!owner) {
+      const members = await S.api.listMembers(d.id).catch(() => []);
+      owner = members.find((m) => m.role === "owner") || null;
+    }
+    if (!alive) return;
+    const status = d.subscription_status || "none";
+    const subscribed = ["active", "trialing", "past_due"].includes(status);
+    const { n, monthly, annual } = priceFor(d.seat_count);
+    const save = money(P.monthly * 12 - P.annual);
+    const perMonthYearly = (P.annual / 12).toFixed(2);
+    const left = daysUntil(d.trial_ends_at);
+    const inTrial = left > 0;
+    const yearly = d.plan_interval === "year";
+    const planName = d.plan_interval ? (yearly ? "Yearly plan" : "Monthly plan") : "Your plan";
+    const cost = d.plan_interval ? t(yearly ? "{x} a year" : "{x} a month", { x: money(yearly ? annual : monthly) }) : "";
+    const ownerName = owner ? (owner.user_id === S.user.id ? t("you") : owner.name) : t("the department owner");
+
+    // ---- where things stand ----
+    let tone = "";
+    let title = "";
+    let line = "";
+    let bar = "";
+    if (status === "past_due") {
+      tone = "warn";
+      title = "Payment overdue";
+      const until = d.past_due_since ? new Date(new Date(d.past_due_since).getTime() + 14 * 86400000) : null;
+      line = [
+        t(d.plan_invoice ? "The invoice hasn't been paid yet." : "Your last card payment didn't go through."),
+        until && until > new Date() ? t("The board keeps working until {d}.", { d: dateLabel(until) }) : t("New incidents are paused until it's paid."),
+        isOwner() ? t("Open billing to pay or update your card.") : esc(t("Let {name} know.", { name: ownerName })),
+      ].join(" ");
+    } else if (status === "active") {
+      tone = "good";
+      title = planName;
+      line = [
+        t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost }),
+        t(d.plan_invoice ? "Paid by invoice." : "Paid by card."),
+        d.plan_cancel_at ? `<b class="text">${t("Ends {d}.", { d: dateLabel(d.plan_cancel_at) })}</b>` : d.current_period_end ? t("Renews {d}.", { d: dateLabel(d.current_period_end) }) : "",
+      ].join(" ");
+    } else if (status === "trialing") {
+      tone = "good";
+      title = t("{plan} is set up", { plan: t(planName) });
+      line = [
+        inTrial ? t("Billing starts when your free trial ends on {d}.", { d: dateLabel(d.trial_ends_at) }) : t("Billing starts now."),
+        cost ? t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost }) : "",
+        d.plan_cancel_at ? `<b class="text">${t("Set to end {d}.", { d: dateLabel(d.plan_cancel_at) })}</b>` : "",
+      ].join(" ");
+    } else if (inTrial) {
+      title = `Free trial: ${left} day${left === 1 ? "" : "s"} left`;
+      line = `Ends ${dateLabel(d.trial_ends_at)}. No card on file and nothing is charged until you choose a plan.`;
+      const used = Math.min(P.trialDays, Math.max(0, P.trialDays - left));
+      bar = `<div class="trial-bar" role="img" aria-label="${used} of ${P.trialDays} trial days used"><i style="width:${Math.round((used / P.trialDays) * 100)}%"></i></div>`;
+    } else {
+      tone = "bad";
+      title = status === "canceled" ? "Your plan has ended" : "Your free trial has ended";
+      line = `${t("New incidents are paused. Your records are safe and still readable.")} ${isOwner() ? t("Choose a plan below to turn everything back on.") : esc(t("Ask {name} to choose a plan.", { name: ownerName }))}`;
+    }
+
+    const planCard = (key) => {
+      const isYear = key === "annual";
+      return `<div class="plan-card ${isYear ? "best" : ""}">
+        <div class="plan-top"><span class="plan-name">${isYear ? "Yearly" : "Monthly"}</span>${isYear ? `<span class="pill save">Save ${save} a member</span>` : ""}</div>
+        <div class="plan-price"><b>${money(isYear ? P.annual : P.monthly)}</b><span>per member<br>${isYear ? "a year" : "a month"}</span></div>
+        <div class="plan-total">${n} member${n === 1 ? "" : "s"} now: <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}</div>
+        <ul class="plan-list">
+          ${isYear
+            ? `<li>${icon("check", "sm")}Works out to ${money(perMonthYearly)} a member each month</li><li>${icon("check", "sm")}Pay by card, or by invoice for your treasurer</li>`
+            : `<li>${icon("check", "sm")}Lowest cost to start</li><li>${icon("check", "sm")}Cancel any time</li>`}
+        </ul>
+        ${isOwner() ? `
+          <button class="btn ${isYear ? "primary" : ""} block" data-act="checkout" data-plan="${key}">Choose ${isYear ? "yearly" : "monthly"}</button>
+          ${isYear ? `<button class="btn quiet block sm" data-act="invoice">Pay by invoice instead (cheque or EFT)</button>` : ""}` : ""}
+      </div>`;
+    };
+
+    const choose = !subscribed || status === "canceled";
+    root.innerHTML = `
+    ${demoStrip()}
+    <div class="screen with-nav">
+      <header class="topbar"><div class="wrap topbar-in"><h1>Plan</h1></div></header>
+      <div class="wrap plan-page" style="padding-top:16px">
+        <section class="plan-status panel ${tone}">
+          <div class="h2">${title}</div>
+          ${bar}
+          <p>${line}</p>
+        </section>
+
+        ${choose ? `
+        <section class="section">
+          <div class="section-head"><div class="h2">Choose a plan</div></div>
+          <p class="muted" style="margin:-4px 0 14px">One price per member who uses the app. People on your roster without the app are free.</p>
+          <div class="plans">${planCard("annual")}${planCard("monthly")}</div>
+          ${isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
+            : `<div class="banner" style="margin-top:14px">${icon("user")}<div class="grow">Only ${esc(ownerName)} can choose the plan. Send them this page.</div></div>`}
+        </section>` : `
+        <section class="section">
+          <div class="cols">
+            <div class="col">
+              <div class="panel">
+                <div class="h3">Billing</div>
+                <p class="muted small" style="margin:6px 0 14px">Update your card, pay an invoice, download receipts, switch between monthly and yearly, or cancel.</p>
+                ${isOwner() ? `<button class="btn primary block" data-act="portal">${icon("card", "sm")} Open billing</button>` : `<p class="muted small">Only ${esc(ownerName)} can change billing.</p>`}
+              </div>
+            </div>
+            <div class="col">
+              <div class="panel">
+                <div class="h3">Who you pay for</div>
+                <p class="muted small" style="margin:6px 0 14px">${n} member${n === 1 ? "" : "s"} with the app. Add or remove people any time in Department. Your bill adjusts on its own.</p>
+                <a class="btn block" href="#/dept">Go to Department</a>
+              </div>
+            </div>
+          </div>
+        </section>`}
+
+        <section class="section" style="margin-bottom:40px">
+          <div class="section-head"><div class="h2">Questions</div></div>
+          <div class="panel faq-list">
+            ${faq("Who counts as a member?", "Anyone in your department who has signed in to the app. Names you add to the roster for people without the app are free.")}
+            ${faq("What happens when people join or leave?", "Your bill adjusts on its own. Stripe works out the difference on your next bill, so you only pay for the time someone was in.")}
+            ${faq("Can we pay by cheque or EFT?", `Yes. Choose yearly, then Pay by invoice. We email a yearly invoice your treasurer can pay within 30 days.`)}
+            ${faq("Is tax included?", `Prices are in ${esc(P.currency)}, plus tax where it applies.`)}
+            ${faq("Can we switch or cancel?", "Any time, in Open billing. If you cancel, the board keeps working until the end of what you've paid for.")}
+            ${faq("What if we stop paying?", "The board goes read-only. Nothing is deleted and you can still close active incidents. Pick a plan again and everything turns back on.")}
+            <p class="muted small" style="padding-top:12px">Something else? Email <a href="mailto:${CONFIG.SUPPORT_EMAIL}">${CONFIG.SUPPORT_EMAIL}</a>.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+    ${bottomNav("plan")}`;
+  };
+
+  const faq = (q, a) => `<details class="faq"><summary>${q}</summary><p>${a}</p></details>`;
+
+  function invoiceSheet() {
+    const PROV = ["ON", "QC", "NS", "NB", "MB", "SK", "AB", "BC", "PE", "NL", "YT", "NT", "NU"];
+    openSheet({
+      title: "Pay by invoice",
+      body: `<p class="muted small" style="margin-bottom:14px">We email a yearly invoice (${money(CONFIG.PRICING.annual)} per member) your treasurer or municipality can pay by cheque or EFT. Due in 30 days.${daysUntil(S.dept.trial_ends_at) > 2 ? " <span>The first one is sent when your free trial ends.</span>" : ""}</p>
+        ${field("Bill to", input("org", S.dept.name, 'placeholder="Department or municipality name"'))}
+        ${field("Invoice email", input("email", S.user.email || "", 'type="email" inputmode="email" placeholder="treasurer@township.ca"'), "Usually your treasurer or clerk")}
+        ${field("Street address", input("line1", "", 'autocomplete="address-line1"'))}
+        <div class="grid2">${field("Town", input("city", "", 'autocomplete="address-level2"'))}${field("Province", select("province", PROV, "ON"))}</div>
+        <div class="grid2">${field("Postal code", input("postal", "", 'autocomplete="postal-code" autocapitalize="characters" maxlength="7"'))}${field("PO number", input("po", "", 'placeholder="Optional"'))}</div>`,
+      submitLabel: "Send invoices to this address",
+      errorText: friendlyError,
+      onSubmit: async (form) => {
+        const f = formData(form);
+        if (!/^\S+@\S+\.\S+$/.test(f.email)) throw new Error("Enter the email where invoices should go.");
+        if (!f.line1 || !f.city || !f.postal) throw new Error("Enter the full billing address.");
+        await S.api.billing("invoice", S.dept.id, f);
+        await refreshDept();
+        toast(`Done. Invoices go to ${f.email}.`);
+      },
+    });
+  }
+
+  const off = bindActions(root, {
+    checkout: async (b) => {
+      if (S.api.isDemo) return toast("Payments are turned off in the demo.");
+      b.disabled = true;
+      const label = b.textContent;
+      b.textContent = "Opening secure checkout...";
+      try { const { url } = await S.api.billing("checkout", S.dept.id, { plan: b.dataset.plan }); location.href = url; }
+      catch (e) { toast(friendlyError(e), true); b.disabled = false; b.textContent = label; }
+    },
+    invoice: () => (S.api.isDemo ? toast("Payments are turned off in the demo.") : invoiceSheet()),
+    portal: async (b) => {
+      if (S.api.isDemo) return toast("Payments are turned off in the demo.");
+      b.disabled = true;
+      try { const { url } = await S.api.billing("portal", S.dept.id); location.href = url; }
+      catch (e) { toast(friendlyError(e), true); b.disabled = false; }
+    },
+  });
 
   root.innerHTML = '<div class="spinner"></div>';
   paint().catch((e) => toast(friendlyError(e), true));
@@ -1104,9 +1301,11 @@ function meView() {
   <div class="screen with-nav">
     <header class="topbar"><div class="wrap topbar-in"><h1>Me</h1></div></header>
     <div class="wrap" style="padding-top:16px">
+      <div class="cols">
+      <div class="col">
       <div class="panel" style="display:flex;align-items:center;gap:14px">
         <div class="avatar" style="width:54px;height:54px;font-size:20px;background:${colorFor(m.name)}">${esc(initials(m.name))}</div>
-        <div style="min-width:0"><div class="h3" style="font-size:22px">${esc(m.name)}</div><div class="muted small">${esc(m.rank)} at ${esc(S.dept.name)}</div><div class="faint small">${esc(S.user.email || "")}</div></div>
+        <div style="min-width:0"><div class="h3" style="font-size:22px">${esc(m.name)}</div><div class="muted small">${esc(t("{rank} at {dept}", { rank: t(m.rank), dept: S.dept.name }))}</div><div class="faint small">${esc(S.user.email || "")}</div></div>
       </div>
 
       <form class="panel section" id="me-form" novalidate>
@@ -1117,6 +1316,16 @@ function meView() {
         ${field("Phone", input("phone", m.phone || "", 'type="tel" autocomplete="tel"'))}
         <button class="btn block" style="margin-top:16px">Save my details</button>
       </form>
+      </div>
+      <div class="col">
+
+      <section class="section first-desk">
+        <div class="section-head"><div class="h2">Language</div></div>
+        <div class="segment" role="radiogroup" aria-label="Language" data-notr>
+          ${LANGS.map(([k, l]) => `<button data-act="lang" data-k="${k}" role="radio" lang="${k}" aria-checked="${getLang() === k}" class="${getLang() === k ? "on" : ""}">${l}</button>`).join("")}
+        </div>
+        <p class="hint">Call alerts on your phone use this language too.</p>
+      </section>
 
       <section class="section">
         <div class="section-head"><div class="h2">On a call</div></div>
@@ -1152,6 +1361,8 @@ function meView() {
         <div style="max-width:220px;margin:18px auto 0;opacity:.9">${logo()}</div>
         <p class="faint small" style="text-align:center">Version ${CONFIG.VERSION}. Made in Canada by MKE Group Inc.</p>
       </div>
+      </div>
+      </div>
     </div>
   </div>
   ${bottomNav("me")}`;
@@ -1185,6 +1396,10 @@ function meView() {
     theme: (b) => {
       setTheme(b.dataset.k);
       root.querySelectorAll('[data-act="theme"]').forEach((x) => { const on = x.dataset.k === b.dataset.k; x.classList.toggle("on", on); x.setAttribute("aria-checked", on); });
+    },
+    lang: async (b) => {
+      if (!S.api.isDemo) await S.api.setLanguage(S.user.id, b.dataset.k).catch(() => {});
+      setLang(b.dataset.k);
     },
     "test-sound": () => { if (!soundOn()) return toast("Turn the alarm sound on first.", true); alertTone("par"); setTimeout(() => alertTone("missing"), 1400); },
     profile: () => openMemberProfile(S.me.id, () => refreshDept()),

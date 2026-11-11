@@ -20,6 +20,7 @@ function seed() {
       },
       trial_ends_at: new Date(now + 5 * 86400000).toISOString(), subscription_status: "none",
       current_period_end: null, past_due_since: null, seat_count: 9,
+      plan_interval: null, plan_invoice: false, plan_cancel_at: null,
     }],
     members: [],
     medical: [],
@@ -219,6 +220,23 @@ export function createDemoApi() {
     async getDispatchToken() { return "demo0000000000000000000000000000000000000000000000000000000000"; },
     async regenerateDispatchToken() { return api.getDispatchToken(); },
     dispatchUrl() { return "https://your-project.supabase.co/functions/v1/dispatch"; },
+    async getIntegrations() {
+      db.integrations ??= { dispatch_token: "demo0000000000000000000000000000000000000000000000000000000000", inbox_code: "demo42calls0", calendar_token: "demo1111111111111111111111111111111111111111111111111111111111", chat_webhook_url: null, chat_events: ["incident", "par", "missing"], inbox_allow_from: null };
+      return clone(db.integrations);
+    },
+    async setIntegrations(_d, v) { await api.getIntegrations(); Object.assign(db.integrations, { chat_webhook_url: v.chat_webhook_url || null, chat_events: v.chat_events || db.integrations.chat_events, inbox_allow_from: v.inbox_allow_from || null }); },
+    async regenerateIntegration() { throw new Error("Not available in the demo."); },
+    async listDispatchInbox() {
+      const t = (m) => new Date(Date.now() - m * 60000).toISOString();
+      return [
+        { id: 3, at: t(23), channel: "email", sender: "County Dispatch <dispatch@county.on.ca>", subject: "STRUCTURE FIRE - 142 MILL ST", excerpt: "CALL: STRUCTURE FIRE ADDR: 142 MILL ST CITY: COMBERMERE UNITS: E1,T2", outcome: "created", incident_id: db.incidents.find((i) => i.status === "active")?.id ?? null, confirm_url: null },
+        { id: 2, at: t(26), channel: "email", sender: "County Dispatch <dispatch@county.on.ca>", subject: "STRUCTURE FIRE - 142 MILL ST", excerpt: "Repeat page", outcome: "duplicate", incident_id: null, confirm_url: null },
+        { id: 1, at: t(60 * 24 * 3), channel: "email", sender: "Gmail Team <forwarding-noreply@google.com>", subject: "(#123456789) Gmail Forwarding Confirmation", excerpt: "", outcome: "confirmation", incident_id: null, confirm_url: "https://mail-settings.google.com/mail/vf-demo" },
+      ];
+    },
+    async testChat() { throw new Error("Not available in the demo."); },
+    calendarUrl(token) { return `https://your-project.supabase.co/functions/v1/calendar?token=${token}`; },
+    async setLanguage() {},
 
     async listMembers() { await wait(); return clone(db.members.filter((x) => x.active).sort((a, b) => a.name.localeCompare(b.name))); },
     async addRosterEntry(_d, data) { const row = { id: id("m"), dept_id: DEPT, user_id: null, role: "member", active: true, certifications: [], created_at: new Date().toISOString(), ...data }; db.members.push(row); return clone(row); },

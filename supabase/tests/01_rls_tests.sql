@@ -240,4 +240,62 @@ select t_eq((select count(*) from incidents)::int, 0, 'left member loses access'
 reset role;
 select t_eq((select seat_count from departments where id=(select v::uuid from ids where k='deptA')), 2, 'seat count drops (alice + dave)');
 
+-- ---------- iPhone alert tokens ----------
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select public.register_push_device(repeat('ab', 32));
+select public.register_push_device(upper(repeat('cd', 32)));
+select t_fail($$select * from push_devices$$, 'permission denied');
+select t_fail($$insert into push_devices(token, user_id) values (repeat('ef',32), auth.uid())$$, 'permission denied');
+select t_fail($$select public.register_push_device('not a token')$$, 'bad device token');
+reset role;
+select t_eq((select count(*) from push_devices where user_id='00000000-0000-0000-0000-00000000000a')::int, 2, 'alice has 2 phones (token lowercased)');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select public.unregister_push_device(repeat('ab', 32));
+reset role;
+select t_eq((select count(*) from push_devices)::int, 2, 'bob cannot remove alice''s phone');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select public.register_push_device(repeat('ab', 32));
+reset role;
+select t_eq((select user_id::text from push_devices where token=repeat('ab',32)), '00000000-0000-0000-0000-00000000000b', 'phone moves to whoever signs in on it');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select public.unregister_push_device(repeat('cd', 32));
+reset role;
+select t_eq((select count(*) from push_devices where user_id='00000000-0000-0000-0000-00000000000a')::int, 0, 'sign out removes the phone');
+set role anon;
+select t_fail($$select public.register_push_device(repeat('ab', 32))$$, 'permission denied');
+reset role;
+
+-- ---------- Connections ----------
+select t_eq((select count(*) from dept_integrations where dept_id=(select v::uuid from ids where k='deptA'))::int, 1, 'new department gets a connections row');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select t_eq((public.get_integrations((select v::uuid from ids where k='deptA'))->>'inbox_code') ~ '^[a-z0-9]{12}$', true, 'owner sees dispatch email code');
+select public.set_integrations((select v::uuid from ids where k='deptA'), 'https://hooks.slack.com/services/x', array['incident','closed'], 'county.on.ca');
+select t_eq(public.get_integrations((select v::uuid from ids where k='deptA'))->>'chat_webhook_url', 'https://hooks.slack.com/services/x', 'owner saves chat link');
+select t_fail($$select public.set_integrations((select v::uuid from ids where k='deptA'), 'http://evil', null, null)$$, 'https');
+select t_fail($$select public.set_integrations((select v::uuid from ids where k='deptA'), null, array['bogus'], null)$$, 'unknown chat event');
+select t_fail($$select * from dept_integrations$$, 'permission denied');
+select t_eq(public.regenerate_integration((select v::uuid from ids where k='deptA'), 'inbox') ~ '^[a-z0-9]{12}$', true, 'owner makes a new email address');
+reset role;
+insert into dispatch_inbox(dept_id, channel, outcome) values ((select v::uuid from ids where k='deptA'), 'email', 'created');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select t_fail($$select public.get_integrations((select v::uuid from ids where k='deptA'))$$, 'only the department owner');
+select t_fail($$select public.set_integrations((select v::uuid from ids where k='deptA'), null, null, null)$$, 'only the department owner');
+select t_eq((select count(*) from dispatch_inbox)::int, 0, 'other department cannot see dispatch messages');
+select t_fail($$insert into dispatch_inbox(dept_id, channel, outcome) values ((select v::uuid from ids where k='deptB'), 'email', 'created')$$, 'permission denied');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select t_eq((select count(*) from dispatch_inbox)::int, 1, 'owner sees dispatch messages');
+select t_fail($$update members set lang = 'xx' where user_id = auth.uid()$$, 'check');
+update members set lang = 'fr' where user_id = auth.uid();
+reset role;
+select t_eq((select lang from members where user_id='00000000-0000-0000-0000-00000000000a' limit 1), 'fr', 'language saved');
+
 \echo ALL_TESTS_PASSED

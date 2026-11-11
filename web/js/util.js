@@ -1,3 +1,5 @@
+import { getLocale } from "./i18n.js";
+
 // Small shared helpers. Everything user-provided goes through esc() before it
 // touches innerHTML.
 
@@ -30,13 +32,13 @@ export function colorFor(s) {
 
 export function clock(ts) {
   if (!ts) return "";
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
 }
 
 export function dateLabel(ts) {
   if (!ts) return "";
   const d = new Date(ts);
-  return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(getLocale(), { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function dateTime(ts) {

@@ -32,7 +32,7 @@ In **Authentication > Providers > Email**:
 - Email OTP expiration: `600` seconds (10 minutes)
 - Email OTP length: `6`
 
-In **Authentication > Emails > SMTP Settings**: turn on custom SMTP. This is required, not optional. Supabase's built-in email only sends a few messages an hour, so people would stop getting codes. Any provider works (Resend is the easiest, Postmark or Amazon SES also fine). Sender: `Fire Ground Board <noreply@mkegroup.ca>`. Set up SPF and DKIM for mkegroup.ca as the provider tells you, or codes land in spam.
+In **Authentication > Emails > SMTP Settings**: turn on custom SMTP. This is required, not optional. Supabase's built-in email only sends a few messages an hour, so people would stop getting codes. This project uses Google Workspace (smtp.gmail.com, port 465, hello@mkegroup.ca with an app password). Sender: `Fire Ground Board <hello@mkegroup.ca>`. Set up SPF and DKIM for mkegroup.ca as the provider tells you, or codes land in spam.
 
 In **Authentication > Emails > Templates**, replace the **Magic Link** template (that's the one sign-in codes use) and the **Confirm signup** template with this. The code is what people type; the link is a backup:
 
@@ -66,8 +66,8 @@ Use **test mode** first. Switch to live mode only after a full test run (step 8)
 ### Product and prices
 
 1. **Product catalog > Add product**. Name: `Fire Ground Board`.
-2. Add a price: **Recurring, Per unit, Monthly, $10.00 CAD**, tax behaviour **exclusive**.
-3. Add a second price on the same product: **Recurring, Per unit, Yearly, $99.00 CAD**, tax behaviour **exclusive**.
+2. Add a price: **Recurring, Per unit, Monthly, $9.99 CAD**, tax behaviour **exclusive**.
+3. Add a second price on the same product: **Recurring, Per unit, Yearly, $99.99 CAD**, tax behaviour **exclusive**.
 4. Copy both price IDs (`price_...`).
 
 No minimum. A department with 3 people using the app pays for 3.
@@ -91,7 +91,7 @@ Seats are counted automatically. A seat is a member who has signed in to the app
 - Turn on: update payment method, view invoices, cancel subscription
 - Turn on **switch plans**, and add both prices (monthly and yearly) so departments can switch themselves
 - Turn **off**: update quantity. Seats sync on their own.
-- Business info: MKE Group Inc., link to `https://fire.mkegroup.ca/terms.html` and `/privacy.html`
+- Business info: MKE Group Inc., link to `https://mkegroup.ca/terms` and `https://mkegroup.ca/privacy` (these cover Scrub Club too)
 
 ### Tax
 
@@ -160,9 +160,9 @@ The billing and delete-account functions only answer requests from `APP_URL` and
 
 Add `STRIPE_TAX=on` once Stripe Tax is set up.
 
-Then in GitHub go to **Actions > Fire Ground Board > Run workflow**. It creates every table and deploys the five functions. After this, every push redeploys on its own. Until the secrets are set, the deploy steps skip themselves with a note instead of failing.
+Then in GitHub go to **Actions > Fire Ground Board > Run workflow**. It creates every table and deploys the six functions. After this, every push redeploys on its own. Until the secrets are set, the deploy steps skip themselves with a note instead of failing.
 
-Check it worked: in Supabase, **Table Editor** should show `departments`, `members`, `incidents` and the rest. **Edge Functions** should list `billing`, `stripe-webhook`, `dispatch`, `delete-account`, `reconcile-seats`.
+Check it worked: in Supabase, **Table Editor** should show `departments`, `members`, `incidents` and the rest. **Edge Functions** should list `billing`, `stripe-webhook`, `dispatch`, `delete-account`, `reconcile-seats`, `notify`.
 
 ---
 
@@ -260,7 +260,7 @@ Demo mode is always available at `/?demo`. Use it for sales calls.
 
 ### Tests
 
-- `npm run test:db` runs 49 security checks against a local Postgres (needs `PGHOST`, `PGPORT`, `PGPASSWORD` set). They prove one department can never see or change another department's data, members can't promote themselves, medical info stays private, and expired departments can't write.
+- `npm run test:db` runs 71 security checks against a local Postgres (needs `PGHOST`, `PGPORT`, `PGPASSWORD` set). They prove one department can never see or change another department's data, members can't promote themselves, medical info stays private, and expired departments can't write.
 - `npm run check:fn` type-checks the edge functions (needs Deno).
 
 GitHub runs all of these on every push.
@@ -269,13 +269,13 @@ GitHub runs all of these on every push.
 
 ## 10. Customers on the old app
 
-The old version kept each department's data in its own Firebase project. There's no automatic move. Departments create a fresh account and department in the new app and invite their members with the new code. Old incident history stays in their Firebase console if they need it.
+The new app doesn't use Firebase at all. Departments on the old version make a fresh account and department in the new app and invite their members with the new code.
 
 ---
 
 ## 11. Things to decide before you charge
 
-- **Price.** $10 CAD a month or $99 CAD a year per member with the app, no minimum, 7 day trial. It lives in Stripe and in `PRICING` in `web/js/config.js`. The trial length is in `supabase/migrations/20261023000000_pricing.sql` and `trialDays` in config. Change them together.
+- **Price.** $9.99 CAD a month or $99.99 CAD a year per member with the app, no minimum, 7 day trial. It lives in Stripe and in `PRICING` in `web/js/config.js`. The trial length is in `supabase/migrations/20261023000000_pricing.sql` and `trialDays` in config. Change them together.
 - **Terms and privacy.** `web/terms.html` and `web/privacy.html` are written for MKE Group Inc. in Ontario. Have a lawyer read them once. Pay attention to the safety disclaimer: this is an aid to accountability, not a replacement for a department's own PAR procedure.
 - **Pilot first.** Run one real department (Combermere or similar) for a few weeks of real calls before selling to anyone else.
 
@@ -283,17 +283,58 @@ The old version kept each department's data in its own Firebase project. There's
 
 ## 12. iPhone app
 
-The iPhone app is the same app wrapped with Capacitor, built in the cloud by Codemagic (no Mac needed), with push alerts through OneSignal. Listing text, privacy answers and review notes are in `APPSTORE.md`.
+The iPhone app is the same app wrapped with Capacitor, built in the cloud by Codemagic (no Mac needed). Push alerts go straight from Supabase to Apple. No OneSignal, no Firebase. Listing text, privacy answers and review notes are in `APPSTORE.md`.
 
 1. **Apple App ID.** developer.apple.com > Certificates, IDs & Profiles > Identifiers > +. App IDs, App. Description `Fire Ground Board`, explicit Bundle ID `ca.mkegroup.fireground`. Tick **Push Notifications**. Register.
-2. **APNs key.** Reuse the .p8 key you made for Scrub Club (one key covers every app in your team). No file? Keys > +, tick Apple Push Notifications service, download the .p8 (only shown once), note the Key ID. Your Team ID is in the top right of the developer site.
-3. **OneSignal.** New App, name `Fire Ground Board`, platform Apple iOS (APNs). Upload the .p8, Key ID, Team ID, Bundle ID `ca.mkegroup.fireground`. Pick the Cordova/Capacitor SDK and finish. Settings > Keys & IDs: copy the **App ID** and make a **REST API key**.
-4. **Supabase secrets:** add `ONESIGNAL_APP_ID` and `ONESIGNAL_REST_API_KEY`.
-5. **App Store Connect.** Apps > + > New App. iOS, name `Fire Ground Board`, Bundle ID `ca.mkegroup.fireground`, SKU `fireground`. Then App Information: copy the **Apple ID** number.
-6. **Codemagic.** Add application > GitHub > `mkegroup/fireboard` > use `codemagic.yaml`.
-   - Check Team settings > Integrations: the App Store Connect key name must match `MKE Group` in `codemagic.yaml`. If yours is named differently, change that line.
-   - Environment variables, group `fireground`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ONESIGNAL_APP_ID`, `APP_STORE_APPLE_ID`, and `CERTIFICATE_PRIVATE_KEY` (same as Scrub Club).
+2. **Push key.** Reuse the .p8 key you made for Scrub Club (one key covers every app on your team). No file? Keys > +, tick Apple Push Notifications service (APNs), download the .p8 (only shown once). Note the Key ID and your Team ID (top right of the developer site).
+3. **Supabase secrets:** `APNS_KEY` (open the .p8 in TextEdit and paste everything), `APNS_KEY_ID`, `APNS_TEAM_ID`.
+4. **App Store Connect.** Apps > + > New App. iOS, name `Fire Ground Board`, Bundle ID `ca.mkegroup.fireground`, SKU `fireground`. Then App Information: copy the **Apple ID** number.
+5. **Codemagic.** Add application > GitHub > `mkegroup/fireboard` > use `codemagic.yaml`.
+   - Team settings > Integrations: the App Store Connect key name must match `MKE Group` in `codemagic.yaml`.
+   - Environment variables, group `fireground`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_STORE_APPLE_ID`, and `CERTIFICATE_PRIVATE_KEY` (same as Scrub Club).
    - Start a build of **Fire Ground iOS to TestFlight**. About 15 minutes.
-7. **TestFlight.** Install from the TestFlight app. Sign in, allow alerts, and have someone start an incident from the website. Your phone should buzz.
-8. **App Store review account.** Supabase > Authentication > Users > Add user > Create new user, email `appreview@mkegroup.ca`, a password, tick Auto Confirm. On fire.mkegroup.ca use Password sign-in, create `App Review FD`, start one incident. Then in SQL Editor: `update departments set subscription_status = 'active' where name = 'App Review FD';`
-9. **Submit.** Fill the listing from `APPSTORE.md`, upload the 6 screenshots, answer App Privacy, add the review account and notes, pick the build, Submit for Review.
+6. **TestFlight.** Install from the TestFlight app. Sign in, allow alerts, and have someone start an incident from the website. Your phone should buzz.
+7. **App Store review account.** Supabase > Authentication > Users > Add user > Create new user, email `appreview@mkegroup.ca`, a password, tick Auto Confirm. On fire.mkegroup.ca use Password sign-in, create `App Review FD`, start one incident. Then in SQL Editor: `update departments set subscription_status = 'active' where name = 'App Review FD';`
+8. **Submit.** Fill the listing from `APPSTORE.md`, upload the 6 screenshots, answer App Privacy, add the review account and notes, pick the build, Submit for Review.
+
+---
+
+## 13. Connections (dispatch email, group chat, calendar)
+
+Owners find these under **Department > Connections**.
+
+### Dispatch email
+
+Each department gets a private address like `k7m2x9q4ab3d@calls.yourdomain.com`. Pages forwarded there start an incident with the address, call type and trucks filled in.
+
+It runs on Cloudflare Email Routing, which is free and instant.
+
+1. Buy a short domain just for this on Cloudflare (Domain Registration), for example `firegroundboard.com`. About $10 a year. A separate domain keeps your mkegroup.ca email untouched.
+2. In that domain, open **Email > Email Routing** and turn it on. Cloudflare adds the DNS records itself.
+3. Open **Workers & Pages > Create > Worker**. Name it `fgb-calls`. Paste the code from `integrations/cloudflare-email-worker.js` and deploy.
+4. In the worker's **Settings > Variables and Secrets**, add:
+   - `FN_URL`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/inbound-email`
+   - `SECRET`: any long random string
+5. Back in **Email Routing > Routing rules**, set the **Catch-all** rule to **Send to a Worker**, `fgb-calls`.
+6. In Supabase **Edge Functions > Secrets**, add `INBOUND_SECRET` with the same random string.
+7. Set `INBOX_DOMAIN` in `web/js/config.js` to the domain (for example `firegroundboard.com`) and upload again.
+
+Test: on Connections, copy your address and send it an email like `CALL: STRUCTURE FIRE ADDR: 1 MAIN ST`. A call should start within seconds and show under Recent dispatch messages.
+
+### Group chat
+
+Nothing to set up on your side. An owner pastes a Slack, Teams, Discord or Google Chat webhook link and taps Send a test message.
+
+### Training calendar
+
+Nothing to set up. Owners copy the link or tap Add to Google Calendar.
+
+---
+
+## 14. Languages
+
+The app comes in English, French and Spanish. It picks the phone's language, and anyone can change it under Me > Language. Push alerts follow each person's choice.
+
+Translations live in `tools/translations.py`. Edit a line there, run `python3 tools/translations.py`, and upload. Have a francophone firefighter read the French once: fire service words vary by region.
+
+The privacy and terms pages are English only for now. Quebec's language law (Bill 96) expects French versions before you sign Quebec departments.

@@ -58,7 +58,7 @@ Deno.serve(lockedCors(async (req) => {
       if (!dept.stripe_customer_id) return json({ error: "No billing account yet" }, 400);
       const session = await stripe.billingPortal.sessions.create({
         customer: dept.stripe_customer_id,
-        return_url: `${appUrl}/?billing=portal#/dept`,
+        return_url: `${appUrl}/?billing=portal#/plan`,
       });
       return json({ url: session.url });
     }
@@ -74,7 +74,7 @@ Deno.serve(lockedCors(async (req) => {
       if (action === "invoice") return json({ error: "This department already has a plan." }, 400);
       const session = await stripe.billingPortal.sessions.create({
         customer: dept.stripe_customer_id!,
-        return_url: `${appUrl}/?billing=portal#/dept`,
+        return_url: `${appUrl}/?billing=portal#/plan`,
       });
       return json({ url: session.url });
     }
@@ -155,8 +155,8 @@ Deno.serve(lockedCors(async (req) => {
         metadata: { dept_id },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
       },
-      success_url: `${appUrl}/?billing=success#/dept`,
-      cancel_url: `${appUrl}/?billing=cancel#/dept`,
+      success_url: `${appUrl}/?billing=success#/plan`,
+      cancel_url: `${appUrl}/?billing=cancel#/plan`,
     });
     return json({ url: session.url });
   } catch (e) {

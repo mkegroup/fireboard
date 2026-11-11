@@ -2,7 +2,7 @@
 import { CONFIG } from "./config.js";
 
 const DEPT_COLS =
-  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count";
+  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at";
 const MEMBER_COLS =
   "id, dept_id, user_id, role, active, name, rank, call_sign, crew, phone, radio, years, certifications, notes, ec_name, ec_rel, ec_phone, created_at";
 
@@ -24,6 +24,7 @@ export function createApi() {
     realtime: { params: { eventsPerSecond: 20 } },
   });
 
+  let beforeSignOut = null;
   const api = {
     isDemo: false,
     client: sb,
@@ -54,7 +55,17 @@ export function createApi() {
       return must(await sb.auth.updateUser({ password }));
     },
     async signOut(everywhere = false) {
+      try { await beforeSignOut?.(); } catch { /* sign out anyway */ }
       await sb.auth.signOut(everywhere ? { scope: "global" } : undefined);
+    },
+    /** Runs right before signing out, while still signed in (used to stop push alerts). */
+    setBeforeSignOut(fn) { beforeSignOut = fn; },
+    // iPhone alerts: the phone's Apple token, saved for the signed-in person.
+    async registerPushDevice(token) {
+      must(await sb.rpc("register_push_device", { p_token: token }));
+    },
+    async unregisterPushDevice(token) {
+      await sb.rpc("unregister_push_device", { p_token: token });
     },
     async deleteAccount() {
       const { data, error } = await sb.functions.invoke("delete-account", { body: {} });
@@ -102,6 +113,32 @@ export function createApi() {
     },
     async regenerateDispatchToken(deptId) {
       return must(await sb.rpc("regenerate_dispatch_token", { p_dept: deptId }));
+    },
+    // ---------------- connections (owner only) ----------------
+    async getIntegrations(deptId) {
+      return must(await sb.rpc("get_integrations", { p_dept: deptId }));
+    },
+    async setIntegrations(deptId, { chat_webhook_url, chat_events, inbox_allow_from }) {
+      must(await sb.rpc("set_integrations", { p_dept: deptId, p_chat_webhook_url: chat_webhook_url || null, p_chat_events: chat_events || null, p_inbox_allow_from: inbox_allow_from || null }));
+    },
+    async regenerateIntegration(deptId, what) {
+      return must(await sb.rpc("regenerate_integration", { p_dept: deptId, p_what: what }));
+    },
+    async listDispatchInbox(deptId) {
+      return must(await sb.from("dispatch_inbox").select("*").eq("dept_id", deptId).order("at", { ascending: false }).limit(20));
+    },
+    async testChat(deptId) {
+      const { data, error } = await sb.functions.invoke("notify", { body: { kind: "test-chat", dept_id: deptId } });
+      if (error) throw new Error(await fnError(error));
+      if (!data?.chat) throw new Error("The chat didn't accept the message. Check the link and try again.");
+      return data;
+    },
+    calendarUrl(token) {
+      return `${CONFIG.SUPABASE_URL.replace(/\/$/, "")}/functions/v1/calendar?token=${token}`;
+    },
+    /** Saves the language this person reads the app in, so push alerts match. */
+    async setLanguage(userId, lang) {
+      await sb.from("members").update({ lang }).eq("user_id", userId);
     },
     dispatchUrl() {
       return `${CONFIG.SUPABASE_URL.replace(/\/$/, "")}/functions/v1/dispatch`;

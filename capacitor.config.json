@@ -5,7 +5,15 @@
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#14171c",
-    "limitsNavigationsToAppBoundDomains": false,
-    "scheme": "Fire Ground"
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
   }
 }

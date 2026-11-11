@@ -1,4 +1,5 @@
 // The incident board: live accountability for one incident.
+import { t } from "./i18n.js";
 import { CONFIG } from "./config.js";
 import { S, STATUSES, STATUS_HELP, STATUS_SHORT, APP_STATUSES, APP_KINDS, MA_STATUSES, RANKS, CREWS, isOfficer, hasAccess } from "./state.js";
 import { esc, initials, colorFor, clock, dateTime, elapsed, stopwatch, ago, formData, download, slug, copyText, vibrate, friendlyError, debounce, alertTone, keepAwake, setTheme } from "./util.js";
@@ -94,7 +95,7 @@ export function boardView(root, incidentId) {
           <a href="#/" class="iconbtn ghost" aria-label="Back to incidents">${icon("back")}</a>
           <div class="inc-title">
             <div class="name">${esc(inc.name)}</div>
-            <div class="addr">${esc(inc.address || "No address")}${inc.call_type ? `, ${esc(inc.call_type)}` : ""}</div>
+            <div class="addr">${esc(inc.address || t("No address"))}${inc.call_type ? `, ${esc(t(inc.call_type))}` : ""}</div>
           </div>
           <div class="inc-clock" ${active() ? `data-clock="${inc.started_at}"` : ""}>${active() ? elapsed(inc.started_at) : "Closed"}<small>${active() ? `since ${clock(inc.started_at)}` : dateTime(inc.closed_at)}</small></div>
           <button class="iconbtn" data-act="menu" aria-label="Incident menu">${icon("more")}</button>
@@ -182,7 +183,7 @@ export function boardView(root, incidentId) {
       ${filter ? `<div class="banner" style="margin:10px 0"><div class="grow">Showing <b>${esc(filter)}</b> only</div><button class="btn sm" data-act="filter" data-s="${filter}">Show all</button></div>` : ""}
       ${groups.map(([s, g]) => `
         <div class="group-label"><span class="dot" style="background:var(${STATUS_VAR[s]})"></span>${esc(s === "IN" ? "In" : s === "OUT" ? "Out" : s === "MISSING" ? "Missing" : s)} (${g.length})</div>
-        ${g.map(tag).join("")}`).join("")}
+        <div class="tags">${g.map(tag).join("")}</div>`).join("")}
       ${!list.length ? `<div class="empty"><p>No one is ${esc(filter)} right now.</p></div>` : ""}`;
   }
 
@@ -194,7 +195,7 @@ export function boardView(root, incidentId) {
     const chip = (p) => `<span class="chip"><span class="dot" style="background:var(${STATUS_VAR[p.status]})"></span>${esc(p.name)}</span>`;
     return `
       <div class="section-head" style="margin-top:4px"><div class="h2">Apparatus</div>${canEditUnits ? `<button class="btn sm" data-act="add-app">${icon("plus", "sm")} Add</button>` : ""}</div>
-      ${st.apparatus.length ? st.apparatus.map((a) => `
+      ${st.apparatus.length ? `<div class="units">${st.apparatus.map((a) => `
         <div class="unit">
           <div class="unit-head">
             <div class="title">${esc(a.name)}${a.kind ? ` <span class="faint small" style="font-family:var(--body);font-weight:500">${esc(a.kind)}</span>` : ""}</div>
@@ -205,10 +206,10 @@ export function boardView(root, incidentId) {
             ${me && me.apparatus_id !== a.id ? `<button class="btn sm" data-act="on-truck" data-id="${a.id}">I'm on this truck</button>` : ""}
             ${officer() ? `<button class="btn sm quiet" data-act="del-app" data-id="${a.id}">Remove</button>` : ""}
           </div>` : ""}
-        </div>`).join("") : `<p class="muted">No apparatus added yet.${canEditUnits ? " Add trucks so crew can assign themselves." : ""}</p>`}
+        </div>`).join("")}</div>` : `<p class="muted">No apparatus added yet.${canEditUnits ? " Add trucks so crew can assign themselves." : ""}</p>`}
 
       <div class="section-head section"><div class="h2">Mutual aid</div>${officer() && active() ? `<button class="btn sm" data-act="add-ma">${icon("plus", "sm")} Add</button>` : ""}</div>
-      ${st.mutualAid.length ? st.mutualAid.map((m) => `
+      ${st.mutualAid.length ? `<div class="units">${st.mutualAid.map((m) => `
         <div class="unit">
           <div class="unit-head">
             <div class="title">${esc(m.name)}</div>
@@ -220,7 +221,7 @@ export function boardView(root, incidentId) {
             <button class="btn sm" data-act="add-crew" data-ma="${m.id}">Add their crew</button>
             <button class="btn sm quiet" data-act="edit-ma" data-id="${m.id}">Edit</button>
           </div>` : ""}
-        </div>`).join("") : `<p class="muted">No mutual aid on this call.</p>`}`;
+        </div>`).join("")}</div>` : `<p class="muted">No mutual aid on this call.</p>`}`;
   }
 
   function logHtml() {
@@ -672,6 +673,7 @@ export function boardView(root, incidentId) {
       }))) return;
       try {
         await S.api.closeIncident(incidentId);
+        S.api.notify("closed", incidentId);
         if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
         tab = "log";
         closeChat();
@@ -805,13 +807,13 @@ export function iocancScript(v) {
   if (!v) return "";
   const parts = [];
   if (v.identify) parts.push(v.identify);
-  if (v.building) parts.push(v.building);
-  if (v.conditions) parts.push(v.conditions);
+  if (v.building) parts.push(t(v.building));
+  if (v.conditions) parts.push(t(v.conditions));
   if (v.observations) parts.push(v.observations);
-  if (v.command) parts.push(`${v.command}${v.post ? `, command post ${v.post}` : ""}`);
-  else if (v.post) parts.push(`Command post ${v.post}`);
-  if (v.strategy) parts.push(`${v.strategy} strategy`);
+  if (v.command) parts.push(`${t(v.command)}${v.post ? t(", command post {x}", { x: v.post }) : ""}`);
+  else if (v.post) parts.push(t("Command post {x}", { x: v.post }));
+  if (v.strategy) parts.push(t("{s} strategy", { s: t(v.strategy) }));
   if (v.actions) parts.push(v.actions);
-  if (v.needs) parts.push(`Requesting ${v.needs}`);
+  if (v.needs) parts.push(t("Requesting {x}", { x: v.needs }));
   return parts.map((p) => p.trim().replace(/[.\s]+$/, "")).filter(Boolean).join(". ") + (parts.length ? "." : "");
 }

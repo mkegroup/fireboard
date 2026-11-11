@@ -22,23 +22,36 @@ ios/                 iPhone app (Capacitor). Built by Codemagic from codemagic.y
 design/             Logo files (light, dark-screen version, badge) and old icon source
 ```
 
+## Connections
+
+- Dispatch email: forward pages to the department's address and calls start on their own, with address, call type and trucks filled in.
+- Dispatch webhook for CAD systems, Zapier and Make. Messy text is read the same way.
+- Group chat: new calls, PAR checks, Missing alerts and closed calls posted to Slack, Teams, Discord or Google Chat.
+- Training calendar feed for Google, Outlook and Apple Calendar.
+- Spreadsheet export of every incident.
+
+## Languages
+
+English, French and Spanish. Table in `tools/translations.py`.
+
 ## How billing works
 
 - Every new department gets 7 days free. No card needed.
-- After that it's $10 CAD a month or $99 CAD a year per member, no minimum. Only people who use the app count. Roster-only names are free.
-- The owner pays on the web by card (monthly or yearly), or yearly by emailed invoice (net 30) for departments that pay by cheque or EFT.
+- After that it's $9.99 CAD a month or $99.99 CAD a year per member, no minimum. Only people who use the app count. Roster-only names are free.
+- The owner picks a plan on the Plan page and pays on the web by card (monthly or yearly), or yearly by emailed invoice (net 30) for departments that pay by cheque or EFT.
 - Seats update in Stripe when people join or leave, and a nightly job double checks.
 - If the trial ends or a payment is more than 14 days overdue, the department goes read-only. Nothing is deleted. Active incidents can always be closed.
 
 ## Security in short
 
 - Sign-in is by one-time email code. No passwords stored for normal accounts.
-- Every table has row level security. A department can never see another's data (66 automated checks).
+- Every table has row level security. A department can never see another's data (71 automated checks).
 - Medical info is visible only to the person and their officers.
 - Billing status can only be changed by Stripe's signed webhook.
 - Invite codes can't be guessed (10 wrong tries per hour), and removed people can't rejoin with the code.
 - The web app runs under a strict Content Security Policy with no inline scripts, and refuses to load inside other sites.
 - Billing functions only answer the app's own address.
+- iPhone alerts go straight to Apple. No Firebase, no OneSignal. Alert tokens can't be read by anyone but the server.
 
 ## Setup
 
