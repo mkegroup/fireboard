@@ -3,12 +3,13 @@ import { createApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
-import { icon, toast, openSheet, confirmSheet, field, input, select } from "./ui.js";
+import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
 import { boardView } from "./board.js";
 import { startPush, stopPush, pushState, askForPush } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 import { connectionsView } from "./connections.js";
-import { bestDirections } from "./maps.js";
+import { mountChat, lastSeen } from "./chat.js";
+import { bestDirections, addressPicker } from "./maps.js";
 import { getLocale, getLang, setLang, LANGS, startTranslating, t } from "./i18n.js";
 
 const root = document.getElementById("root");
@@ -57,7 +58,7 @@ async function boot() {
   S.api = createApi();
   S.api.onAuth(async (event, session) => {
     if (event === "PASSWORD_RECOVERY") return renderNewPassword();
-    if (event === "SIGNED_OUT") { S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
+    if (event === "SIGNED_OUT") { stationOff?.(); stationOff = null; S.user = null; S.dept = null; S.me = null; return renderAuth("email"); }
     if (event === "SIGNED_IN" && session && !S.user) { S.user = session.user; await afterSignIn(); }
   });
   const session = await S.api.getSession();
@@ -110,6 +111,7 @@ async function afterSignIn() {
       save: (t) => S.api.registerPushDevice(t),
       remove: (t) => S.api.unregisterPushDevice(t),
       openIncident: (id) => go(`#/incident/${id}`),
+      openChat: (incidentId) => go(incidentId ? `#/incident/${incidentId}?chat=1` : "#/chat"),
     });
   }
   if (!S.memberships.length) return renderOnboarding();
@@ -126,10 +128,38 @@ function clearJoinCode() {
 }
 
 function setDept(m) {
+  const changed = S.dept?.id !== m.dept.id;
   S.dept = m.dept;
   S.me = m.member;
   localStorage.setItem("fgb_dept", m.dept.id);
+  if (changed) watchStation();
 }
+
+// ---------------- station chat unread dot ----------------
+let stationOff = null;
+function watchStation() {
+  stationOff?.();
+  stationOff = null;
+  S.stationLast = 0;
+  if (!S.dept || !S.api?.subscribeStation) return;
+  const deptId = S.dept.id;
+  const saw = (m) => {
+    if (!m || m.user_id === S.user?.id || S.dept?.id !== deptId) return;
+    S.stationLast = Math.max(S.stationLast || 0, Date.parse(m.created_at));
+    paintChatDot();
+  };
+  S.api.lastStationMessage(deptId).then(saw).catch(() => {});
+  stationOff = S.api.subscribeStation(deptId, saw);
+}
+const chatUnread = () => !!S.dept && (S.stationLast || 0) > lastSeen(S.dept.id, null);
+function paintChatDot() {
+  const on = chatUnread() && !location.hash.startsWith("#/chat");
+  document.querySelectorAll('[data-nav="chat"]').forEach((a) => {
+    a.querySelector(".nav-dot")?.remove();
+    if (on) a.insertAdjacentHTML("beforeend", '<i class="nav-dot" aria-label="New messages"></i>');
+  });
+}
+window.addEventListener("fgb:chat-seen", paintChatDot);
 
 export async function refreshDept() {
   if (!S.dept) return;
@@ -160,6 +190,7 @@ function route() {
   else if (h.startsWith("#/me")) cleanup = meView();
   else if (h.startsWith("#/plan") && !IS_NATIVE) cleanup = planView();
   else if (h.startsWith("#/connections")) cleanup = connectionsView(root);
+  else if (h.startsWith("#/chat")) cleanup = stationChatView();
   else cleanup = homeView();
 }
 S.rerender = route;
@@ -191,10 +222,12 @@ export function money(n) {
 }
 
 /** What the department would pay per year right now. */
+/** What a roster of `seats` people costs. Never more than seatCap people are billed. */
 export function priceFor(seats) {
   const P = CONFIG.PRICING;
   const n = Math.max(1, seats || 0);
-  return { n, monthly: n * P.monthly, annual: n * P.annual };
+  const billed = Math.min(n, P.seatCap || n);
+  return { n, billed, capped: billed < n, monthly: billed * P.monthly, annual: billed * P.annual };
 }
 
 export function helpSheet() {
@@ -204,7 +237,7 @@ export function helpSheet() {
     body: `
       ${q("I didn't get the sign-in code", "Check your junk or spam folder and search for Fire Ground Board. It can take a minute. Codes work for 10 minutes. You can ask for a new one after 60 seconds.")}
       ${q("I got a new phone", "Open the app and sign in with the same email. Everything is saved to your account, not the phone.")}
-      ${q("Put the app on my home screen", "iPhone: open it in Safari, tap Share, then Add to Home Screen. Android: tap the menu, then Install app. It opens like a normal app after that.")}
+      ${IS_NATIVE ? "" : q("Get the iPhone app", "Search Fire Ground Board in the App Store and sign in with the same email. On Android or a computer, use this website. Everything stays in sync.")}
       ${q("My phone didn't sound for PAR", IS_NATIVE ? "Check that call alerts are on in Me, On a call, and that Fire Ground is allowed notifications in your iPhone Settings. Keep your ringer on." : "The alarm plays while the app is open. Keep your ringer on and test it in Me, On a call.")}
       ${q("Make someone else the owner", "Department, Members, tap the person, Make owner. Do this before the old owner leaves.")}
       ${q("I removed someone by mistake", "Department, Members, Removed people, Allow back. Then they can rejoin with the invite code.")}
@@ -215,17 +248,12 @@ export function helpSheet() {
   });
 }
 
-// Android/desktop Chrome hands us an install prompt we can show on a button.
-let installEvt = null;
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
-const isStandalone = () => window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
-
-export function installCard(dismissed) {
-  if (IS_NATIVE || isStandalone() || dismissed) return "";
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (!installEvt && !ios) return "";
-  return `<div class="banner">${icon("download")}<div class="grow"><b>Put Fire Ground on your home screen</b><br><span class="muted">${installEvt ? "One tap to open it on a call." : "In Safari tap Share, then Add to Home Screen."}</span></div>
-    ${installEvt ? '<button class="btn sm primary" data-act="install">Install</button>' : ""}<button class="iconbtn ghost" data-act="dismiss" data-k="install" aria-label="Hide">${icon("close", "sm")}</button></div>`;
+/** On the website, point iPhone people to the App Store app. Nothing in the app itself. */
+export function appStoreCard(dismissed) {
+  if (IS_NATIVE || dismissed || !CONFIG.APP_STORE_URL) return "";
+  if (!/iphone|ipad|ipod/i.test(navigator.userAgent)) return "";
+  return `<div class="banner">${icon("download")}<div class="grow"><b>Get the iPhone app</b><br><span class="muted">Call alerts with sound, even when your phone is locked.</span></div>
+    <a class="btn sm primary" href="${CONFIG.APP_STORE_URL}" target="_blank" rel="noopener">App Store</a><button class="iconbtn ghost" data-act="dismiss" data-k="appstore" aria-label="Hide">${icon("close", "sm")}</button></div>`;
 }
 
 export function demoStrip() {
@@ -243,15 +271,18 @@ function planNeedsAttention(d = S.dept) {
 
 /** Main navigation: tabs along the bottom on phones, a side menu on computers. */
 export function bottomNav(active) {
+  // Plan is for the owner, on the website only. Everyone else sees the plan summary in Department.
   const items = [
     ["#/", "home", "flame", "Incidents"],
+    ["#/chat", "chat", "chat", "Chat"],
     ["#/records", "records", "book", "Records"],
     ["#/dept", "dept", "shield", "Department"],
-    ...(IS_NATIVE ? [] : [["#/plan", "plan", "card", "Plan"]]),
+    ...(IS_NATIVE || !isOwner() ? [] : [["#/plan", "plan", "card", "Plan"]]),
     ["#/me", "me", "user", "Me"],
   ];
   const dot = planNeedsAttention();
-  const item = ([href, key, ic, label]) => `<a href="${href}" class="${active === key ? "on" : ""}" ${active === key ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span>${key === "plan" && dot ? '<i class="nav-dot" aria-label="Needs attention"></i>' : ""}</a>`;
+  const chatDot = active !== "chat" && chatUnread();
+  const item = ([href, key, ic, label]) => `<a href="${href}" data-nav="${key}" class="${active === key ? "on" : ""}" ${active === key ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span>${(key === "plan" && dot) || (key === "chat" && chatDot) ? `<i class="nav-dot" aria-label="${key === "chat" ? "New messages" : "Needs attention"}"></i>` : ""}</a>`;
   const d = S.dept;
   const many = S.memberships.length > 1;
   return `<nav class="bottomnav no-print" aria-label="Main"><div class="bottomnav-in" style="--n:${items.length}">${items.map(item).join("")}</div></nav>
@@ -310,6 +341,9 @@ function renderAuth(mode = "email") {
   const P = CONFIG.PRICING;
   const code = mode === "code";
   const pw = mode === "password";
+  const priceLine = IS_NATIVE ? "" : `<p class="auth-price-line">${t("{m} a month or {y} a year per member, in {c}. Never more than {cap} a month for the whole department. Free for {d} days, no card needed.", {
+    m: `<b>${money(P.monthly)}</b>`, y: `<b>${money(P.annual)}</b>`, c: esc(P.currency), cap: money(P.seatCap * P.monthly), d: P.trialDays })}</p>`;
+  const intro = !code && !pendingJoinCode;
   root.innerHTML = `
   <div class="auth">
     <div class="auth-hero">
@@ -319,15 +353,12 @@ function renderAuth(mode = "email") {
       <p>${code ? `We sent a 6-digit code to <b class="text">${esc(authEmail)}</b>. It works for 10 minutes.`
         : pendingJoinCode ? "Enter your email to join your department's board. No password needed."
         : "Live PAR accountability for volunteer and career fire departments."}</p>
-      ${code || pendingJoinCode ? "" : `<ul class="auth-points">
-        <li>${icon("check", "sm")}<span>See who's responding, staged, inside and out, live on every phone</span></li>
-        <li>${icon("check", "sm")}<span>Call a PAR and watch every confirmation come in</span></li>
-        <li>${icon("check", "sm")}<span>Roster, training and equipment records in one place</span></li>
-      </ul>
-      ${IS_NATIVE ? "" : `<div class="auth-price">
-        <div class="auth-price-row"><span><b>${money(P.monthly)}</b> a month</span><span class="or">or</span><span><b>${money(P.annual)}</b> a year</span></div>
-        <p>Per member who uses the app, in ${esc(P.currency)}. Roster-only names are free. Try it free for ${P.trialDays} days, no card needed.</p>
-      </div>`}`}
+      ${intro ? `<ul class="auth-points">
+        <li><i>${icon("user", "sm")}</i><div><b>Every firefighter, live</b><span>Responding, staged, inside and out, on every phone and screen.</span></div></li>
+        <li><i>${icon("radio", "sm")}</i><div><b>PAR in seconds</b><span>Call a PAR and watch each confirmation come in. Missing sounds the alarm.</span></div></li>
+        <li><i>${icon("mail", "sm")}</i><div><b>Starts from dispatch</b><span>Pages and dispatch emails open the call and alert the crew.</span></div></li>
+        <li><i>${icon("book", "sm")}</i><div><b>Records built in</b><span>Roster, training hours and equipment checks in one place.</span></div></li>
+      </ul>` : ""}
       </div>
     </div>
     <div class="auth-body"><div class="auth-body-in">
@@ -336,25 +367,24 @@ function renderAuth(mode = "email") {
       <form id="auth-form" novalidate>
         ${code
           ? field("Sign-in code", input("token", "", 'inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" class="input code-input" placeholder="123456"'))
-          : field("Email", input("email", authEmail, 'type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required'))}
+          : field("Email", input("email", authEmail, 'type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="you@yourdepartment.ca" required'))}
         ${pw ? field("Password", input("password", "", 'type="password" autocomplete="current-password" required')) : ""}
         <div class="error-text" id="auth-err" hidden></div>
-        <button class="btn primary block" style="margin-top:18px" ${!HAS_BACKEND ? "disabled" : ""}>${code ? "Sign in" : pw ? "Sign in" : "Email me a sign-in code"}</button>
+        <button class="btn primary block" style="margin-top:14px" ${!HAS_BACKEND ? "disabled" : ""}>${code ? "Sign in" : pw ? "Sign in" : "Email me a sign-in code"}</button>
       </form>
       ${code ? `<div class="auth-switch"><button data-act="resend" id="resend">Send a new code</button> &nbsp; <button data-mode="email">Use a different email</button></div>`
-        : `<p class="hint" style="text-align:center;margin-top:12px">${pw ? "" : "New here? Same button. No password needed."}</p>`}
-      <div class="divider">or</div>
-      <button class="btn block" id="try-demo">Try the demo department</button>
-      <p class="small faint" style="margin-top:22px;text-align:center">
-        <button class="faint" data-act="help" style="text-decoration:underline">Trouble signing in?</button> &nbsp;
-        ${pw ? '<button class="faint" data-mode="email" style="text-decoration:underline">Use an email code</button>' : '<button class="faint" data-mode="password" style="text-decoration:underline">Password sign-in</button>'}<br><br>
-        <a href="privacy.html" class="faint">Privacy</a> &nbsp; <a href="terms.html" class="faint">Terms</a> &nbsp; <a href="support.html" class="faint">Support</a>
-      </p>
-      <div class="lang-pick" role="group" aria-label="Language" data-notr>${LANGS.map(([k, l]) => `<button data-lang="${k}" class="${getLang() === k ? "on" : ""}" lang="${k}">${l}</button>`).join("")}</div>
+        : pw ? "" : `<p class="auth-new">New here? Same button. No password needed.</p>`}
+      ${code ? "" : `<button class="btn block auth-demo" id="try-demo">Try the demo department</button>`}
+      <div class="auth-fine">
+        ${intro ? priceLine : ""}
+        <p><button data-act="help">Trouble signing in?</button><span class="sep">|</span>${pw ? '<button data-mode="email">Use an email code</button>' : '<button data-mode="password">Password sign-in</button>'}</p>
+        <p><a href="privacy.html">Privacy</a><span class="sep">|</span><a href="terms.html">Terms</a><span class="sep">|</span><a href="support.html">Support</a></p>
+        <div class="lang-pick" role="group" aria-label="Language" data-notr>${LANGS.map(([k, l]) => `<button data-lang="${k}" class="${getLang() === k ? "on" : ""}" lang="${k}">${l}</button>`).join("")}</div>
+      </div>
     </div></div>
   </div>`;
   root.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAuth(b.dataset.mode)));
-  root.querySelector("#try-demo").addEventListener("click", startDemo);
+  root.querySelector("#try-demo")?.addEventListener("click", startDemo);
   root.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   root.querySelector('[data-act="help"]').addEventListener("click", () => helpSheet());
   const err = root.querySelector("#auth-err");
@@ -571,7 +601,7 @@ function homeView() {
     const side = [
       ...openTraining.map((t) => `<div class="banner"><div class="grow"><b>${esc(t.title)}</b><br><span class="muted">Attendance is open. Mark yourself present.</span></div><button class="btn sm primary" data-act="attend" data-id="${t.id}">I was there</button></div>`),
       alertsCard(push),
-      installCard(dismissed("install")),
+      appStoreCard(dismissed("appstore")),
       isOfficer() ? setupCard(recent.length + active.length) : howItWorks(),
     ].filter(Boolean).join("");
 
@@ -676,13 +706,6 @@ function homeView() {
     start: () => startIncidentSheet(),
     switch: () => switchDeptSheet(),
     "alerts-on": async () => { await askForPush(); paint().catch(() => {}); },
-    install: async () => {
-      if (!installEvt) return;
-      installEvt.prompt();
-      await installEvt.userChoice.catch(() => {});
-      installEvt = null;
-      paint().catch(() => {});
-    },
     dismiss: (b) => { try { localStorage.setItem(dismissKey(b.dataset.k), "1"); } catch { /* private mode */ } paint().catch(() => {}); },
     respond: async (b) => {
       b.disabled = true;
@@ -764,7 +787,7 @@ function startIncidentSheet() {
       <div class="label">Call type</div>
       <div class="choice-grid" role="radiogroup" aria-label="Call type">${CALL_TYPES.map((c) => `
         <label class="choice"><input type="radio" name="call_type" value="${esc(c)}"><span>${esc(c)}</span></label>`).join("")}</div>
-      <div style="margin-top:14px">${field("Address or location", input("address", "", 'placeholder="e.g. 142 Mill Street" autocomplete="off"'))}</div>
+      <div style="margin-top:14px">${field("Address or location", input("address", "", 'placeholder="Start typing an address" autocomplete="off"'))}<input type="hidden" name="lat"><input type="hidden" name="lng"></div>
       ${units.length ? `<div class="label" style="margin-top:14px">Trucks responding</div>
         <div class="choice-grid">${units.map((u, i) => `<label class="choice"><input type="checkbox" name="unit_${i}"><span>${esc(u.name)}</span></label>`).join("")}</div>` : ""}
       <details style="margin-top:14px"><summary class="muted small">Give it a custom name</summary>
@@ -772,11 +795,17 @@ function startIncidentSheet() {
       <p class="hint">You go on the board as Staged. Your crew sees it on their phones right away.</p>`,
     submitLabel: "Start incident",
     errorText: friendlyError,
+    onOpen: (el) => {
+      const form = el.querySelector("form") || el;
+      addressPicker(form.querySelector('[name="address"]'), { latEl: form.querySelector('[name="lat"]'), lngEl: form.querySelector('[name="lng"]') });
+    },
     onSubmit: async (form) => {
       const f = formData(form);
       const name = f.name || f.call_type || "";
       if (!name) throw new Error("Pick a call type or give the incident a name.");
       const id = await S.api.startIncident(S.dept.id, { name, address: f.address, call_type: f.call_type });
+      const lat = Number(f.lat), lng = Number(f.lng);
+      if (f.lat && f.lng && Number.isFinite(lat) && Number.isFinite(lng)) await S.api.updateIncident(id, { lat, lng }).catch(() => {});
       S.api.notify("incident", id);
       const picked = units.filter((_, i) => f[`unit_${i}`]);
       await Promise.all(picked.map((u) => S.api.addApparatus(id, { name: u.name, kind: u.kind, status: "Responding" }).catch(() => {})));
@@ -1121,14 +1150,19 @@ function planView() {
     if (!alive) return;
     const status = d.subscription_status || "none";
     const subscribed = ["active", "trialing", "past_due"].includes(status);
-    const { n, monthly, annual } = priceFor(d.seat_count);
+    const { n, billed, capped, monthly, annual } = priceFor(d.seat_count);
+    const capM = money(P.seatCap * P.monthly);
+    const capY = money(P.seatCap * P.annual);
     const save = money(P.monthly * 12 - P.annual);
     const perMonthYearly = (P.annual / 12).toFixed(2);
     const left = daysUntil(d.trial_ends_at);
     const inTrial = left > 0;
     const yearly = d.plan_interval === "year";
-    const planName = d.plan_interval ? (yearly ? "Yearly plan" : "Monthly plan") : "Your plan";
-    const cost = d.plan_interval ? t(yearly ? "{x} a year" : "{x} a month", { x: money(yearly ? annual : monthly) }) : "";
+    const planName = d.plan_custom ? "Custom plan" : d.plan_interval ? (yearly ? "Yearly plan" : "Monthly plan") : "Your plan";
+    const amount = d.plan_amount != null ? Number(d.plan_amount) : (yearly ? annual : monthly);
+    const cost = d.plan_interval ? t(yearly ? "{x} a year" : "{x} a month", { x: money(amount) }) : "";
+    const whoLine = d.plan_custom ? t("Custom plan, {cost} plus tax.", { cost })
+      : t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost });
     const ownerName = owner ? (owner.user_id === S.user.id ? t("you") : owner.name) : t("the department owner");
 
     // ---- where things stand ----
@@ -1149,7 +1183,7 @@ function planView() {
       tone = "good";
       title = planName;
       line = [
-        t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost }),
+        whoLine,
         t(d.plan_invoice ? "Paid by invoice." : "Paid by card."),
         d.plan_cancel_at ? `<b class="text">${t("Ends {d}.", { d: dateLabel(d.plan_cancel_at) })}</b>` : d.current_period_end ? t("Renews {d}.", { d: dateLabel(d.current_period_end) }) : "",
       ].join(" ");
@@ -1158,7 +1192,7 @@ function planView() {
       title = t("{plan} is set up", { plan: t(planName) });
       line = [
         inTrial ? t("Billing starts when your free trial ends on {d}.", { d: dateLabel(d.trial_ends_at) }) : t("Billing starts now."),
-        cost ? t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost }) : "",
+        cost ? whoLine : "",
         d.plan_cancel_at ? `<b class="text">${t("Set to end {d}.", { d: dateLabel(d.plan_cancel_at) })}</b>` : "",
       ].join(" ");
     } else if (inTrial) {
@@ -1177,8 +1211,9 @@ function planView() {
       return `<div class="plan-card ${isYear ? "best" : ""}">
         <div class="plan-top"><span class="plan-name">${isYear ? "Yearly" : "Monthly"}</span>${isYear ? `<span class="pill save">Save ${save} a member</span>` : ""}</div>
         <div class="plan-price"><b>${money(isYear ? P.annual : P.monthly)}</b><span>per member<br>${isYear ? "a year" : "a month"}</span></div>
-        <div class="plan-total">${n} member${n === 1 ? "" : "s"} now: <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}</div>
+        <div class="plan-total">${n} member${n === 1 ? "" : "s"} now: <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}${capped ? `<br><span class="small">${t("You pay for {b}. Everyone after that is free.", { b: billed })}</span>` : ""}</div>
         <ul class="plan-list">
+          <li>${icon("check", "sm")}${t("Never more than {x} for the whole department", { x: isYear ? t("{x} a year", { x: capY }) : t("{x} a month", { x: capM }) })}</li>
           ${isYear
             ? `<li>${icon("check", "sm")}Works out to ${money(perMonthYearly)} a member each month</li><li>${icon("check", "sm")}Pay by card, or by invoice for your treasurer</li>`
             : `<li>${icon("check", "sm")}Lowest cost to start</li><li>${icon("check", "sm")}Cancel any time</li>`}
@@ -1204,7 +1239,7 @@ function planView() {
         ${choose ? `
         <section class="section">
           <div class="section-head"><div class="h2">Choose a plan</div></div>
-          <p class="muted" style="margin:-4px 0 14px">One price per member who uses the app. People on your roster without the app are free.</p>
+          <p class="muted" style="margin:4px 0 14px">${t("One price per member who uses the app, and never more than {b} paid members. People on your roster without the app are free.", { b: P.seatCap })}</p>
           <div class="plans">${planCard("annual")}${planCard("monthly")}</div>
           ${isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
             : `<div class="banner" style="margin-top:14px">${icon("user")}<div class="grow">Only ${esc(ownerName)} can choose the plan. Send them this page.</div></div>`}
@@ -1228,10 +1263,21 @@ function planView() {
           </div>
         </section>`}
 
+        <section class="section">
+          <div class="quote panel">
+            <div class="grow">
+              <div class="h3">${t("County, regional service or {n}+ members?", { n: P.quoteFrom })}</div>
+              <p class="muted small">We set up one plan for every station, with one invoice and pricing that fits your budget. Tell us about your service and we'll send a quote.</p>
+            </div>
+            <button class="btn" data-act="quote">${icon("mail", "sm")} Get a quote</button>
+          </div>
+        </section>
+
         <section class="section" style="margin-bottom:40px">
           <div class="section-head"><div class="h2">Questions</div></div>
           <div class="panel faq-list">
             ${faq("Who counts as a member?", "Anyone in your department who has signed in to the app. Names you add to the roster for people without the app are free.")}
+            ${faq("Is there a limit on what we pay?", t("Yes. You never pay for more than {b} members: {m} a month or {y} a year, plus tax, however many people you have.", { b: P.seatCap, m: capM, y: capY }))}
             ${faq("What happens when people join or leave?", "Your bill adjusts on its own. Stripe works out the difference on your next bill, so you only pay for the time someone was in.")}
             ${faq("Can we pay by cheque or EFT?", `Yes. Choose yearly, then Pay by invoice. We email a yearly invoice your treasurer can pay within 30 days.`)}
             ${faq("Is tax included?", `Prices are in ${esc(P.currency)}, plus tax where it applies.`)}
@@ -1270,7 +1316,31 @@ function planView() {
     });
   }
 
+  function quoteSheet() {
+    const PROV = ["ON", "QC", "NS", "NB", "MB", "SK", "AB", "BC", "PE", "NL", "YT", "NT", "NU", "Outside Canada"];
+    openSheet({
+      title: "Get a quote",
+      body: `<p class="muted small" style="margin-bottom:14px">For counties, regional services and big departments. Fill this in and your email app opens with it ready to send. We reply within one business day.</p>
+        ${field("Service or department", input("org", S.dept.name))}
+        <div class="grid2">${field("Stations", input("stations", "", 'inputmode="numeric" placeholder="e.g. 6"'))}${field("People", input("people", String(S.dept.seat_count || ""), 'inputmode="numeric"'))}</div>
+        <div class="grid2">${field("Your name", input("name", S.me?.name || ""))}${field("Province", select("province", PROV, "ON"))}</div>
+        ${field("Phone", input("phone", S.me?.phone || "", 'type="tel" inputmode="tel" placeholder="Optional"'))}
+        ${field("Anything else", textarea("notes", "", 'placeholder="Budget timing, how you pay, what you use now"'))}`,
+      submitLabel: "Open my email to send",
+      onSubmit: (form) => {
+        const f = formData(form);
+        if (!f.org) throw new Error("Enter your service or department.");
+        const lines = [
+          `Service: ${f.org}`, `Stations: ${f.stations || "-"}`, `People: ${f.people || "-"}`, `Province: ${f.province}`,
+          `Contact: ${f.name || "-"}, ${f.phone || "no phone"}, ${S.user.email || ""}`, "", f.notes || "", "", `Fire Ground department id: ${S.dept.id}`,
+        ];
+        location.href = `mailto:${CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(`Fire Ground quote: ${f.org}`)}&body=${encodeURIComponent(lines.join("\n"))}`;
+      },
+    });
+  }
+
   const off = bindActions(root, {
+    quote: () => quoteSheet(),
     checkout: async (b) => {
       if (S.api.isDemo) return toast("Payments are turned off in the demo.");
       b.disabled = true;
@@ -1291,6 +1361,21 @@ function planView() {
   root.innerHTML = '<div class="spinner"></div>';
   paint().catch((e) => toast(friendlyError(e), true));
   return () => { alive = false; off(); };
+}
+
+// ============================================================
+// Station chat
+// ============================================================
+function stationChatView() {
+  root.innerHTML = `
+  ${demoStrip()}
+  <div class="screen with-nav chat-screen">
+    <header class="topbar"><div class="wrap topbar-in"><h1>Station chat</h1><span class="sub show-wide">${esc(t("Everyone in {dept}", { dept: S.dept.name }))}</span></div></header>
+    <div class="wrap chat-wrap"></div>
+  </div>
+  ${bottomNav("chat")}`;
+  const ui = mountChat(root.querySelector(".chat-wrap"), { deptId: S.dept.id, incidentId: null });
+  return () => ui.destroy();
 }
 
 // ============================================================
@@ -1340,7 +1425,9 @@ function meView() {
           <label class="check" style="margin-top:10px"><input type="checkbox" data-sound ${soundOn() ? "checked" : ""}> Sound an alarm for PAR and Missing</label>
           <button class="btn sm" data-act="test-sound">Test the alarm</button>
           <p class="hint">${IS_NATIVE ? "The alarm plays while the app is open. Call alerts below reach you when it's closed." : "Keep your ringer on. Phones only play sound while the app is open."}</p>
-          ${IS_NATIVE ? `<div class="label" style="margin-top:16px">Call alerts</div><div id="push-row" class="muted small">Checking...</div>` : ""}
+          ${IS_NATIVE ? `<div class="label" style="margin-top:16px">Call alerts</div><div id="push-row" class="muted small">Checking...</div>
+          <label class="check" style="margin-top:6px"><input type="checkbox" data-chat-alerts ${S.me?.chat_alerts !== false ? "checked" : ""}> Chat alerts for station chat and your incidents</label>
+          <p class="hint">You always get an alert when someone @mentions you.</p>` : ""}
         </div>
       </section>
 
@@ -1394,6 +1481,11 @@ function meView() {
   }
   root.querySelector("[data-sound]").addEventListener("change", (e) => { setSound(e.target.checked); toast(e.target.checked ? "Alarm sound on." : "Alarm sound off. You'll still see the banner."); });
 
+  root.querySelector("[data-chat-alerts]")?.addEventListener("change", async (e) => {
+    const on = e.target.checked;
+    try { await S.api.setChatAlerts(S.me.id, on); S.me.chat_alerts = on; toast(on ? "Chat alerts on." : "Chat alerts off. Mentions still come through."); }
+    catch (ex) { e.target.checked = !on; toast(friendlyError(ex), true); }
+  });
   return bindActions(root, {
     theme: (b) => {
       setTheme(b.dataset.k);

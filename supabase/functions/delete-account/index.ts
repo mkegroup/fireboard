@@ -37,7 +37,20 @@ Deno.serve(lockedCors(async (req) => {
     if ((others ?? 0) === 0) toDelete.push({ dept_id: m.dept_id, sub: d?.stripe_subscription_id ?? null });
   }
 
+  // Chat photos and voice notes live in storage, not the database, so they're removed here.
+  const removeFiles = async (prefix: string, depth = 0): Promise<void> => {
+    if (depth > 2) return;
+    const { data } = await admin.storage.from("chat").list(prefix, { limit: 1000 });
+    const files: string[] = [];
+    for (const it of data ?? []) {
+      if (it.id === null) await removeFiles(`${prefix}/${it.name}`, depth + 1);
+      else files.push(`${prefix}/${it.name}`);
+    }
+    for (let i = 0; i < files.length; i += 100) await admin.storage.from("chat").remove(files.slice(i, i + 100));
+  };
+
   for (const d of toDelete) {
+    await removeFiles(d.dept_id).catch((e) => console.warn("chat files not removed", e));
     if (d.sub && stripe) {
       try { await stripe.subscriptions.cancel(d.sub); } catch (e) { console.warn("cancel failed", e); }
     }
@@ -49,6 +62,9 @@ Deno.serve(lockedCors(async (req) => {
     await admin.from("members").update({ active: false, role: "member", user_id: null, phone: null })
       .eq("id", m.id);
     await admin.from("member_medical").delete().eq("member_id", m.id);
+    await removeFiles(`${m.dept_id}/${user.id}`).catch((e) => console.warn("chat files not removed", e));
+    await admin.from("incident_messages").update({ media_path: null, body: "", lat: null, lng: null, deleted_at: new Date().toISOString() })
+      .eq("dept_id", m.dept_id).eq("user_id", user.id).in("kind", ["photo", "voice", "location"]);
     const seats = await countSeats(admin, m.dept_id);
     await admin.from("departments").update({ seat_count: seats }).eq("id", m.dept_id);
   }

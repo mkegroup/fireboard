@@ -25,3 +25,15 @@ create publication supabase_realtime;
 
 do $$ begin create role authenticator login noinherit; exception when duplicate_object then null; end $$;
 grant anon, authenticated, service_role to authenticator;
+
+-- Storage, just enough for the chat bucket and its policies.
+create schema storage;
+create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets(id), name text, owner uuid default auth.uid());
+alter table storage.objects enable row level security;
+create function storage.foldername(name text) returns text[] language sql immutable as $$
+  select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+$$;
+grant usage on schema storage to anon, authenticated, service_role;
+grant select, insert, delete on storage.objects to authenticated;
+grant select on storage.buckets to authenticated;

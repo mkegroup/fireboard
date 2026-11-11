@@ -44,6 +44,12 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone records voice notes you send in chat. Nothing is recorded unless you press the microphone button.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera takes photos you send in chat, like a hydrant location or damage on a truck.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pick photos from your library to send in chat.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is shown on the incident map only while you choose to share it, so command can see where crews are.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

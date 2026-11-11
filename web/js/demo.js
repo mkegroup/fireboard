@@ -20,7 +20,7 @@ function seed() {
       },
       trial_ends_at: new Date(now + 5 * 86400000).toISOString(), subscription_status: "none",
       current_period_end: null, past_due_since: null, seat_count: 9,
-      plan_interval: null, plan_invoice: false, plan_cancel_at: null,
+      plan_interval: null, plan_invoice: false, plan_cancel_at: null, plan_amount: null, plan_custom: false,
     }],
     members: [],
     medical: [],
@@ -30,6 +30,8 @@ function seed() {
     mutualAid: [],
     events: [],
     messages: [],
+    reactions: [],
+    reads: [],
     locations: [],
     training: [],
     attendance: [],
@@ -110,6 +112,24 @@ function seed() {
     const mem = m(who);
     db.messages.push({ id: id("msg"), incident_id: inc.id, dept_id: DEPT, user_id: mem.user_id, sender: who, body, created_at: new Date(now - ago * min).toISOString() });
   };
+  // Station chat
+  const st = (ago, who, body, extra = {}) => {
+    const mem = m(who);
+    const row = { id: id("msg"), incident_id: null, dept_id: DEPT, user_id: mem.user_id, sender: who, kind: "text", body, mentions: [], created_at: new Date(now - ago * min).toISOString(), ...extra };
+    db.messages.push(row);
+    return row;
+  };
+  const pin = st(60 * 26, "Jordan Kelley", "Truck checks every Tuesday at 7 pm. Training is the second and fourth Thursday.", { pinned_at: new Date(now - 60 * 26 * min).toISOString(), pinned_by: "Jordan Kelley" });
+  const q = st(60 * 3, "Tess MacDonald", "Who can cover Saturday's open house at the station? Need two people from 10 to 2.");
+  st(60 * 3 - 6, "Sam Riopelle", "I can do it.", { reply_to: q.id });
+  st(60 * 2, "Mike Brown", "Engine 1 pump test done. Primer is sticking again, I left a note on the board.");
+  st(60 * 2 - 4, "Bea Dumont", "@Mike Brown thanks. I'll call the shop in the morning.", { mentions: [m("Mike Brown").user_id] });
+  const react = (msgRow, who, emoji) => db.reactions.push({ message_id: msgRow.id, user_id: m(who).user_id, emoji, name: who, dept_id: DEPT });
+  react(pin, "Tess MacDonald", "👍");
+  react(pin, "Sam Riopelle", "👍");
+  react(q, "Jordan Kelley", "✅");
+  db.reads.push({ thread: "station", user_id: m("Tess MacDonald").user_id, name: "Tess MacDonald", read_at: new Date(now - 60 * min).toISOString() });
+
   msg(17, "Tess MacDonald", "Interior crew going in side A with a 1¾.");
   msg(10, "Mike Brown", "Tanker 2 dumped, heading to the fill site.");
   msg(4, "Jordan Kelley", "Ana to rehab. Chris, check her vitals please.");
@@ -167,7 +187,7 @@ function seed() {
 export function createDemoApi() {
   let db = seed();
   const subs = new Set();
-  const notify = (table) => subs.forEach((s) => s(table));
+  const notify = (table, payload) => subs.forEach((s) => s(table, payload));
   const me = () => db.members.find((x) => x.user_id === ME);
   const dept = () => db.departments[0];
   const log = (incident_id, kind, message, actor) => {
@@ -197,8 +217,9 @@ export function createDemoApi() {
   }
   function say(who, body) {
     const mem = db.members.find((x) => x.name === who);
-    db.messages.push({ id: id("msg"), incident_id: "demo-inc", dept_id: DEPT, user_id: mem?.user_id, sender: who, body, created_at: new Date().toISOString() });
-    notify("incident_messages");
+    const row = { id: id("msg"), incident_id: "demo-inc", dept_id: DEPT, user_id: mem?.user_id, sender: who, kind: "text", body, mentions: [], created_at: new Date().toISOString() };
+    db.messages.push(row);
+    notify("incident_messages", { eventType: "INSERT", new: clone(row) });
   }
 
   const api = {
@@ -397,9 +418,61 @@ export function createDemoApi() {
       notify("incident_mutual_aid");
     },
     async logNote(iid, message) { log(iid, "note", message); notify("incident_events"); },
-    async sendMessage(iid, body) {
-      db.messages.push({ id: id("msg"), incident_id: iid, dept_id: DEPT, user_id: ME, sender: me().name, body, created_at: new Date().toISOString() });
-      notify("incident_messages");
+    async sendMessage(iid, body) { return api.sendChat(DEPT, iid, { kind: "text", body }); },
+
+    // ---------------- chat ----------------
+    async setChatAlerts(mid, on) { const x = db.members.find((y) => y.id === mid); if (x) x.chat_alerts = !!on; },
+    async listChat(_d, iid) {
+      await wait();
+      const msgs = db.messages.filter((x) => (iid ? x.incident_id === iid : x.incident_id == null))
+        .map((x) => ({ kind: "text", mentions: [], ...x })).sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const ids = new Set(msgs.map((x) => x.id));
+      return { messages: clone(msgs), reactions: clone(db.reactions.filter((r) => ids.has(r.message_id))), reads: clone(db.reads.filter((r) => r.thread === (iid || "station"))) };
+    },
+    async sendChat(_d, iid, msg) {
+      await wait(150);
+      const row = { id: id("msg"), incident_id: iid || null, dept_id: DEPT, user_id: ME, sender: me().name, kind: msg.kind || "text", body: msg.body || "",
+        media_path: msg.media_path || null, media_seconds: msg.media_seconds ?? null, media_w: msg.media_w ?? null, media_h: msg.media_h ?? null,
+        lat: msg.lat ?? null, lng: msg.lng ?? null, reply_to: msg.reply_to || null, mentions: msg.mentions || [], created_at: new Date().toISOString() };
+      db.messages.push(row);
+      notify("incident_messages", { eventType: "INSERT", new: clone(row) });
+      return clone(row);
+    },
+    async uploadChatFile(_d, blob) { await wait(300); return URL.createObjectURL(blob); },
+    async chatFileUrls(paths) { return Object.fromEntries(paths.map((p) => [p, p])); },
+    async editChat(mid, body) { const x = db.messages.find((y) => y.id === mid); if (x) { x.body = body; x.edited_at = new Date().toISOString(); notify("incident_messages", { eventType: "UPDATE", new: clone(x) }); } },
+    async deleteChat(mid) {
+      const x = db.messages.find((y) => y.id === mid);
+      if (!x) return;
+      Object.assign(x, { body: "", media_path: null, lat: null, lng: null, deleted_at: new Date().toISOString(), pinned_at: null, pinned_by: null });
+      db.reactions = db.reactions.filter((r) => r.message_id !== mid);
+      notify("incident_messages", { eventType: "UPDATE", new: clone(x) });
+    },
+    async pinChat(mid, on) { const x = db.messages.find((y) => y.id === mid); if (x) { x.pinned_at = on ? new Date().toISOString() : null; x.pinned_by = on ? me().name : null; notify("incident_messages", { eventType: "UPDATE", new: clone(x) }); } },
+    async react(mid, emoji, on) {
+      db.reactions = db.reactions.filter((r) => !(r.message_id === mid && r.user_id === ME && r.emoji === emoji));
+      const row = { message_id: mid, user_id: ME, emoji, name: me().name, dept_id: DEPT };
+      if (on) db.reactions.push(row);
+      notify("chat_reactions", on ? { eventType: "INSERT", new: row } : { eventType: "DELETE", old: row });
+    },
+    async markChatRead() {},
+    subscribeChat(_d, iid, cb) {
+      const fn = (table, p) => {
+        if (!p) return;
+        if (table === "incident_messages") { const r = p.new || p.old; if ((r?.incident_id ?? null) === (iid || null)) cb("message", p); }
+        else if (table === "chat_reactions") cb("reaction", p);
+      };
+      subs.add(fn);
+      return { off: () => subs.delete(fn), typing() {} };
+    },
+    subscribeStation(_d, cb) {
+      const fn = (table, p) => { if (table === "incident_messages" && p?.eventType === "INSERT" && p.new.incident_id == null) cb(p.new); };
+      subs.add(fn);
+      return () => subs.delete(fn);
+    },
+    async lastStationMessage() {
+      const s = db.messages.filter((x) => x.incident_id == null).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      return s ? { created_at: s.created_at, user_id: s.user_id } : null;
     },
     async shareLocation(iid, { lat, lng, accuracy }) {
       db.locations = db.locations.filter((l) => !(l.incident_id === iid && l.user_id === ME));

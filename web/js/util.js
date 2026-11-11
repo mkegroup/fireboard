@@ -172,7 +172,7 @@ export function getTheme() {
 export function applyTheme(choice = getTheme()) {
   const sun = choice === "sun" || (choice === "auto" && window.matchMedia?.("(prefers-color-scheme: light)").matches);
   document.documentElement.dataset.theme = sun ? "sun" : "dark";
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", sun ? "#f3f4f6" : "#14171c");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", sun ? "#f3f4f6" : "#1d1e21");
 }
 export function setTheme(choice) {
   try { localStorage.setItem("fgb_theme", choice); } catch { /* private mode */ }

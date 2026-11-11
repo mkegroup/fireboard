@@ -2,9 +2,9 @@
 import { CONFIG } from "./config.js";
 
 const DEPT_COLS =
-  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at";
+  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at, plan_amount, plan_custom";
 const MEMBER_COLS =
-  "id, dept_id, user_id, role, active, name, rank, call_sign, crew, phone, radio, years, certifications, notes, ec_name, ec_rel, ec_phone, created_at";
+  "id, dept_id, user_id, role, active, name, rank, call_sign, crew, phone, radio, years, certifications, notes, ec_name, ec_rel, ec_phone, chat_alerts, created_at";
 
 function must({ data, error }) {
   if (error) throw error;
@@ -139,6 +139,94 @@ export function createApi() {
     /** Saves the language this person reads the app in, so push alerts match. */
     async setLanguage(userId, lang) {
       await sb.from("members").update({ lang }).eq("user_id", userId);
+    },
+    /** Chat alerts on this person's iPhone, for one department. */
+    async setChatAlerts(memberId, on) {
+      mustRows(await sb.from("members").update({ chat_alerts: !!on }).eq("id", memberId).select("id"));
+    },
+
+    // ---------------- chat ----------------
+    // Station chat has no incident. Each incident has its own chat.
+    async listChat(deptId, incidentId) {
+      let q = sb.from("incident_messages").select("*").eq("dept_id", deptId);
+      q = incidentId ? q.eq("incident_id", incidentId) : q.is("incident_id", null);
+      const msgs = must(await q.order("created_at", { ascending: false }).limit(250)).reverse();
+      const ids = msgs.map((m) => m.id);
+      const thread = incidentId || "station";
+      const [reactions, reads] = await Promise.all([
+        ids.length ? sb.from("chat_reactions").select("message_id, user_id, emoji, name").in("message_id", ids.slice(-250)) : { data: [] },
+        sb.from("chat_reads").select("user_id, name, read_at").eq("dept_id", deptId).eq("thread", thread),
+      ]);
+      return { messages: msgs, reactions: must(reactions), reads: must(reads) };
+    },
+    async sendChat(deptId, incidentId, msg) {
+      const { data: s } = await sb.auth.getSession();
+      const row = { dept_id: deptId, incident_id: incidentId || null, user_id: s.session?.user.id, kind: msg.kind || "text", body: msg.body || "",
+        media_path: msg.media_path || null, media_seconds: msg.media_seconds ?? null, media_w: msg.media_w ?? null, media_h: msg.media_h ?? null,
+        lat: msg.lat ?? null, lng: msg.lng ?? null, reply_to: msg.reply_to || null, mentions: msg.mentions || [] };
+      const saved = must(await sb.from("incident_messages").insert(row).select("*").single());
+      sb.functions.invoke("notify", { body: { kind: "chat", message_id: saved.id } }).catch(() => {});
+      return saved;
+    },
+    /** Uploads a photo or voice note. Returns its storage path. */
+    async uploadChatFile(deptId, blob, ext) {
+      const { data: s } = await sb.auth.getSession();
+      const path = `${deptId}/${s.session?.user.id}/${crypto.randomUUID()}.${ext}`;
+      must(await sb.storage.from("chat").upload(path, blob, { contentType: blob.type || undefined, cacheControl: "31536000", upsert: false }));
+      return path;
+    },
+    /** Short-lived links to open photos and voice notes. */
+    async chatFileUrls(paths) {
+      if (!paths.length) return {};
+      const { data, error } = await sb.storage.from("chat").createSignedUrls(paths, 3600 * 6);
+      if (error) throw error;
+      const out = {};
+      for (const r of data || []) if (r.signedUrl) out[r.path] = r.signedUrl;
+      return out;
+    },
+    async editChat(id, body) { must(await sb.rpc("edit_chat_message", { p_id: id, p_body: body })); },
+    async deleteChat(id) {
+      const path = must(await sb.rpc("delete_chat_message", { p_id: id }));
+      if (path) await sb.storage.from("chat").remove([path]).catch(() => {});
+    },
+    async pinChat(id, on) { must(await sb.rpc("pin_chat_message", { p_id: id, p_on: !!on })); },
+    async react(messageId, emoji, on) {
+      if (on) {
+        const { error } = await sb.from("chat_reactions").insert({ message_id: messageId, emoji, dept_id: null });
+        if (error && error.code !== "23505") throw error;
+      } else {
+        const { data: s } = await sb.auth.getSession();
+        must(await sb.from("chat_reactions").delete().eq("message_id", messageId).eq("emoji", emoji).eq("user_id", s.session?.user.id));
+      }
+    },
+    async markChatRead(deptId, incidentId) {
+      await sb.rpc("mark_chat_read", { p_dept: deptId, p_thread: incidentId || "station" });
+    },
+    /** Live chat updates plus "typing" signals. Returns { off(), typing(name) }. */
+    subscribeChat(deptId, incidentId, cb) {
+      const ch = sb.channel(`chat-${deptId}-${incidentId || "station"}`, { config: { broadcast: { self: false } } });
+      ch.on("postgres_changes", { event: "*", schema: "public", table: "incident_messages", filter: incidentId ? `incident_id=eq.${incidentId}` : `dept_id=eq.${deptId}` },
+        (p) => { const r = p.new?.id ? p.new : p.old; if (incidentId || !r || r.incident_id == null) cb("message", p); });
+      ch.on("postgres_changes", { event: "*", schema: "public", table: "chat_reactions", filter: `dept_id=eq.${deptId}` }, (p) => cb("reaction", p));
+      ch.on("postgres_changes", { event: "*", schema: "public", table: "chat_reads", filter: `dept_id=eq.${deptId}` }, (p) => cb("read", p));
+      ch.on("broadcast", { event: "typing" }, ({ payload }) => cb("typing", payload));
+      ch.subscribe((status) => cb("_status", status));
+      return {
+        off: () => sb.removeChannel(ch),
+        typing: (who) => ch.send({ type: "broadcast", event: "typing", payload: who }).catch(() => {}),
+      };
+    },
+    /** Station chat messages for the unread dot on the Chat tab. */
+    subscribeStation(deptId, cb) {
+      const ch = sb.channel(`station-${deptId}-${Math.random().toString(36).slice(2)}`);
+      ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "incident_messages", filter: `dept_id=eq.${deptId}` }, (p) => { if (p.new?.incident_id == null) cb(p.new); });
+      ch.subscribe();
+      return () => sb.removeChannel(ch);
+    },
+    async lastStationMessage(deptId) {
+      const { data } = await sb.from("incident_messages").select("created_at, user_id").eq("dept_id", deptId).is("incident_id", null)
+        .order("created_at", { ascending: false }).limit(1);
+      return data?.[0] || null;
     },
     dispatchUrl() {
       return `${CONFIG.SUPABASE_URL.replace(/\/$/, "")}/functions/v1/dispatch`;

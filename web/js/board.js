@@ -1,12 +1,13 @@
 // The incident board: live accountability for one incident.
 import { t } from "./i18n.js";
-import { createMap, geocode, directions } from "./maps.js";
+import { createMap, geocode, directions, addressPicker } from "./maps.js";
 import { CONFIG } from "./config.js";
 import { S, STATUSES, STATUS_HELP, STATUS_SHORT, APP_STATUSES, APP_KINDS, MA_STATUSES, RANKS, CREWS, isOfficer, hasAccess } from "./state.js";
 import { esc, initials, colorFor, clock, dateTime, elapsed, stopwatch, ago, formData, download, slug, copyText, vibrate, friendlyError, debounce, alertTone, keepAwake, setTheme } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
 import { bindActions, demoStrip } from "./app.js";
 import { openMemberProfile } from "./records.js";
+import { mountChat, lastSeen } from "./chat.js";
 
 const GROUP_ORDER = ["MISSING", "IN", "Staged", "Standby", "Rehab", "Responding", "OUT"];
 const STATUS_VAR = { Responding: "--st-responding", Staged: "--st-staged", IN: "--st-in", OUT: "--st-out", Rehab: "--st-rehab", Standby: "--st-standby", MISSING: "--st-missing" };
@@ -23,13 +24,13 @@ export function boardView(root, incidentId) {
   let geoTried = "";
   let watchId = null;
   let chatOpen = false;
+  let wantChat = /[?&]chat=1/.test(location.hash);
   let lastPar = undefined;
   let lastMissing = new Set();
   let members = [];
   let iCalledPar = false;
   const releaseScreen = keepAwake();
 
-  const seenKey = `fgb_chat_seen_${incidentId}`;
   const officer = () => isOfficer() && hasAccess();
   const active = () => st?.incident.status === "active";
   const myRow = () => st?.personnel.find((p) => p.member_id === S.me.id || (p.user_id && p.user_id === S.user.id));
@@ -78,7 +79,7 @@ export function boardView(root, incidentId) {
     paintBanners();
     paintBody();
     paintFab();
-    if (chatOpen) paintChat();
+    if (wantChat && !chatOpen && active()) { wantChat = false; openChat(); }
   }
 
   function counts() {
@@ -389,8 +390,8 @@ export function boardView(root, incidentId) {
 
   // ---------------- chat ----------------
   function unread() {
-    const seen = Number(localStorage.getItem(seenKey) || 0);
-    return st.messages.filter((m) => new Date(m.created_at).getTime() > seen && m.user_id !== S.user.id).length;
+    const seen = lastSeen(st.incident.dept_id, incidentId);
+    return st.messages.filter((m) => !m.deleted_at && new Date(m.created_at).getTime() > seen && m.user_id !== S.user.id).length;
   }
 
   function paintFab() {
@@ -401,6 +402,7 @@ export function boardView(root, incidentId) {
     el.innerHTML = chatOpen ? "" : `<button class="fab no-print" data-fab aria-label="Open chat${n ? `, ${n} unread` : ""}">${icon("chat")}${n ? `<span class="badge">${n > 9 ? "9+" : n}</span>` : ""}</button>`;
   }
 
+  let chatUi = null;
   function openChat() {
     chatOpen = true;
     const d = document.createElement("div");
@@ -410,41 +412,19 @@ export function boardView(root, incidentId) {
     d.setAttribute("aria-label", "Incident chat");
     d.innerHTML = `
       <div class="drawer-head"><div class="h3">Chat</div><span class="muted small">Everyone on this incident</span><button class="iconbtn ghost" data-close-chat aria-label="Close chat">${icon("close")}</button></div>
-      <div class="chat-list" id="chat-list"></div>
-      ${hasAccess() ? `<form class="chat-form" id="chat-form" autocomplete="off"><input class="input" name="body" placeholder="Message" maxlength="1000" enterkeyhint="send"><button class="btn primary">Send</button></form>` : ""}`;
+      <div class="drawer-body"></div>`;
     document.body.appendChild(d);
     d.querySelector("[data-close-chat]").addEventListener("click", closeChat);
-    d.querySelector("#chat-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const inp = e.target.body;
-      const body = inp.value.trim();
-      if (!body) return;
-      inp.value = "";
-      try { await S.api.sendMessage(incidentId, body); }
-      catch (ex) { inp.value = body; toast(friendlyError(ex), true); }
-    });
-    paintChat();
+    chatUi = mountChat(d.querySelector(".drawer-body"), { deptId: st.incident.dept_id, incidentId });
     paintFab();
   }
 
   function closeChat() {
     chatOpen = false;
+    chatUi?.destroy();
+    chatUi = null;
     document.getElementById("chat-drawer")?.remove();
     paintFab();
-  }
-
-  function paintChat() {
-    const list = document.getElementById("chat-list");
-    if (!list) return;
-    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-    list.innerHTML = st.messages.length ? st.messages.map((m) => {
-      const mine = m.user_id === S.user.id;
-      return `<div class="bubble ${mine ? "mine" : ""}">${mine ? "" : `<div class="from">${esc(m.sender)}</div>`}${esc(m.body)}<time>${clock(m.created_at)}</time></div>`;
-    }).join("") : '<div class="empty"><p>No messages yet. Use chat for things that don\'t need to go over the radio.</p></div>';
-    if (atBottom || !list.dataset.init) list.scrollTop = list.scrollHeight;
-    list.dataset.init = "1";
-    const last = st.messages[st.messages.length - 1];
-    if (last) localStorage.setItem(seenKey, String(new Date(last.created_at).getTime()));
   }
 
   // ---------------- sheets ----------------
@@ -694,14 +674,17 @@ export function boardView(root, incidentId) {
     theme: () => setTheme(document.documentElement.dataset.theme === "sun" ? "dark" : "sun"),
     edit: () => openSheet({
       title: "Edit incident",
-      body: `${field("Incident name", input("name", st.incident.name))}${field("Address", input("address", st.incident.address || ""))}${field("Call type", input("call_type", st.incident.call_type || ""))}`,
+      body: `${field("Incident name", input("name", st.incident.name))}${field("Address", input("address", st.incident.address || "", 'placeholder="Start typing an address" autocomplete="off"'))}<input type="hidden" name="lat"><input type="hidden" name="lng">${field("Call type", input("call_type", st.incident.call_type || ""))}`,
       errorText: friendlyError,
+      onOpen: (form) => addressPicker(form.querySelector('[name="address"]'), { latEl: form.querySelector('[name="lat"]'), lngEl: form.querySelector('[name="lng"]') }),
       onSubmit: async (form) => {
         const f = formData(form);
         if (!f.name) throw new Error("Name can't be empty.");
         const moved = (f.address || null) !== (st.incident.address || null);
-        await S.api.updateIncident(incidentId, { name: f.name, address: f.address || null, call_type: f.call_type || null, ...(moved ? { lat: null, lng: null } : {}) });
-        if (moved) { st.incident.lat = null; st.incident.lng = null; geoTried = ""; if (mapReady()) map.remove("__incident"); }
+        const pt = f.lat && f.lng && Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lng)) ? { lat: Number(f.lat), lng: Number(f.lng) } : null;
+        await S.api.updateIncident(incidentId, { name: f.name, address: f.address || null, call_type: f.call_type || null, ...(pt ? pt : moved ? { lat: null, lng: null } : {}) });
+        if (pt) { st.incident.lat = pt.lat; st.incident.lng = pt.lng; geoTried = ""; }
+        else if (moved) { st.incident.lat = null; st.incident.lng = null; geoTried = ""; if (mapReady()) map.remove("__incident"); }
         reload();
       },
     }),
@@ -775,6 +758,8 @@ export function boardView(root, incidentId) {
   root.addEventListener("change", onChange);
   const fabEl = document.getElementById("b-fab");
   const onFab = (e) => { if (e.target.closest("[data-fab]")) openChat(); };
+  window.addEventListener("fgb:chat-seen", paintFab);
+
   fabEl.addEventListener("click", onFab);
 
   // Live clocks, refreshed in place.
@@ -841,8 +826,10 @@ export function boardView(root, incidentId) {
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); S.api.stopLocation(incidentId, S.user.id).catch(() => {}); }
     if (mapReady()) map.destroy();
     map = null;
+    chatUi?.destroy();
     document.getElementById("chat-drawer")?.remove();
     document.getElementById("b-fab")?.remove();
+    window.removeEventListener("fgb:chat-seen", paintFab);
   };
 }
 

@@ -5,10 +5,11 @@
 //   par      -> a PAR must have started in the last 10 minutes
 //   missing  -> that person must really be marked Missing right now
 //   closed   -> officer, incident closed in the last 10 minutes (group chat only)
+//   chat     -> the caller sent that chat message in the last 2 minutes
 // Each alert is sent at most once (push_log). Alerts also go to the
 // department's group chat when one is connected.
 import { adminClient, corsHeaders, getUser, json, lockedCors, membership } from "../_shared/util.ts";
-import { sendIncidentPush } from "../_shared/push.ts";
+import { sendChatPush, sendIncidentPush } from "../_shared/push.ts";
 import { postToChat } from "../_shared/chat.ts";
 
 Deno.serve(lockedCors(async (req) => {
@@ -17,7 +18,17 @@ Deno.serve(lockedCors(async (req) => {
   try {
     const user = await getUser(req);
     if (!user) return json({ error: "Not signed in" }, 401);
-    const { kind, incident_id, personnel_id, dept_id } = await req.json().catch(() => ({}));
+    const { kind, incident_id, personnel_id, dept_id, message_id } = await req.json().catch(() => ({}));
+    if (kind === "chat" && typeof message_id === "string") {
+      const admin = adminClient();
+      const { data: msg } = await admin.from("incident_messages").select("*").eq("id", message_id).maybeSingle();
+      if (!msg) return json({ error: "Message not found" }, 404);
+      if (msg.user_id !== user.id) return json({ error: "Not your message" }, 403);
+      if (msg.deleted_at || Date.now() - new Date(msg.created_at).getTime() > 2 * 60 * 1000) return json({ sent: 0, reason: "too old" });
+      const { data: access } = await admin.rpc("dept_has_access", { d: msg.dept_id });
+      if (!access) return json({ sent: 0, reason: "plan inactive" });
+      return json(await sendChatPush(admin, msg));
+    }
     // Owner checks the group chat link works.
     if (kind === "test-chat" && typeof dept_id === "string") {
       const admin = adminClient();

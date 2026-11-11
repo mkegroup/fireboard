@@ -2,6 +2,7 @@
 import Stripe from "npm:stripe@17";
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, env } from "../_shared/util.ts";
+import { standardPrices } from "../_shared/seats.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 const crypto = Stripe.createSubtleCryptoProvider();
@@ -14,14 +15,22 @@ function periodEnd(sub: Stripe.Subscription): string | null {
   return ts ? new Date(ts * 1000).toISOString() : null;
 }
 
-/** Monthly or yearly, card or invoice, and the end date if it's set to cancel. */
+/** Monthly or yearly, card or invoice, what it costs before tax, whether it's a
+ *  custom deal, and the end date if it's set to cancel. */
 function planDetails(sub: Stripe.Subscription) {
   // deno-lint-ignore no-explicit-any
   const s = sub as any;
   const interval = s.items?.data?.[0]?.price?.recurring?.interval ?? s.items?.data?.[0]?.plan?.interval ?? null;
   const cancelTs = s.cancel_at ?? (s.cancel_at_period_end ? (s.current_period_end ?? s.items?.data?.[0]?.current_period_end) : null);
+  // deno-lint-ignore no-explicit-any
+  const items: any[] = s.items?.data ?? [];
+  const cents = items.reduce((t, i) => t + (Number(i.price?.unit_amount ?? i.plan?.amount ?? 0) * Number(i.quantity ?? 1)), 0);
+  const std = standardPrices();
+  const custom = s.metadata?.seats === "fixed" || items.some((i) => (i.price?.id ?? i.plan?.id) && !std.includes(i.price?.id ?? i.plan?.id));
   return {
     plan_interval: interval === "month" || interval === "year" ? interval : null,
+    plan_amount: items.length ? Math.round(cents) / 100 : null,
+    plan_custom: std.length > 0 && custom,
     plan_invoice: s.collection_method === "send_invoice",
     plan_cancel_at: cancelTs && sub.status !== "canceled" ? new Date(cancelTs * 1000).toISOString() : null,
   };

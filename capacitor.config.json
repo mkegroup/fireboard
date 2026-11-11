@@ -4,7 +4,7 @@
   "webDir": "web",
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#14171c",
+    "backgroundColor": "#1d1e21",
     "limitsNavigationsToAppBoundDomains": false
   },
   "plugins": {

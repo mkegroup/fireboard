@@ -6,7 +6,9 @@ export const CONFIG = {
 
   APP_URL: "https://fire.mkegroup.ca",
   SUPPORT_EMAIL: "hello@mkegroup.ca",
-  VERSION: "2.5.0",
+  // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
+  APP_STORE_URL: "",
+  VERSION: "2.6.0",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.
@@ -15,6 +17,8 @@ export const CONFIG = {
     annual: 99.99, // per member who uses the app, per year
     currency: "CAD",
     trialDays: 7,
+    seatCap: 20, // a department never pays for more than this many people. Keep in sync with SEAT_CAP.
+    quoteFrom: 60, // departments this size and counties are invited to ask for a quote
     taxNote: "plus tax",
   },
 

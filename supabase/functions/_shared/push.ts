@@ -122,17 +122,22 @@ export async function sendIncidentPush(
   if (logErr) return { sent: 0, reason: logErr.code === "23505" ? "already sent" : "log failed" };
 
   const chat = postToChat(admin, inc.dept_id, kind, chatText, inc.id);
-  const push = kind === "closed" ? Promise.resolve({ sent: 0, reason: "chat only" }) : pushTo(admin, inc, kind, users, words);
+  const payloadFor = (l: Lang) => {
+    const w = words(l);
+    return { aps: { alert: { title: w.title.slice(0, 80), body: w.body.slice(0, 160) }, sound: "default" }, incident_id: inc.id, kind };
+  };
+  const push = kind === "closed" ? Promise.resolve({ sent: 0, reason: "chat only" })
+    : pushTo(admin, inc.dept_id, users, payloadFor, { collapse: `${kind}-${inc.id}`, ttl: kind === "incident" ? 3600 : 600 });
   const [c, p] = await Promise.all([chat, push]);
   return { ...p, chat: c };
 }
 
 async function pushTo(
   admin: SupabaseClient,
-  inc: Incident,
-  kind: PushKind,
+  deptId: string,
   users: string[],
-  words: (l: Lang) => { title: string; body: string },
+  payloadFor: (l: Lang) => Record<string, unknown>,
+  opts: { collapse: string; ttl: number; quiet?: boolean },
 ): Promise<{ sent: number; reason?: string }> {
   if (!pushConfigured()) return { sent: 0, reason: "push not configured" };
   if (!users.length) return { sent: 0, reason: "nobody to alert" };
@@ -144,7 +149,7 @@ async function pushTo(
     const chunk = users.slice(i, i + 200);
     const [{ data: d }, { data: m }] = await Promise.all([
       admin.from("push_devices").select("token, user_id").in("user_id", chunk),
-      admin.from("members").select("user_id, lang").eq("dept_id", inc.dept_id).in("user_id", chunk),
+      admin.from("members").select("user_id, lang").eq("dept_id", deptId).in("user_id", chunk),
     ]);
     devices.push(...(d ?? []));
     for (const r of m ?? []) if (r.lang && r.lang in WORDS) langOf.set(r.user_id, r.lang as Lang);
@@ -156,14 +161,10 @@ async function pushTo(
   const keyPem = Deno.env.get("APNS_KEY")!;
   const keyId = Deno.env.get("APNS_KEY_ID")!.trim();
   const teamId = Deno.env.get("APNS_TEAM_ID")!.trim();
-  const ttl = kind === "incident" ? 3600 : 600;
-  const payloadFor = (l: Lang) => {
-    const w = words(l);
-    return JSON.stringify({
-      aps: { alert: { title: w.title.slice(0, 80), body: w.body.slice(0, 160) }, sound: "default" },
-      incident_id: inc.id,
-      kind,
-    });
+  const bodies = new Map<Lang, string>();
+  const bodyFor = (l: Lang) => {
+    if (!bodies.has(l)) bodies.set(l, JSON.stringify(payloadFor(l)));
+    return bodies.get(l)!;
   };
 
   const reached = new Set<string>();
@@ -175,12 +176,12 @@ async function pushTo(
         authorization: `bearer ${await appleToken(keyPem, keyId, teamId, !retry)}`,
         "apns-topic": topic,
         "apns-push-type": "alert",
-        "apns-priority": "10",
-        "apns-expiration": String(Math.floor(Date.now() / 1000) + ttl),
-        "apns-collapse-id": `${kind}-${inc.id}`.slice(0, 64),
+        "apns-priority": opts.quiet ? "5" : "10",
+        "apns-expiration": String(Math.floor(Date.now() / 1000) + opts.ttl),
+        "apns-collapse-id": opts.collapse.slice(0, 64),
         "content-type": "application/json",
       },
-      body: payloadFor(langOf.get(d.user_id) ?? "en"),
+      body: bodyFor(langOf.get(d.user_id) ?? "en"),
     }).catch((e) => { console.error("apns network error", e); return null; });
     if (!res) return;
     if (res.ok) { reached.add(d.user_id); await res.body?.cancel(); return; }
@@ -200,4 +201,68 @@ async function pushTo(
   }
   if (dead.length) await admin.from("push_devices").delete().in("token", dead);
   return { sent: reached.size };
+}
+
+// ---------------- chat alerts ----------------
+const CHAT_WORDS = {
+  en: { station: "Station chat", photo: "Photo", voice: "Voice note", location: "Shared a location" },
+  fr: { station: "Clavardage de la caserne", photo: "Photo", voice: "Message vocal", location: "A partagé une position" },
+  es: { station: "Chat de la estación", photo: "Foto", voice: "Nota de voz", location: "Compartió una ubicación" },
+} as const;
+
+type ChatMessage = {
+  id: string; dept_id: string; incident_id: string | null; user_id: string | null; sender: string | null;
+  kind: string; body: string; media_seconds: number | null; mentions: string[] | null; created_at: string; pushed_at: string | null;
+};
+
+/**
+ * Alerts people about a new chat message, once.
+ * Station chat: everyone in the department with chat alerts on.
+ * Incident chat: everyone on that incident's board with chat alerts on.
+ * People @mentioned always get it. The sender never does.
+ */
+export async function sendChatPush(admin: SupabaseClient, msg: ChatMessage): Promise<{ sent: number; reason?: string }> {
+  // Claim it first so a second call does nothing.
+  const { data: claimed } = await admin.from("incident_messages").update({ pushed_at: new Date().toISOString() })
+    .eq("id", msg.id).is("pushed_at", null).select("id");
+  if (!claimed?.length) return { sent: 0, reason: "already sent" };
+
+  const { data: members } = await admin.from("members").select("user_id, chat_alerts")
+    .eq("dept_id", msg.dept_id).eq("active", true).not("user_id", "is", null);
+  const inDept = new Map((members ?? []).map((m) => [m.user_id as string, m.chat_alerts !== false]));
+  let users: string[];
+  let incName = "";
+  if (msg.incident_id) {
+    const [{ data: inc }, { data: board }] = await Promise.all([
+      admin.from("incidents").select("name, status").eq("id", msg.incident_id).maybeSingle(),
+      admin.from("incident_personnel").select("user_id").eq("incident_id", msg.incident_id).not("user_id", "is", null),
+    ]);
+    if (!inc || inc.status !== "active") return { sent: 0, reason: "incident closed" };
+    incName = inc.name;
+    users = (board ?? []).map((b) => b.user_id as string).filter((u) => inDept.get(u));
+  } else {
+    users = [...inDept.entries()].filter(([, on]) => on).map(([u]) => u);
+  }
+  const mentioned = (msg.mentions ?? []).filter((u) => inDept.has(u));
+  users = [...new Set([...users, ...mentioned])].filter((u) => u && u !== msg.user_id);
+
+  const preview = (l: Lang) => {
+    const w = CHAT_WORDS[l];
+    if (msg.kind === "photo") return `${w.photo}${msg.body ? `: ${msg.body}` : ""}`;
+    if (msg.kind === "voice") return `${w.voice}${msg.media_seconds ? ` (${Math.round(msg.media_seconds)}s)` : ""}`;
+    if (msg.kind === "location") return w.location;
+    return msg.body;
+  };
+  const thread = msg.incident_id ?? "station";
+  const payloadFor = (l: Lang) => ({
+    aps: {
+      alert: { title: (msg.sender ?? "").slice(0, 60), subtitle: (msg.incident_id ? incName : CHAT_WORDS[l].station).slice(0, 60), body: preview(l).slice(0, 180) },
+      sound: "default",
+      "thread-id": `chat-${thread}`,
+    },
+    chat: thread,
+    incident_id: msg.incident_id,
+    kind: "chat",
+  });
+  return pushTo(admin, msg.dept_id, users, payloadFor, { collapse: `chat-${msg.id}`, ttl: 3600, quiet: true });
 }

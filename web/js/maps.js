@@ -33,7 +33,7 @@ function loadGoogle() {
     const timer = setTimeout(() => { googleLoading = null; reject(new Error("Google Maps took too long to load")); }, 15000);
     window[cb] = () => { clearTimeout(timer); delete window[cb]; resolve(window.google.maps); };
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key())}&v=weekly&language=${getLang()}&callback=${cb}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key())}&v=weekly&libraries=places&language=${getLang()}&callback=${cb}`;
     s.async = true;
     s.onerror = () => { clearTimeout(timer); googleLoading = null; reject(new Error("Google Maps could not load")); };
     document.head.appendChild(s);
@@ -166,6 +166,192 @@ export async function geocode(address) {
   } catch {
     return null;
   }
+}
+
+// ---------------- address picker ----------------
+// Suggestions drop down as you type (Google Places). Picking one fills the box
+// with the full address and remembers the exact spot for the map pin.
+// "Use where I am" fills in the address of where the phone is.
+// Without a Google key the box stays a plain text box.
+
+/** Where the phone is, only if location is already allowed (never asks). */
+async function quietPosition() {
+  try {
+    const st = await navigator.permissions?.query({ name: "geolocation" });
+    if (st?.state !== "granted") return null;
+    return await new Promise((res) => navigator.geolocation.getCurrentPosition(
+      (p) => res([p.coords.latitude, p.coords.longitude]), () => res(null), { maximumAge: 300000, timeout: 4000 }));
+  } catch { return null; }
+}
+
+/** Where the phone is, asking for permission if needed. */
+function askPosition() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error("Location isn't available on this device."));
+    navigator.geolocation.getCurrentPosition((p) => res([p.coords.latitude, p.coords.longitude]),
+      (e) => rej(new Error(e.code === 1 ? "Location permission is off. Turn it on in your phone's settings." : "Couldn't get your location.")),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
+  });
+}
+
+/** [lat, lng] to a street address, or null. */
+export async function reverseGeocode(pt) {
+  if (!hasMapKey()) return null;
+  try {
+    const g = await loadGoogle();
+    const { results } = await new g.Geocoder().geocode({ location: { lat: pt[0], lng: pt[1] } });
+    const r = results?.find((x) => x.types?.includes("street_address") || x.types?.includes("premise")) ?? results?.[0];
+    return r ? shortAddress(r.formatted_address) : null;
+  } catch { return null; }
+}
+
+/** "142 Mill St, Combermere, ON K0J 1L0, Canada" -> "142 Mill St, Combermere, ON" */
+function shortAddress(a) {
+  return (a || "").replace(/,\s*(Canada|USA|United States|Mexico|France|España|Spain)$/i, "").replace(/\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/, "").replace(/\s+\d{5}(-\d{4})?$/, "").trim();
+}
+
+/**
+ * Turns a text box into an address picker. `latEl`/`lngEl` are hidden inputs that
+ * get the picked spot (cleared again if the address is typed over).
+ * Returns a function that removes it.
+ */
+export function addressPicker(inputEl, { latEl, lngEl, onPick } = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "addr-pick";
+  inputEl.parentNode.insertBefore(wrap, inputEl);
+  const boxEl = document.createElement("div");
+  boxEl.className = "addr-box";
+  wrap.appendChild(boxEl);
+  boxEl.appendChild(inputEl);
+  const listId = `addr-list-${Math.random().toString(36).slice(2, 8)}`;
+  inputEl.setAttribute("role", "combobox");
+  inputEl.setAttribute("aria-autocomplete", "list");
+  inputEl.setAttribute("aria-expanded", "false");
+  inputEl.setAttribute("aria-controls", listId);
+  inputEl.setAttribute("autocomplete", "off");
+  const list = document.createElement("ul");
+  list.className = "addr-list";
+  list.id = listId;
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+  boxEl.appendChild(list);
+  const here = document.createElement("button");
+  here.type = "button";
+  here.className = "addr-here";
+  here.innerHTML = `<svg class="icon sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Use where I am</span>`;
+  wrap.appendChild(here);
+
+  const setPt = (pt) => {
+    if (latEl) latEl.value = pt ? String(pt[0]) : "";
+    if (lngEl) lngEl.value = pt ? String(pt[1]) : "";
+  };
+  let items = [];
+  let active = -1;
+  let timer = null;
+  let seq = 0;
+  let token = null;
+  let bias = null;
+  let places = null;
+  quietPosition().then((p) => { bias = p; });
+
+  const close = () => { list.hidden = true; inputEl.setAttribute("aria-expanded", "false"); inputEl.removeAttribute("aria-activedescendant"); active = -1; };
+  const paint = () => {
+    list.innerHTML = items.map((it, i) => `<li role="option" id="${listId}-${i}" class="${i === active ? "on" : ""}" aria-selected="${i === active}" data-i="${i}">
+      <b>${esc(it.main)}</b>${it.sub ? `<span>${esc(it.sub)}</span>` : ""}</li>`).join("")
+      + (items.length ? '<li class="addr-credit" aria-hidden="true">Google</li>' : "");
+    list.hidden = !items.length;
+    inputEl.setAttribute("aria-expanded", String(!!items.length));
+    if (active >= 0) inputEl.setAttribute("aria-activedescendant", `${listId}-${active}`);
+  };
+
+  const search = async (q) => {
+    const my = ++seq;
+    if (q.length < 3 || !hasMapKey()) { items = []; return paint(); }
+    try {
+      const g = await loadGoogle();
+      places ??= await g.importLibrary("places");
+      token ??= new places.AutocompleteSessionToken();
+      const req = { input: q, sessionToken: token, language: getLang() };
+      if (bias) req.locationBias = { center: { lat: bias[0], lng: bias[1] }, radius: 50000 };
+      const { suggestions } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
+      if (my !== seq) return;
+      items = (suggestions || []).map((s) => s.placePrediction).filter(Boolean).slice(0, 6).map((p) => ({
+        p, main: p.mainText?.toString() || p.text?.toString() || "", sub: p.secondaryText?.toString() || "",
+      }));
+      active = -1;
+      paint();
+    } catch (e) {
+      console.warn("address suggestions failed", e);
+      items = []; paint();
+    }
+  };
+
+  const pick = async (i) => {
+    const it = items[i];
+    if (!it) return;
+    const text = shortAddress([it.main, it.sub].filter(Boolean).join(", "));
+    inputEl.value = text;
+    items = []; close();
+    setPt(null);
+    try {
+      const place = it.p.toPlace();
+      await place.fetchFields({ fields: ["location", "formattedAddress"] });
+      token = null; // a pick ends the billing session
+      const loc = place.location;
+      if (loc) setPt([loc.lat(), loc.lng()]);
+    } catch (e) { console.warn("place details failed", e); }
+    inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+    onPick?.(text);
+  };
+
+  const onInput = () => {
+    setPt(null);
+    clearTimeout(timer);
+    const q = inputEl.value.trim();
+    timer = setTimeout(() => search(q), 220);
+  };
+  const onKey = (e) => {
+    if (list.hidden || !items.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); active = (active + 1) % items.length; paint(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); active = (active - 1 + items.length) % items.length; paint(); }
+    else if (e.key === "Enter" && active >= 0) { e.preventDefault(); pick(active); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  };
+  const onDown = (e) => {
+    const li = e.target.closest("li[data-i]");
+    if (!li) return;
+    e.preventDefault(); // keep focus in the box
+    pick(Number(li.dataset.i));
+  };
+  const onBlur = () => setTimeout(close, 150);
+  const onHere = async () => {
+    here.disabled = true;
+    const label = here.querySelector("span");
+    label.textContent = "Finding you...";
+    try {
+      const pt = await askPosition();
+      const addr = await reverseGeocode(pt);
+      inputEl.value = addr || `${pt[0].toFixed(5)}, ${pt[1].toFixed(5)}`;
+      setPt(pt);
+      inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+      onPick?.(inputEl.value);
+    } catch (e) {
+      label.textContent = e.message;
+      setTimeout(() => { label.textContent = "Use where I am"; }, 3500);
+      here.disabled = false;
+      return;
+    }
+    label.textContent = "Use where I am";
+    here.disabled = false;
+  };
+
+  inputEl.addEventListener("input", onInput);
+  inputEl.addEventListener("keydown", onKey);
+  inputEl.addEventListener("blur", onBlur);
+  list.addEventListener("mousedown", onDown);
+  list.addEventListener("touchstart", onDown, { passive: false });
+  here.addEventListener("click", onHere);
+  return () => { clearTimeout(timer); seq++; };
 }
 
 // ---------------- directions ----------------

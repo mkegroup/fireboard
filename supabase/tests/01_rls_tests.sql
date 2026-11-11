@@ -308,4 +308,62 @@ select t_fail($$update incidents set lat = 95 where id = (select v::uuid from id
 reset role;
 select t_eq((select lat from incidents where id=(select v::uuid from ids where k='incPin'))::numeric, 45.36::numeric, 'officer saves the map pin');
 
+-- ---------- Chat: station chat, media, replies, reactions, edits, pins, reads ----------
+reset role;
+insert into auth.users values ('00000000-0000-0000-0000-00000000000e','erin@x');
+delete from ids where k='codeA';
+insert into ids select 'codeA', invite_code from departments where id = (select v::uuid from ids where k='deptA');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000e',false);
+set role authenticated;
+select public.join_department((select v from ids where k='codeA'),'Erin Crew','Firefighter');
+with x as (insert into incident_messages(dept_id, body) values ((select v::uuid from ids where k='deptA'), 'truck check at 7') returning id)
+insert into ids select 'smsg', id::text from x;
+select t_eq((select sender from incident_messages where id=(select v::uuid from ids where k='smsg')), 'Erin Crew', 'station chat sender stamped');
+select t_fail($$insert into incident_messages(dept_id, body) values ((select v::uuid from ids where k='deptB'), 'sneaky')$$, 'row-level security');
+select t_fail($$insert into incident_messages(dept_id, body) values ((select v::uuid from ids where k='deptA'), '   ')$$, 'incident_messages_shape');
+select t_fail($$insert into incident_messages(dept_id, kind) values ((select v::uuid from ids where k='deptA'), 'photo')$$, 'incident_messages_shape');
+select t_fail($$insert into incident_messages(dept_id, kind, media_path) values ((select v::uuid from ids where k='deptA'), 'photo', (select v from ids where k='deptA') || '/00000000-0000-0000-0000-00000000000a/x.jpg')$$, 'row-level security');
+insert into incident_messages(dept_id, kind, media_path, media_w, media_h) values ((select v::uuid from ids where k='deptA'), 'photo', (select v from ids where k='deptA') || '/00000000-0000-0000-0000-00000000000e/p1.jpg', 800, 600);
+insert into incident_messages(dept_id, kind, media_path, media_seconds) values ((select v::uuid from ids where k='deptA'), 'voice', (select v from ids where k='deptA') || '/00000000-0000-0000-0000-00000000000e/v1.m4a', 7.5);
+insert into incident_messages(dept_id, kind, lat, lng) values ((select v::uuid from ids where k='deptA'), 'location', 45.49, -77.68);
+insert into incident_messages(dept_id, body, reply_to) values ((select v::uuid from ids where k='deptA'), 'see you there', (select v::uuid from ids where k='smsg'));
+select t_fail($$insert into incident_messages(incident_id, body, reply_to) values ((select v::uuid from ids where k='inc'), 'x', (select v::uuid from ids where k='smsg'))$$, 'reply is not in this chat');
+select public.edit_chat_message((select v::uuid from ids where k='smsg'), 'truck check at 7:30');
+select t_eq((select edited_at is not null from incident_messages where id=(select v::uuid from ids where k='smsg')), true, 'own message edited');
+select t_fail($$update incident_messages set body = 'x'$$, 'permission denied');
+select t_fail($$select public.pin_chat_message((select v::uuid from ids where k='smsg'), true)$$, 'only officers');
+insert into chat_reactions(message_id, emoji, user_id) values ((select v::uuid from ids where k='smsg'), '👍', '00000000-0000-0000-0000-00000000000a');
+select t_eq((select user_id::text from chat_reactions limit 1), '00000000-0000-0000-0000-00000000000e', 'reaction belongs to whoever made it');
+select public.mark_chat_read((select v::uuid from ids where k='deptA'), 'station');
+select t_eq((select name from chat_reads limit 1), 'Erin Crew', 'read receipt saved');
+insert into storage.objects(bucket_id, name) values ('chat', (select v from ids where k='deptA') || '/00000000-0000-0000-0000-00000000000e/p1.jpg');
+select t_fail($$insert into storage.objects(bucket_id, name) values ('chat', (select v from ids where k='deptA') || '/00000000-0000-0000-0000-00000000000a/p2.jpg')$$, 'row-level security');
+select t_fail($$insert into storage.objects(bucket_id, name) values ('chat', (select v from ids where k='deptB') || '/00000000-0000-0000-0000-00000000000e/p2.jpg')$$, 'row-level security');
+update members set chat_alerts = false where user_id = auth.uid();
+
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select t_eq((select count(*) from incident_messages where incident_id is null)::int, 5, 'alice reads station chat');
+select t_eq((select count(*) from storage.objects)::int, 1, 'alice can open the photo');
+select t_fail($$select public.edit_chat_message((select v::uuid from ids where k='smsg'), 'nope')$$, 'only change your own');
+select public.pin_chat_message((select v::uuid from ids where k='smsg'), true);
+select t_eq((select pinned_by from incident_messages where id=(select v::uuid from ids where k='smsg')), 'Alice Chief', 'officer pins');
+delete from chat_reactions;
+select t_eq((select count(*) from chat_reactions)::int, 1, 'cannot remove someone else''s reaction');
+select t_eq(public.delete_chat_message((select v::uuid from ids where k='smsg')), null, 'officer removes a message');
+select t_eq((select body || coalesce(pinned_by, '') from incident_messages where id=(select v::uuid from ids where k='smsg')), '', 'removed message is blanked and unpinned');
+select t_eq((select count(*) from chat_reactions)::int, 0, 'reactions go with it');
+
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select t_eq((select count(*) from incident_messages)::int, 0, 'other department cannot read the chat');
+select t_eq((select count(*) from storage.objects)::int, 0, 'other department cannot open the photo');
+select t_eq((select count(*) from chat_reads)::int, 0, 'other department cannot see who read');
+select t_fail($$select public.mark_chat_read((select v::uuid from ids where k='deptA'), 'station')$$, 'not a member');
+select t_fail($$select public.delete_chat_message((select v::uuid from ids where k='smsg'))$$, 'not found');
+reset role;
+select t_eq((select chat_alerts from members where user_id='00000000-0000-0000-0000-00000000000e'), false, 'chat alerts turned off');
+
 \echo ALL_TESTS_PASSED

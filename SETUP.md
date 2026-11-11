@@ -200,15 +200,15 @@ Every push that changes `web/` redeploys automatically. The service worker cache
 
 ## 7. Maps
 
-The map uses Google Maps (map and satellite) and finds the incident pin from its address. Directions open in Apple Maps or Google Maps. Google gives 10,000 free map loads and 10,000 free address lookups a month, then charges per use. A billing account is required.
+The map uses Google Maps (map and satellite), finds the incident pin from its address, and suggests addresses as you type when starting an incident. Directions open in Apple Maps or Google Maps. Google gives a monthly free allowance for each (about 10,000 map loads, 10,000 address lookups and 10,000 address suggestions), then charges per use. A billing account is required.
 
 1. console.cloud.google.com > create a project `Fire Ground Board` > attach a billing account.
-2. APIs & Services > Library: enable **Maps JavaScript API** and **Geocoding API**.
+2. APIs & Services > Library: enable **Maps JavaScript API**, **Geocoding API** and **Places API (New)**.
 3. Credentials > Create credentials > API key (the website key):
    - Application restrictions: Websites. Add `https://fire.mkegroup.ca/*`.
-   - API restrictions: Maps JavaScript API and Geocoding API.
-4. Create a second API key (the iPhone app key). Application restrictions: None (the app's pages aren't on a website address). API restrictions: the same two APIs.
-5. Quotas: for both APIs set a daily cap (for example 2,000 map loads and 2,000 lookups) so a leaked key can't run up a bill. Billing > Budgets: add a $20 budget alert.
+   - API restrictions: Maps JavaScript API, Geocoding API and Places API (New).
+4. Create a second API key (the iPhone app key). Application restrictions: None (the app's pages aren't on a website address). API restrictions: the same three APIs.
+5. Quotas: for each API set a daily cap (for example 2,000 a day) so a leaked key can't run up a bill. Billing > Budgets: add a $20 budget alert.
 6. GitHub variable `GOOGLE_MAPS_KEY` = the website key. Codemagic `fireground` group `GOOGLE_MAPS_KEY` = the iPhone key.
 
 ---

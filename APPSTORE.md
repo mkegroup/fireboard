@@ -42,9 +42,12 @@ BUILT FOR THE FIRE GROUND
 - Big buttons and high contrast, readable in the dark or in sunlight
 - Apparatus and mutual aid tracking
 - Arrival report (IOCANC) builder
-- Incident chat for things that don't need the radio
+- Address suggestions as you type, or "use where I am"
 - Optional location sharing on an incident map
 - Incident log and a downloadable report when the call is closed
+
+STATION CHAT
+One chat for the whole department and one for every incident. Photos, voice notes, shared locations, replies, reactions, @mentions and pinned messages. See who has read it.
 
 RECORDS IN ONE PLACE
 Roster, certifications with expiry warnings, training sessions and attendance, and equipment with service dates. Export any of it to a spreadsheet.
@@ -73,11 +76,13 @@ Data collected, all **Linked to the user**, all for **App Functionality** only:
 | Contact Info | Phone Number | Optional, on the roster |
 | Health & Fitness | Health | Optional medical notes, visible to the member and officers |
 | Location | Precise Location | Only while the member shares it on an incident |
-| User Content | Other User Content | Incident chat, notes and logs |
+| User Content | Photos or Videos | Photos a member chooses to send in chat |
+| User Content | Audio Data | Voice notes a member chooses to send in chat |
+| User Content | Other User Content | Chat messages, notes and logs |
 | Identifiers | User ID | Account |
 | Identifiers | Device ID | Push alert token from Apple |
 
-Not collected: financial info, purchases, browsing history, search history, contacts, photos, audio, diagnostics, usage data for advertising.
+Not collected: financial info, purchases, browsing history, search history, contacts, diagnostics, usage data for advertising.
 
 ## App Review information
 
@@ -115,6 +120,8 @@ Description:
 >
 > Lancez un PAR et chaque téléphone de l'intervention reçoit l'alerte. L'équipe confirme d'un toucher. Déclarez quelqu'un manquant et tous les appareils sonnent.
 >
+> Un clavardage pour toute la caserne et un pour chaque intervention : photos, messages vocaux, positions, réponses, réactions et messages épinglés.
+>
 > Effectif, formations et équipement au même endroit. Vos données restent dans votre service.
 >
 > Fire Ground Board appuie votre système de contrôle. Il ne remplace pas votre radio ni vos procédures.
@@ -134,6 +141,8 @@ Description:
 > ¿Lo llamaron? Toque Voy en camino y el mando lo ve llegar. En escena, toque su nombre para cambiar su estado: En espera, Dentro, Fuera, Rehab o Reserva.
 >
 > Llame un PAR y cada teléfono del incidente recibe la alerta. El personal confirma con un toque. Marque a alguien como perdido y todos los dispositivos suenan.
+>
+> Un chat para toda la estación y uno para cada incidente: fotos, notas de voz, ubicaciones, respuestas, reacciones y mensajes fijados.
 >
 > Plantilla, capacitación y equipo en un solo lugar. Sus datos se quedan en su departamento.
 >

@@ -414,7 +414,7 @@ export async function openMemberProfile(memberId, onChange, cache) {
           ${medical.medications ? `<dt>Medications</dt><dd>${esc(medical.medications)}</dd>` : ""}
         </dl>` : '<p class="muted">Nothing recorded. Everything here is optional.</p>'}
       </div>` : ""}
-      ${m.notes && private_ ? `<div class="section"><div class="h3">Notes</div><p style="white-space:pre-wrap;margin-top:6px">${esc(m.notes)}</p></div>` : ""}
+      ${m.notes && private_ ? `<div class="section"><div class="h3" style="margin-bottom:8px">Notes</div><p style="white-space:pre-wrap">${esc(m.notes)}</p></div>` : ""}
       ${sessions.length ? `<div class="section"><div class="h3" style="margin-bottom:8px">Training history</div><div class="list">${sessions.slice(0, 20).map((t) => `<div class="row" style="min-height:48px"><div class="grow"><div class="title" style="font-size:16px">${esc(t.title)}</div><div class="meta">${dateLabel(t.session_date + "T12:00:00")}${t.hours ? `, ${Number(t.hours)}h` : ""}</div></div></div>`).join("")}</div></div>` : ""}
       <div class="btn-row section">
         ${editable ? `<button type="button" class="btn primary" data-edit>Edit</button>` : ""}
@@ -463,7 +463,7 @@ function editProfile(m, medical, private_, onChange) {
         ${field("Conditions command should know", textarea("conditions", medical?.conditions || ""))}
         ${field("Medications", input("medications", medical?.medications || ""))}
       </div>
-      ${field("Notes", textarea("notes", m.notes || ""))}` : ""}`,
+      <div class="section">${field("Notes", textarea("notes", m.notes || "", 'placeholder="Anything officers should know"'))}</div>` : ""}`,
     submitLabel: "Save",
     errorText: friendlyError,
     onOpen: (form) => {

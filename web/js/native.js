@@ -22,8 +22,8 @@ function plugin() {
  * Ties this phone to the signed-in person so alerts reach them.
  * save(token) and remove(token) store the Apple token on the server.
  */
-export async function startPush({ save, remove, openIncident }) {
-  hooks = { save, remove, openIncident };
+export async function startPush({ save, remove, openIncident, openChat }) {
+  hooks = { save, remove, openIncident, openChat };
   const P = plugin();
   if (!P) return;
   try {
@@ -35,8 +35,9 @@ export async function startPush({ save, remove, openIncident }) {
       });
       await P.addListener("registrationError", (e) => console.warn("alert registration failed", e));
       await P.addListener("pushNotificationActionPerformed", (a) => {
-        const id = a?.notification?.data?.incident_id;
-        if (id) hooks.openIncident?.(id);
+        const d = a?.notification?.data || {};
+        if (d.kind === "chat") hooks.openChat?.(d.chat === "station" ? null : d.incident_id);
+        else if (d.incident_id) hooks.openIncident?.(d.incident_id);
       });
     }
     const perm = await quick(P.checkPermissions());

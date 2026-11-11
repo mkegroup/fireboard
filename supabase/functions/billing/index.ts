@@ -1,5 +1,5 @@
 // Billing for departments. Called by the web app with the user's session.
-// Per member who uses the app: monthly or yearly. No minimum.
+// Per member who uses the app: monthly or yearly. No minimum, capped at SEAT_CAP (20) paid users.
 // Actions:
 //   checkout   (owner)  -> Stripe Checkout URL to pay by card.
 //   invoice    (owner)  -> yearly plan billed by emailed invoice (net 30),
@@ -9,7 +9,7 @@
 // If the free trial is still running, billing starts when it ends.
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
-import { syncSeats } from "../_shared/seats.ts";
+import { billedSeats, syncSeats } from "../_shared/seats.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 
@@ -79,7 +79,7 @@ Deno.serve(lockedCors(async (req) => {
       return json({ url: session.url });
     }
 
-    const seats = Math.max(await countSeats(admin, dept_id), MIN_SEATS);
+    const seats = billedSeats(await countSeats(admin, dept_id), MIN_SEATS);
     // Stripe needs trial_end at least 48h out. Inside that window we bill now.
     const trialEnd = Math.floor(new Date(dept.trial_ends_at).getTime() / 1000);
     const keepTrial = trialEnd > Math.floor(Date.now() / 1000) + 49 * 3600;
