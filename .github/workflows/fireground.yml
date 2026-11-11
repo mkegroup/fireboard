@@ -1,7 +1,7 @@
 name: Fire Ground Board
 
 # One workflow for everything:
-#  1. If a .zip of the project was uploaded, unpack it into the repo and delete the zip.
+#  1. If a .zip of the project was uploaded, it replaces everything in the repo (except .github).
 #  2. Run the security and code tests.
 #  3. Deploy the backend to Supabase (skips until the Supabase secrets are set).
 #  4. Deploy the web app to GitHub Pages (skips until the Supabase variables are set).
@@ -30,21 +30,31 @@ jobs:
       - uses: actions/checkout@v4
       - id: go
         run: |
-          zip=$(ls -1 *.zip 2>/dev/null | head -n 1 || true)
+          zip=$(ls -1t -- *.zip 2>/dev/null | head -n 1 || true)
           if [ -n "$zip" ]; then
             echo "Unpacking $zip"
             rm -rf /tmp/fgb && mkdir -p /tmp/fgb
             unzip -q -o "$zip" -d /tmp/fgb
-            src=$(dirname "$(find /tmp/fgb -path '*/web/index.html' | head -n 1)")/..
-            src=$(cd "$src" && pwd)
-            # Workflow files can't be changed by a workflow, so .github is skipped.
+            index=$(find /tmp/fgb -path '*/web/index.html' -not -path '*/node_modules/*' | head -n 1)
+            if [ -z "$index" ]; then
+              echo "::error::$zip doesn't look like Fire Ground Board (no web/index.html inside). Nothing was changed."
+              exit 1
+            fi
+            src=$(cd "$(dirname "$index")/.." && pwd)
+            # The zip replaces the whole repo. Everything not in the zip is deleted,
+            # including any other uploaded zips. Only .github stays, because a
+            # workflow isn't allowed to change workflow files.
+            find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf {} +
             (cd "$src" && tar --exclude=./.github --exclude=./node_modules -cf - .) | tar -xf -
-            git rm -q -- "$zip"
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A
-            git commit -q -m "Unpack $zip"
-            git push -q origin "HEAD:${GITHUB_REF_NAME:-main}"
+            if git diff --cached --quiet; then
+              echo "Nothing changed."
+            else
+              git commit -q -m "Replace repo with $zip"
+              git push -q origin "HEAD:${GITHUB_REF_NAME:-main}"
+            fi
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
