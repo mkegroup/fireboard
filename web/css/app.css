@@ -897,3 +897,59 @@ ol.steps b { color: var(--text); }
 :root[data-theme="sun"] .chat-bar textarea { background: #fff; }
 :root[data-theme="sun"] .quote-msg { background: rgba(0,0,0,.05); }
 :root[data-theme="sun"] .chat-photo { background: #ddd; }
+
+/* ============================================================
+   Admin (MKE Group only)
+   ============================================================ */
+.admin .topbar .sub { margin-right: auto; }
+.admin .views { border-bottom: 0; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 13px; min-width: 0; }
+.tile small { display: block; font: 700 12px/1.2 var(--head); letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.tile b { display: block; font: 800 28px/1.05 var(--head); margin-top: 6px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tile span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.tile.big { grid-column: 1 / -1; border-left: 5px solid var(--gold); }
+.tile.big b { font-size: 44px; color: var(--gold); }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 150px; padding-top: 18px; }
+.bar { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; position: relative; }
+.bar i { display: block; width: 100%; max-width: 26px; background: var(--muted); border-radius: 2px 2px 0 0; opacity: .55; }
+.bar.now i { background: var(--red-hi); opacity: 1; }
+.bar span { font: 700 10px/1 var(--head); color: var(--muted); margin-bottom: 3px; white-space: nowrap; }
+.bar small { font-size: 10px; color: var(--faint); margin-top: 4px; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.bar:not(:nth-child(3n)):not(:last-child) small { visibility: hidden; }
+.stack-bar { display: flex; height: 18px; border-radius: 3px; overflow: hidden; gap: 2px; background: var(--ink); }
+.stack-bar i { display: block; min-width: 4px; }
+.s-paying { background: var(--st-out); } .s-plan_set { background: #2fa36b; } .s-trial { background: var(--st-staged); }
+.s-overdue { background: var(--st-missing); } .s-expired { background: var(--faint); } .s-ended { background: var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend b { color: var(--text); }
+.feed { padding: 4px 14px; }
+.ev { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line); }
+.ev:first-child { border-top: 0; }
+.ev[role="button"] { cursor: pointer; }
+.ev .grow { min-width: 0; }
+.ev b { display: block; font-weight: 600; }
+.ev span { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; white-space: pre-line; }
+.ev small { display: block; color: var(--faint); font-size: 12px; margin-top: 3px; }
+.ev em { font: 800 18px/1.2 var(--head); font-style: normal; color: var(--st-out); white-space: nowrap; }
+.ev-ic { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--raise); color: var(--muted); }
+.t-good .ev-ic, .ev-ic.t-good { color: var(--st-out); background: rgba(61, 214, 140, .14); }
+.t-bad .ev-ic, .ev-ic.t-bad { color: #ff8a80; background: rgba(255, 45, 45, .14); }
+.t-warn .ev-ic, .ev-ic.t-warn { color: var(--st-staged); background: rgba(242, 178, 51, .15); }
+.t-gold .ev-ic, .ev-ic.t-gold { color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.adm-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; text-align: right; }
+.adm-right small { color: var(--muted); font-size: 12px; }
+.adm-head { display: flex; align-items: center; gap: 10px; }
+.admin-link { display: flex; align-items: center; gap: 12px; padding: 13px 14px; text-decoration: none; color: var(--text); border-left: 5px solid var(--gold); }
+.admin-link .icon { color: var(--gold); }
+@media (min-width: 760px) {
+  .tiles { grid-template-columns: repeat(3, 1fr); }
+  .tile.big { grid-column: span 3; }
+}
+@media (min-width: 1100px) {
+  .tiles { grid-template-columns: 2fr repeat(5, 1fr); }
+  .tile.big { grid-column: auto; grid-row: span 1; }
+}
+:root[data-theme="sun"] .bar i { opacity: .4; }

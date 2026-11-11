@@ -420,6 +420,12 @@ export function createDemoApi() {
     async logNote(iid, message) { log(iid, "note", message); notify("incident_events"); },
     async sendMessage(iid, body) { return api.sendChat(DEPT, iid, { kind: "text", body }); },
 
+    // ---------------- owner's console ----------------
+    async isPlatformAdmin() { try { return sessionStorage.getItem("fgb_demo_admin") === "1"; } catch { return false; } },
+    ...demoAdmin(),
+    sweepAlerts() { return Promise.resolve(null); },
+    async requestQuote() { await wait(300); },
+
     // ---------------- chat ----------------
     async setChatAlerts(mid, on) { const x = db.members.find((y) => y.id === mid); if (x) x.chat_alerts = !!on; },
     async listChat(_d, iid) {
@@ -522,4 +528,69 @@ export function createDemoApi() {
     async notify() {},
   };
   return api;
+}
+
+// Made-up numbers for previewing the owner's console in demo mode (/?demo then sessionStorage fgb_demo_admin=1).
+function demoAdmin() {
+  const day = 86400000;
+  const iso = (d) => new Date(Date.now() - d * day).toISOString();
+  const depts = [
+    ["Combermere VFD", "paying", "month", 79.92, 8, 2, "chief@combermere.ca", 41],
+    ["Madawaska Valley Fire", "paying", "year", 1299.87, 13, 0.3, "fd@madawaskavalley.ca", 30],
+    ["Killaloe Hagarty Richards FD", "plan_set", "month", 59.94, 6, 5, "kfd@khr.ca", 6],
+    ["Bonnechere Valley FD", "trial", null, null, 4, 1, "bvfd@bonnechere.ca", 5],
+    ["Brudenell Lyndoch Raglan FD", "trial", null, null, 2, 3, "chief@blr.ca", 2],
+    ["North Algona Wilberforce FD", "expired", null, null, 3, 12, "nawfd@nalgona.ca", 9],
+    ["Arnprior Fire", "overdue", "month", 139.86, 14, 1, "fire@arnprior.ca", 45],
+  ].map(([name, stage, interval, amount, seats, seen, email, age], i) => ({
+    id: `adm-${i}`, name, stage, plan_interval: interval, plan_amount: amount, seat_count: seats, owner_email: email,
+    subscription_status: { paying: "active", plan_set: "trialing", trial: "none", expired: "none", overdue: "past_due" }[stage],
+    mrr: amount == null ? 0 : interval === "year" ? Math.round((amount / 12) * 100) / 100 : amount,
+    created_at: iso(age), trial_ends_at: iso(age - 7), last_seen: iso(seen), last_incident: iso(seen + 1), incidents_30d: 3 + i * 2, roster: seats + 4,
+    stripe_customer_id: amount ? `cus_demo${i}` : null, stripe_subscription_id: amount ? `sub_demo${i}` : null, plan_custom: false, plan_invoice: i === 1, plan_cancel_at: null,
+  }));
+  const ev = [
+    [0.02, "quote", "Quote request: Renfrew County", "Stations: 17, people: 410. Budget timing: January.", null],
+    [0.1, "payment", "Payment received: Combermere VFD", "$79.92 CAD by card", 79.92],
+    [0.4, "signup", "New sign-up", "captain@bonnechere.ca", null],
+    [0.5, "member_joined", "Sam Riopelle joined Bonnechere Valley FD", null, null],
+    [1, "past_due", "Payment overdue: Arnprior Fire", "The last payment did not go through. The board keeps working for 14 days.", null],
+    [1.2, "trial_ending", "Trial ends tomorrow: Bonnechere Valley FD", "4 people use the app. A quick call could close it.", null],
+    [2, "department", "New department: Brudenell Lyndoch Raglan FD", "chief@blr.ca. Free trial ends Nov 16.", null],
+    [5, "plan", "Plan chosen: Killaloe Hagarty Richards FD", "Billing starts when the trial ends. $59.94 a month", 59.94],
+    [9, "trial_ended", "Trial ended with no plan: North Algona Wilberforce FD", "3 people use the app. Worth a follow-up.", null],
+    [12, "payment", "Payment received: Madawaska Valley Fire", "$1,299.87 CAD by invoice", 1299.87],
+  ].map(([d, kind, title, detail, amount], i) => ({ id: 100 - i, at: iso(d), kind, title, detail, amount, dept_id: null, meta: {} }));
+  const weeks = Array.from({ length: 12 }, (_, i) => ({ week: iso((11 - i) * 7).slice(0, 10), users: [2, 3, 1, 6, 4, 9, 7, 12, 8, 15, 11, 14][i], departments: [0, 1, 0, 1, 1, 0, 2, 1, 0, 1, 2, 1][i], incidents: [3, 5, 4, 9, 7, 11, 14, 12, 18, 16, 21, 24][i] }));
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: iso((11 - i) * 30).slice(0, 7), collected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 79.92, 1379.79, 219.78][i] }));
+  return {
+    async adminOverview() {
+      return { mrr: 327.10, mrr_pending: 59.94, collected_30d: 1599.57, collected_all: 1679.49, departments: depts.length,
+        stages: { paying: 2, overdue: 1, plan_set: 1, trial: 2, expired: 1 }, users: 64, users_new_7d: 14, users_active_7d: 41, seats: 50,
+        incidents_7d: 24, incidents_30d: 79, incidents_active: 1, incidents_from_dispatch_30d: 31, messages_7d: 212, phones: 38, weeks, months,
+        attention: [
+          { dept_id: null, name: "Quote request: Renfrew County", why: "quote", at: iso(0.02) },
+          { dept_id: "adm-6", name: "Arnprior Fire", why: "overdue", at: iso(1) },
+          { dept_id: "adm-3", name: "Bonnechere Valley FD", why: "trial_ending", at: iso(-1) },
+          { dept_id: "adm-5", name: "North Algona Wilberforce FD", why: "trial_ended", at: iso(9) },
+        ] };
+    },
+    async adminDepartments(q) { return depts.filter((d) => !q || d.name.toLowerCase().includes(q.toLowerCase()) || d.owner_email.includes(q)); },
+    async adminDepartment(id) {
+      const d = depts.find((x) => x.id === id) || depts[0];
+      return { dept: { ...d, current_period_end: iso(-20), invite_code: "ABC123" },
+        members: [{ name: "Chief Owner", rank: "Chief", role: "owner", email: d.owner_email, last_seen: d.last_seen, joined: d.created_at }, { name: "Tess MacDonald", rank: "Lieutenant", role: "officer", email: "tess@example.ca", last_seen: iso(3), joined: d.created_at }],
+        incidents: [{ name: "Structure fire", address: "142 Mill St", status: "closed", source: "email", started_at: iso(2), closed_at: iso(1.9) }],
+        events: ev.slice(1, 4), usage: { incidents_total: 37, messages_30d: 88, training_sessions: 6, equipment: 41, phones: 9, group_chat: true, dispatch_30d: 12 } };
+    },
+    async adminEvents(before, kind) { return ev.filter((e) => (!kind || e.kind === kind) && (!before || e.id < before)); },
+    async adminUsers(q) {
+      return depts.map((d, i) => ({ id: `u${i}`, email: d.owner_email, created_at: d.created_at, last_sign_in_at: d.last_seen, has_iphone: i % 2 === 0,
+        departments: [{ dept_id: d.id, name: d.name, role: "owner", member: "Chief" }] })).filter((u) => !q || u.email.includes(q));
+    },
+    async adminExtendTrial(_id, days) { return new Date(Date.now() + days * day).toISOString(); },
+    async adminSettings() { return { alerts: ["signup", "department", "plan", "payment", "past_due", "canceled", "cancel_scheduled", "quote", "trial_ending", "trial_ended", "error", "test"], phones: 1 }; },
+    async adminSetAlerts() {},
+    async adminTestAlert() {},
+  };
 }

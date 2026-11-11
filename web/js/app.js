@@ -9,6 +9,7 @@ import { startPush, stopPush, pushState, askForPush } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 import { connectionsView } from "./connections.js";
 import { mountChat, lastSeen } from "./chat.js";
+import { adminView } from "./admin.js";
 import { bestDirections, addressPicker } from "./maps.js";
 import { getLocale, getLang, setLang, LANGS, startTranslating, t } from "./i18n.js";
 
@@ -105,7 +106,9 @@ async function afterSignIn() {
     localStorage.setItem("fgb_dept", already.dept.id);
     clearJoinCode();
   }
+  S.isAdmin = await S.api.isPlatformAdmin().catch(() => false);
   if (!S.api.isDemo) {
+    S.api.sweepAlerts(); // sends any waiting owner's alerts (new sign-ups and the like)
     S.api.setLanguage(S.user.id, getLang()).catch(() => {});
     S.api.setBeforeSignOut(stopPush);
     startPush({
@@ -113,9 +116,13 @@ async function afterSignIn() {
       remove: (t) => S.api.unregisterPushDevice(t),
       openIncident: (id) => go(`#/incident/${id}`),
       openChat: (incidentId) => go(incidentId ? `#/incident/${incidentId}?chat=1` : "#/chat"),
+      openAdmin: () => go("#/admin"),
     });
   }
-  if (!S.memberships.length) return renderOnboarding();
+  if (!S.memberships.length) {
+    if (S.isAdmin && location.hash.startsWith("#/admin")) { cleanup = adminView(root); return; }
+    return renderOnboarding();
+  }
   const saved = localStorage.getItem("fgb_dept");
   const pick = S.memberships.find((m) => m.dept.id === saved) || S.memberships[0];
   setDept(pick);
@@ -180,6 +187,14 @@ export async function refreshDept() {
 // Router
 // ============================================================
 function route() {
+  // A sheet left open shouldn't follow you to another screen.
+  document.querySelectorAll(".overlay [data-close]").forEach((b) => b.click());
+  if (S.user && S.isAdmin && (location.hash || "").startsWith("#/admin")) {
+    if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
+    window.scrollTo(0, 0);
+    cleanup = adminView(root);
+    return;
+  }
   if (!S.user || !S.dept) return;
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   window.scrollTo(0, 0);
@@ -283,6 +298,8 @@ export function bottomNav(active) {
   ];
   const dot = planNeedsAttention();
   const chatDot = active !== "chat" && chatUnread();
+  // Admin (MKE Group only) shows in the side menu on a computer, and under Me on a phone.
+  const side = S.isAdmin ? [...items, ["#/admin", "admin", "wrench", "Admin"]] : items;
   const item = ([href, key, ic, label]) => `<a href="${href}" data-nav="${key}" class="${active === key ? "on" : ""}" ${active === key ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span>${(key === "plan" && dot) || (key === "chat" && chatDot) ? `<i class="nav-dot" aria-label="${key === "chat" ? "New messages" : "Needs attention"}"></i>` : ""}</a>`;
   const d = S.dept;
   const many = S.memberships.length > 1;
@@ -290,7 +307,7 @@ export function bottomNav(active) {
   <aside class="sidenav no-print" aria-label="Main">
     <a href="#/" class="sidenav-logo" aria-label="Fire Ground Board home">${logo()}</a>
     ${d ? `<${many ? 'button data-global="switch"' : "div"} class="sidenav-dept"><span class="grow"><b>${esc(d.name)}</b><small>${esc(S.me?.rank || "")}${S.me?.role && S.me.role !== "member" ? `, ${S.me.role === "owner" ? "owner" : "officer"}` : ""}</small></span>${many ? icon("chev", "sm") : ""}</${many ? "button" : "div"}>` : ""}
-    <nav class="sidenav-links">${items.map(item).join("")}</nav>
+    <nav class="sidenav-links">${side.map(item).join("")}</nav>
     <div class="sidenav-foot">${S.api?.isDemo ? '<button class="btn sm block" data-act="exit-demo">Exit demo</button>' : `<span class="faint small">Signed in as ${esc(S.user?.email || "")}</span>`}</div>
   </aside>`;
 }
@@ -1321,21 +1338,29 @@ function planView() {
     const PROV = ["ON", "QC", "NS", "NB", "MB", "SK", "AB", "BC", "PE", "NL", "YT", "NT", "NU", "Outside Canada"];
     openSheet({
       title: "Get a quote",
-      body: `<p class="muted small" style="margin-bottom:14px">For counties, regional services and big departments. Fill this in and your email app opens with it ready to send. We reply within one business day.</p>
+      body: `<p class="muted small" style="margin-bottom:14px">For counties, regional services and big departments. Tell us about your service and we reply within one business day.</p>
         ${field("Service or department", input("org", S.dept.name))}
         <div class="grid2">${field("Stations", input("stations", "", 'inputmode="numeric" placeholder="e.g. 6"'))}${field("People", input("people", String(S.dept.seat_count || ""), 'inputmode="numeric"'))}</div>
         <div class="grid2">${field("Your name", input("name", S.me?.name || ""))}${field("Province", select("province", PROV, "ON"))}</div>
         ${field("Phone", input("phone", S.me?.phone || "", 'type="tel" inputmode="tel" placeholder="Optional"'))}
         ${field("Anything else", textarea("notes", "", 'placeholder="Budget timing, how you pay, what you use now"'))}`,
-      submitLabel: "Open my email to send",
-      onSubmit: (form) => {
+      submitLabel: "Send request",
+      errorText: friendlyError,
+      onSubmit: async (form) => {
         const f = formData(form);
         if (!f.org) throw new Error("Enter your service or department.");
         const lines = [
           `Service: ${f.org}`, `Stations: ${f.stations || "-"}`, `People: ${f.people || "-"}`, `Province: ${f.province}`,
-          `Contact: ${f.name || "-"}, ${f.phone || "no phone"}, ${S.user.email || ""}`, "", f.notes || "", "", `Fire Ground department id: ${S.dept.id}`,
-        ];
-        location.href = `mailto:${CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(`Fire Ground quote: ${f.org}`)}&body=${encodeURIComponent(lines.join("\n"))}`;
+          `Contact: ${f.name || "-"}, ${f.phone || "no phone"}, ${S.user.email || ""}`, f.notes ? `Notes: ${f.notes}` : "",
+        ].filter(Boolean);
+        if (S.api.isDemo) { toast("Quote requests are turned off in the demo."); return; }
+        try {
+          await S.api.requestQuote(S.dept.id, lines.join("\n"));
+          toast("Sent. We'll get back to you within one business day.");
+        } catch {
+          // If it can't be sent from here, fall back to the email app.
+          location.href = `mailto:${CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(`Fire Ground quote: ${f.org}`)}&body=${encodeURIComponent(lines.join("\n"))}`;
+        }
       },
     });
   }
@@ -1431,6 +1456,8 @@ function meView() {
           <p class="hint">You always get an alert when someone @mentions you.</p>` : ""}
         </div>
       </section>
+
+      ${S.isAdmin ? `<a class="list section row admin-link" href="#/admin">${icon("wrench")}<div class="grow"><div class="title">Admin</div><div class="meta">Money, sign-ups, departments and alerts. Only you see this.</div></div><span class="chev">${icon("chev", "sm")}</span></a>` : ""}
 
       <div class="list section">
         <button class="row" data-act="profile"><div class="grow"><div class="title">Certifications, medical, emergency contact</div><div class="meta">Officers can see these on a call</div></div><span class="chev">${icon("chev", "sm")}</span></button>

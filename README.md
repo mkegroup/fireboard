@@ -13,6 +13,7 @@ web/                 The app. Plain HTML, CSS and JS. No build step.
   js/board.js        Incident board, PAR, map
   js/chat.js         Station chat and incident chat: photos, voice notes, reactions, replies, mentions
   js/maps.js         Google Maps, address suggestions, directions
+  js/admin.js        Owner's console for MKE Group: revenue, sign-ups, departments, alerts
   js/records.js      Roster, training, equipment
   js/app.js          Sign in, routing, home, department, profile
 supabase/

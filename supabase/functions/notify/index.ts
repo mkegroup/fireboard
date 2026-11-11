@@ -11,6 +11,7 @@
 import { adminClient, corsHeaders, getUser, json, lockedCors, membership } from "../_shared/util.ts";
 import { sendChatPush, sendIncidentPush } from "../_shared/push.ts";
 import { postToChat } from "../_shared/chat.ts";
+import { logError, sweepAdminEvents } from "../_shared/admin.ts";
 
 Deno.serve(lockedCors(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -19,6 +20,8 @@ Deno.serve(lockedCors(async (req) => {
     const user = await getUser(req);
     if (!user) return json({ error: "Not signed in" }, 401);
     const { kind, incident_id, personnel_id, dept_id, message_id } = await req.json().catch(() => ({}));
+    // Sends any owner's-console alerts that are waiting (new sign-ups, departments, quote requests).
+    if (kind === "sweep") return json(await sweepAdminEvents(adminClient()));
     if (kind === "chat" && typeof message_id === "string") {
       const admin = adminClient();
       const { data: msg } = await admin.from("incident_messages").select("*").eq("id", message_id).maybeSingle();
@@ -65,6 +68,7 @@ Deno.serve(lockedCors(async (req) => {
     return json(r);
   } catch (e) {
     console.error("notify error", e);
+    await logError(adminClient(), "alerts", e);
     return json({ error: "Could not send alert" }, 500);
   }
 }));

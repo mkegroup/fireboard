@@ -3,6 +3,7 @@ import Stripe from "npm:stripe@17";
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, env } from "../_shared/util.ts";
 import { standardPrices } from "../_shared/seats.ts";
+import { logError, logEvent, sweepAdminEvents } from "../_shared/admin.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 const crypto = Stripe.createSubtleCryptoProvider();
@@ -89,6 +90,27 @@ Deno.serve(async (req) => {
         }
         break;
       }
+      case "invoice.paid":
+      case "invoice.payment_failed": {
+        // For the owner's console: money in, and money that didn't come in.
+        const inv = event.data.object as Stripe.Invoice;
+        const customer = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+        const paid = event.type === "invoice.paid";
+        const cents = paid ? inv.amount_paid : inv.amount_due;
+        if (!customer || !cents) break; // $0 trial invoices aren't news
+        const admin = adminClient();
+        const { data: d } = await admin.from("departments").select("id, name").eq("stripe_customer_id", customer).maybeSingle();
+        const { data: dup } = await admin.from("platform_events").select("id").eq("kind", paid ? "payment" : "payment_failed").contains("meta", { invoice: inv.id }).limit(1);
+        if (dup?.length) break; // Stripe sometimes sends the same event twice
+        const amount = cents / 100;
+        await logEvent(admin, {
+          kind: paid ? "payment" : "payment_failed",
+          title: `${paid ? "Payment received" : "Payment failed"}: ${d?.name ?? inv.customer_name ?? inv.customer_email ?? "unknown customer"}`,
+          detail: `$${amount.toFixed(2)} ${(inv.currency ?? "cad").toUpperCase()}${inv.collection_method === "send_invoice" ? " by invoice" : " by card"}`,
+          dept_id: d?.id ?? null, amount: paid ? amount : null, meta: { invoice: inv.id }, notify: paid,
+        });
+        break;
+      }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
@@ -101,7 +123,10 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.error("webhook handling failed", event.type, e);
+    await logError(adminClient(), `Stripe webhook (${event.type})`, e);
+    await sweepAdminEvents(adminClient());
     return new Response("error", { status: 500 }); // Stripe will retry
   }
+  await sweepAdminEvents(adminClient());
   return new Response(JSON.stringify({ received: true }), { headers: { "Content-Type": "application/json" } });
 });

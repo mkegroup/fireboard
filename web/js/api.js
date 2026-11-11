@@ -145,6 +145,29 @@ export function createApi() {
       mustRows(await sb.from("members").update({ chat_alerts: !!on }).eq("id", memberId).select("id"));
     },
 
+    // ---------------- owner's console (MKE Group only) ----------------
+    async isPlatformAdmin() {
+      const { data, error } = await sb.rpc("is_platform_admin");
+      return !error && data === true;
+    },
+    async adminOverview() { return must(await sb.rpc("admin_overview")); },
+    async adminDepartments(search) { return must(await sb.rpc("admin_departments", { p_search: search || null })); },
+    async adminDepartment(id) { return must(await sb.rpc("admin_department", { p_id: id })); },
+    async adminEvents(before, kind) { return must(await sb.rpc("admin_events", { p_before: before || null, p_kind: kind || null })); },
+    async adminUsers(search) { return must(await sb.rpc("admin_users", { p_search: search || null })); },
+    async adminExtendTrial(deptId, days) { return must(await sb.rpc("admin_extend_trial", { p_dept: deptId, p_days: days })); },
+    async adminSettings() { return must(await sb.rpc("admin_settings")); },
+    async adminSetAlerts(alerts) { must(await sb.rpc("admin_set_alerts", { p_alerts: alerts })); },
+    async adminTestAlert() { must(await sb.rpc("admin_test_alert")); await api.sweepAlerts(); },
+    /** Sends any waiting owner's-console alerts. Never throws. */
+    sweepAlerts() {
+      return sb.functions.invoke("notify", { body: { kind: "sweep" } }).then((r) => r.data).catch(() => null);
+    },
+    async requestQuote(deptId, details) {
+      must(await sb.rpc("request_quote", { p_dept: deptId, p_details: details }));
+      api.sweepAlerts();
+    },
+
     // ---------------- chat ----------------
     // Station chat has no incident. Each incident has its own chat.
     async listChat(deptId, incidentId) {

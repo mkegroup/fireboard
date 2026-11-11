@@ -177,6 +177,8 @@ Check it worked: in Supabase, **Table Editor** should show `departments`, `membe
    - `customer.subscription.deleted`
    - `customer.subscription.paused`
    - `customer.subscription.resumed`
+   - `invoice.paid` (payment alerts in Admin)
+   - `invoice.payment_failed`
 4. Copy the signing secret (`whsec_...`) and set it:
 
 ```bash
@@ -331,7 +333,21 @@ Nothing to set up. Owners copy the link or tap Add to Google Calendar.
 
 ---
 
-## 14. Languages
+## 14. Admin (your console)
+
+Admin shows money, sign-ups, departments, people and everything that happened, and buzzes your iPhone for the things that matter. Only accounts listed as platform admins can open it.
+
+1. Sign in to fire.mkegroup.ca once with your own email.
+2. Supabase > SQL Editor, run (with your email):
+   `insert into public.platform_admins(user_id) select id from auth.users where email = 'you@example.com';`
+3. Reload. Admin shows under Me (phone) and in the side menu (computer).
+4. Sign in to the iPhone app with the same email and allow alerts. Admin > Alerts > Send a test alert.
+
+Optional: add the Supabase secret `ADMIN_WEBHOOK_URL` with a Slack or Discord webhook to get the same alerts in a channel.
+
+---
+
+## 15. Languages
 
 The app comes in English, French and Spanish. It picks the phone's language, and anyone can change it under Me > Language. Push alerts follow each person's choice.
 

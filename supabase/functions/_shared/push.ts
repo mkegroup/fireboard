@@ -132,9 +132,9 @@ export async function sendIncidentPush(
   return { ...p, chat: c };
 }
 
-async function pushTo(
+export async function pushTo(
   admin: SupabaseClient,
-  deptId: string,
+  deptId: string | null,
   users: string[],
   payloadFor: (l: Lang) => Record<string, unknown>,
   opts: { collapse: string; ttl: number; quiet?: boolean },
@@ -149,7 +149,7 @@ async function pushTo(
     const chunk = users.slice(i, i + 200);
     const [{ data: d }, { data: m }] = await Promise.all([
       admin.from("push_devices").select("token, user_id").in("user_id", chunk),
-      admin.from("members").select("user_id, lang").eq("dept_id", deptId).in("user_id", chunk),
+      deptId ? admin.from("members").select("user_id, lang").eq("dept_id", deptId).in("user_id", chunk) : Promise.resolve({ data: [] as { user_id: string; lang: string | null }[] }),
     ]);
     devices.push(...(d ?? []));
     for (const r of m ?? []) if (r.lang && r.lang in WORDS) langOf.set(r.user_id, r.lang as Lang);

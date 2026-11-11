@@ -366,4 +366,43 @@ select t_fail($$select public.delete_chat_message((select v::uuid from ids where
 reset role;
 select t_eq((select chat_alerts from members where user_id='00000000-0000-0000-0000-00000000000e'), false, 'chat alerts turned off');
 
+-- ---------- Owner's console ----------
+reset role;
+select t_eq((select count(*) from platform_events where kind = 'signup')::int >= 3, true, 'sign-ups recorded');
+select t_eq((select count(*) from platform_events where kind = 'department' and notify)::int, 2, 'new departments recorded for alerts');
+select t_eq((select count(*) from platform_events where kind = 'member_joined')::int >= 2, true, 'joins recorded');
+select t_eq((select count(*) from platform_events where kind = 'plan' and title like 'Paying customer%')::int >= 1, true, 'plan going active recorded');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select t_eq(public.is_platform_admin(), false, 'department owner is not a platform admin');
+select t_fail($$select public.admin_overview()$$, 'admins only');
+select t_fail($$select public.admin_departments(null)$$, 'admins only');
+select t_fail($$select public.admin_users(null)$$, 'admins only');
+select t_fail($$select public.admin_extend_trial((select v::uuid from ids where k='deptA'), 30)$$, 'admins only');
+select t_fail($$select * from platform_events$$, 'permission denied');
+select t_fail($$select * from platform_admins$$, 'permission denied');
+select t_fail($$select public.log_platform_event('payment', 'fake', null, null, null, 999, '{}'::jsonb, true)$$, 'permission denied');
+select public.request_quote((select v::uuid from ids where k='deptA'), 'Stations: 6, people: 120');
+reset role;
+select t_eq((select count(*) from platform_events where kind = 'quote' and notify)::int, 1, 'quote request recorded for alerts');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select t_fail($$select public.request_quote((select v::uuid from ids where k='deptA'), 'x')$$, 'not a member');
+reset role;
+insert into platform_admins(user_id) values ('00000000-0000-0000-0000-00000000000b');
+insert into platform_events(kind, title, amount, dept_id) values ('payment', 'Payment received', 99.99, (select v::uuid from ids where k='deptA'));
+set role authenticated;
+select t_eq(public.is_platform_admin(), true, 'admin recognized');
+select t_eq((public.admin_overview()->>'departments')::int, 2, 'admin sees every department');
+select t_eq((public.admin_overview()->>'collected_30d')::numeric, 99.99, 'payments add up');
+select t_eq(jsonb_array_length(public.admin_overview()->'weeks'), 12, '12 weeks of history');
+select t_eq(jsonb_array_length(public.admin_departments('combermere')), 1, 'department search');
+select t_eq(public.admin_department((select v::uuid from ids where k='deptA'))->'dept'->>'name', 'Combermere FD', 'department detail');
+select t_eq(jsonb_array_length(public.admin_users('alice')), 1, 'user search');
+select t_eq(public.admin_events(null, 'quote')->0->>'kind', 'quote', 'activity filter');
+select t_eq(public.admin_extend_trial((select v::uuid from ids where k='deptB'), 30) > now() + interval '29 days', true, 'admin extends a trial');
+select public.admin_set_alerts(array['payment','quote']);
+select t_eq(jsonb_array_length(public.admin_settings()->'alerts'), 2, 'alert choices saved');
+reset role;
+
 \echo ALL_TESTS_PASSED

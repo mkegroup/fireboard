@@ -10,6 +10,7 @@
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, appUrl as cleanAppUrl, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
 import { billedSeats, syncSeats } from "../_shared/seats.ts";
+import { logError } from "../_shared/admin.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 
@@ -162,6 +163,7 @@ Deno.serve(lockedCors(async (req) => {
     return json({ url: session.url });
   } catch (e) {
     console.error("billing error", e);
+    await logError(adminClient(), "billing", e);
     const err = e as { type?: string; message?: string };
     const msg = err?.type === "StripeInvalidRequestError" && err.message ? err.message : "Billing error. Please try again.";
     return json({ error: msg }, 500);
