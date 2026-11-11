@@ -22,10 +22,10 @@ export const CONFIG = {
   // Empty until inbound email is set up (see SETUP.md, "Dispatch email").
   INBOX_DOMAIN: "",
 
-  // Maps (streets and satellite) and address lookup. Public key from
-  // cloud.maptiler.com, restricted to your app's address. Filled in by the
-  // deploy from the GitHub variable MAPTILER_KEY.
-  MAPTILER_KEY: "",
+  // Google Maps (map, satellite, address lookup). Browser key from Google Cloud,
+  // restricted to your site. Filled in by the deploy from the GitHub variable
+  // GOOGLE_MAPS_KEY, and by Codemagic for the iPhone app.
+  GOOGLE_MAPS_KEY: "",
 };
 
 export const IS_NATIVE = typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.();

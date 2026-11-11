@@ -1,6 +1,6 @@
 // The incident board: live accountability for one incident.
 import { t } from "./i18n.js";
-import { baseLayers, geocode, directions } from "./maps.js";
+import { createMap, geocode, directions } from "./maps.js";
 import { CONFIG } from "./config.js";
 import { S, STATUSES, STATUS_HELP, STATUS_SHORT, APP_STATUSES, APP_KINDS, MA_STATUSES, RANKS, CREWS, isOfficer, hasAccess } from "./state.js";
 import { esc, initials, colorFor, clock, dateTime, elapsed, stopwatch, ago, formData, download, slug, copyText, vibrate, friendlyError, debounce, alertTone, keepAwake, setTheme } from "./util.js";
@@ -20,8 +20,6 @@ export function boardView(root, incidentId) {
   let filter = null;
   let alive = true;
   let map = null;
-  let markers = {};
-  let incMarker = null;
   let geoTried = "";
   let watchId = null;
   let chatOpen = false;
@@ -144,7 +142,7 @@ export function boardView(root, incidentId) {
 
   function paintBody() {
     const body = root.querySelector("#b-body");
-    if (tab !== "map" && map) { map.remove(); map = null; markers = {}; }
+    if (tab !== "map" && map) { if (map !== "loading") map.destroy(); map = null; }
     if (tab === "crew") body.innerHTML = crewHtml();
     else if (tab === "units") body.innerHTML = unitsHtml();
     else if (tab === "log") body.innerHTML = active() ? logHtml() : reportHtml();
@@ -280,25 +278,23 @@ export function boardView(root, incidentId) {
         ${dir ? `<div class="btn-row map-dir"><a class="btn sm" href="${esc(dir.apple)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Apple Maps</a><a class="btn sm" href="${esc(dir.google)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Google Maps</a></div>` : ""}
         <div id="map" role="application" aria-label="Map of crew positions"></div>
         <div id="map-list" class="section"></div>`;
-      if (!window.L) { body.querySelector("#map").innerHTML = '<p class="muted" style="padding:20px">Map could not load.</p>'; return; }
-      map = window.L.map("map", { zoomControl: true, attributionControl: true }).setView([45.5, -77.5], 13);
-      const layers = baseLayers(window.L);
-      const names = Object.keys(layers);
-      let pick = names[0];
-      try { const saved = localStorage.getItem("fgb_map_layer"); if (saved && layers[saved]) pick = saved; } catch { /* private mode */ }
-      layers[pick].addTo(map);
-      if (names.length > 1) {
-        const labelled = Object.fromEntries(names.map((n) => [t(n), layers[n]]));
-        window.L.control.layers(labelled, null, { position: "topright", collapsed: false }).addTo(map);
-        map.on("baselayerchange", (e) => { const n = names.find((x) => layers[x] === e.layer); try { localStorage.setItem("fgb_map_layer", n); } catch { /* private mode */ } });
-      }
-      setTimeout(() => map && map.invalidateSize(), 60);
-      markers = {};
-      incMarker = null;
-      updateMarkers(true);
-      placeIncident(true);
+      const el = body.querySelector("#map");
+      map = "loading";
+      geoTried = "";
+      createMap(el).then((m) => {
+        // The person may have left the map tab while it loaded.
+        if (!alive || map !== "loading" || !document.body.contains(el)) { m.destroy(); return; }
+        map = m;
+        updateMarkers(true);
+        placeIncident(true);
+      }).catch(() => {
+        if (map === "loading") map = null;
+        el.innerHTML = `<p class="muted" style="padding:20px">${t("Map could not load.")}</p>`;
+      });
+      updateMarkers(false);
     } else {
       updateMarkers(false);
+      placeIncident(false);
       const btn = body.querySelector('[data-act="share-loc"]');
       if (btn) {
         const sharing = watchId !== null;
@@ -308,55 +304,45 @@ export function boardView(root, incidentId) {
     }
   }
 
+  const mapReady = () => map && map !== "loading";
+
   /** Red pin where the incident is: from dispatch coordinates, or found from the address. */
   async function placeIncident(fit) {
-    if (!map) return;
+    if (!mapReady()) return;
     const inc = st.incident;
     let pt = typeof inc.lat === "number" && typeof inc.lng === "number" ? [inc.lat, inc.lng] : null;
     if (!pt && inc.address && geoTried !== inc.address) {
       geoTried = inc.address;
       pt = await geocode(inc.address);
-      if (pt && map) {
+      if (pt) {
         st.incident.lat = pt[0];
         st.incident.lng = pt[1];
         // Save it so nobody else has to look it up. Only officers can.
         if (officer()) S.api.updateIncident(incidentId, { lat: pt[0], lng: pt[1] }).catch(() => {});
       }
     }
-    if (!pt || !map) return;
-    const L = window.L;
-    const ic = L.divIcon({ html: `<div class="map-pin inc">${icon("flame", "sm")}</div>`, className: "", iconSize: [38, 38], iconAnchor: [19, 19] });
-    if (incMarker) incMarker.setLatLng(pt);
-    else incMarker = L.marker(pt, { icon: ic, zIndexOffset: 1000 }).addTo(map).bindPopup(`<b>${esc(inc.name)}</b>${inc.address ? `<br>${esc(inc.address)}` : ""}`);
-    if (fit) {
-      const pts = [pt, ...st.locations.map((l) => [l.lat, l.lng])];
-      if (pts.length === 1) map.setView(pt, 16);
-      else map.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
-    }
+    if (!mapReady()) return;
+    if (!pt) { map.remove("__incident"); return; }
+    map.upsert("__incident", { pt, kind: "incident", popup: `<b>${esc(inc.name)}</b>${inc.address ? `<br>${esc(inc.address)}` : ""}` });
+    if (fit) map.fit([pt, ...st.locations.map((l) => [l.lat, l.lng])]);
   }
 
   function updateMarkers(fit) {
-    if (!map) return;
-    const L = window.L;
-    const seen = new Set();
-    for (const loc of st.locations) {
-      const p = st.personnel.find((x) => x.user_id === loc.user_id);
-      const color = p ? `var(${STATUS_VAR[p.status]})` : "#9aa3b0";
-      const html = `<div class="map-pin" style="background:${color}">${esc(initials(loc.name))}</div>`;
-      const ic = L.divIcon({ html, className: "", iconSize: [34, 34], iconAnchor: [17, 17] });
-      const popup = `<b>${esc(loc.name)}</b><br>${esc(p?.status || "Not on board")}<br><span style="color:#9aa3b0">${ago(loc.updated_at)}${loc.accuracy ? `, within ${Math.round(loc.accuracy)} m` : ""}</span>`;
-      seen.add(loc.user_id);
-      if (markers[loc.user_id]) {
-        markers[loc.user_id].setLatLng([loc.lat, loc.lng]).setIcon(ic).setPopupContent(popup);
-      } else {
-        markers[loc.user_id] = L.marker([loc.lat, loc.lng], { icon: ic }).addTo(map).bindPopup(popup);
+    const seen = new Set(["__incident"]);
+    if (mapReady()) {
+      for (const loc of st.locations) {
+        const p = st.personnel.find((x) => x.user_id === loc.user_id);
+        seen.add(loc.user_id);
+        map.upsert(loc.user_id, {
+          pt: [loc.lat, loc.lng],
+          kind: "person",
+          color: p ? `var(${STATUS_VAR[p.status]})` : "#9aa3b0",
+          label: initials(loc.name),
+          popup: `<b>${esc(loc.name)}</b><br>${esc(t(p?.status || "Not on board"))}<br><span style="color:#667">${esc(ago(loc.updated_at))}${loc.accuracy ? `, ±${Math.round(loc.accuracy)} m` : ""}</span>`,
+        });
       }
-    }
-    Object.keys(markers).forEach((k) => { if (!seen.has(k)) { map.removeLayer(markers[k]); delete markers[k]; } });
-    if (fit) {
-      const pts = st.locations.map((l) => [l.lat, l.lng]);
-      if (pts.length === 1) map.setView(pts[0], 16);
-      else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
+      map.ids().forEach((k) => { if (!seen.has(k)) map.remove(k); });
+      if (fit && st.locations.length && !(typeof st.incident.lat === "number")) map.fit(st.locations.map((l) => [l.lat, l.lng]));
     }
     const list = root.querySelector("#map-list");
     if (list) {
@@ -388,7 +374,7 @@ export function boardView(root, incidentId) {
       (pos) => {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         S.api.shareLocation(incidentId, { lat, lng, accuracy }).catch((e) => toast(friendlyError(e), true));
-        if (first && map) { map.setView([lat, lng], 17); first = false; }
+        if (first && mapReady()) { map.setView([lat, lng], 17); first = false; }
       },
       (err) => {
         if (watchId !== null) navigator.geolocation.clearWatch(watchId);
@@ -715,7 +701,7 @@ export function boardView(root, incidentId) {
         if (!f.name) throw new Error("Name can't be empty.");
         const moved = (f.address || null) !== (st.incident.address || null);
         await S.api.updateIncident(incidentId, { name: f.name, address: f.address || null, call_type: f.call_type || null, ...(moved ? { lat: null, lng: null } : {}) });
-        if (moved && incMarker && map) { map.removeLayer(incMarker); incMarker = null; geoTried = ""; }
+        if (moved) { st.incident.lat = null; st.incident.lng = null; geoTried = ""; if (mapReady()) map.remove("__incident"); }
         reload();
       },
     }),
@@ -776,7 +762,7 @@ export function boardView(root, incidentId) {
       onSubmit: async (form) => { const { message } = formData(form); if (!message) throw new Error("Write something first."); await S.api.logNote(incidentId, message); },
     }),
     "share-loc": toggleLocation,
-    fly: (b) => { const m = markers[b.dataset.uid]; if (m && map) { map.setView(m.getLatLng(), 18); m.openPopup(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+    fly: (b) => { if (mapReady()) { map.focus(b.dataset.uid, 18); window.scrollTo({ top: 0, behavior: "smooth" }); } },
     download: () => handlers.download(),
     print: () => window.print(),
   });
@@ -853,7 +839,8 @@ export function boardView(root, incidentId) {
     document.removeEventListener("visibilitychange", onVis);
     window.removeEventListener("online", onOnline);
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); S.api.stopLocation(incidentId, S.user.id).catch(() => {}); }
-    if (map) map.remove();
+    if (mapReady()) map.destroy();
+    map = null;
     document.getElementById("chat-drawer")?.remove();
     document.getElementById("b-fab")?.remove();
   };

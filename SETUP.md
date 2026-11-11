@@ -200,12 +200,16 @@ Every push that changes `web/` redeploys automatically. The service worker cache
 
 ## 7. Maps
 
-Maps use MapTiler (streets and satellite) and address lookup for the incident pin. Directions open in Apple Maps or Google Maps.
+The map uses Google Maps (map and satellite) and finds the incident pin from its address. Directions open in Apple Maps or Google Maps. Google gives 10,000 free map loads and 10,000 free address lookups a month, then charges per use. A billing account is required.
 
-1. Sign up at cloud.maptiler.com (free tier covers early customers).
-2. Account > API keys > copy the default key, or make one. Under Allowed HTTP origins add `fire.mkegroup.ca` and `capacitor://localhost`.
-3. GitHub repo > Settings > Secrets and variables > Actions > Variables > New variable: `MAPTILER_KEY` = the key. Add the same in Codemagic's `fireground` group for the iPhone app.
-4. Re-run the workflow (Actions > Fire Ground Board > Run workflow).
+1. console.cloud.google.com > create a project `Fire Ground Board` > attach a billing account.
+2. APIs & Services > Library: enable **Maps JavaScript API** and **Geocoding API**.
+3. Credentials > Create credentials > API key (the website key):
+   - Application restrictions: Websites. Add `https://fire.mkegroup.ca/*`.
+   - API restrictions: Maps JavaScript API and Geocoding API.
+4. Create a second API key (the iPhone app key). Application restrictions: None (the app's pages aren't on a website address). API restrictions: the same two APIs.
+5. Quotas: for both APIs set a daily cap (for example 2,000 map loads and 2,000 lookups) so a leaked key can't run up a bill. Billing > Budgets: add a $20 budget alert.
+6. GitHub variable `GOOGLE_MAPS_KEY` = the website key. Codemagic `fireground` group `GOOGLE_MAPS_KEY` = the iPhone key.
 
 ---
 
