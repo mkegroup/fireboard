@@ -1,4 +1,5 @@
-// Push alerts sent straight to Apple (APNs). No OneSignal, no Firebase.
+// Push alerts sent straight to Apple (APNs) for the iPhone app, and with Web Push
+// (webpush.ts) to browsers on Android phones and computers. No OneSignal, no Firebase.
 // The iPhone app saves each phone's Apple device token in push_devices,
 // linked to the person who signed in on it.
 //
@@ -8,6 +9,7 @@
 //   APNS_TEAM_ID  your Apple team ID
 // Optional: APNS_BUNDLE_ID (default ca.mkegroup.fireground),
 //           APNS_HOST (default https://api.push.apple.com, used by TestFlight and the App Store)
+import { sendWebPush, webPushConfigured } from "./webpush.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { postToChat } from "./chat.ts";
 
@@ -139,7 +141,9 @@ export async function pushTo(
   payloadFor: (l: Lang) => Record<string, unknown>,
   opts: { collapse: string; ttl: number; quiet?: boolean },
 ): Promise<{ sent: number; reason?: string }> {
-  if (!pushConfigured()) return { sent: 0, reason: "push not configured" };
+  const apple = pushConfigured();
+  const web = webPushConfigured();
+  if (!apple && !web) return { sent: 0, reason: "push not configured" };
   if (!users.length) return { sent: 0, reason: "nobody to alert" };
 
   // Every phone those people are signed in on, and the language each reads.
@@ -148,58 +152,76 @@ export async function pushTo(
   for (let i = 0; i < users.length; i += 200) {
     const chunk = users.slice(i, i + 200);
     const [{ data: d }, { data: m }] = await Promise.all([
-      admin.from("push_devices").select("token, user_id").in("user_id", chunk),
+      apple ? admin.from("push_devices").select("token, user_id").in("user_id", chunk) : Promise.resolve({ data: [] as { token: string; user_id: string }[] }),
       deptId ? admin.from("members").select("user_id, lang").eq("dept_id", deptId).in("user_id", chunk) : Promise.resolve({ data: [] as { user_id: string; lang: string | null }[] }),
     ]);
     devices.push(...(d ?? []));
     for (const r of m ?? []) if (r.lang && r.lang in WORDS) langOf.set(r.user_id, r.lang as Lang);
   }
-  if (!devices.length) return { sent: 0, reason: "no phones with alerts on" };
 
-  const host = (Deno.env.get("APNS_HOST") ?? "https://api.push.apple.com").replace(/\/$/, "");
-  const topic = Deno.env.get("APNS_BUNDLE_ID") ?? "ca.mkegroup.fireground";
-  const keyPem = Deno.env.get("APNS_KEY")!;
-  const keyId = Deno.env.get("APNS_KEY_ID")!.trim();
-  const teamId = Deno.env.get("APNS_TEAM_ID")!.trim();
-  const bodies = new Map<Lang, string>();
-  const bodyFor = (l: Lang) => {
-    if (!bodies.has(l)) bodies.set(l, JSON.stringify(payloadFor(l)));
+  const bodies = new Map<Lang, Record<string, unknown>>();
+  const payload = (l: Lang) => {
+    if (!bodies.has(l)) bodies.set(l, payloadFor(l));
     return bodies.get(l)!;
   };
 
-  const reached = new Set<string>();
-  const dead: string[] = [];
-  const sendOne = async (d: { token: string; user_id: string }, retry = true): Promise<void> => {
-    const res = await fetch(`${host}/3/device/${d.token}`, {
-      method: "POST",
-      headers: {
-        authorization: `bearer ${await appleToken(keyPem, keyId, teamId, !retry)}`,
-        "apns-topic": topic,
-        "apns-push-type": "alert",
-        "apns-priority": opts.quiet ? "5" : "10",
-        "apns-expiration": String(Math.floor(Date.now() / 1000) + opts.ttl),
-        "apns-collapse-id": opts.collapse.slice(0, 64),
-        "content-type": "application/json",
-      },
-      body: bodyFor(langOf.get(d.user_id) ?? "en"),
-    }).catch((e) => { console.error("apns network error", e); return null; });
-    if (!res) return;
-    if (res.ok) { reached.add(d.user_id); await res.body?.cancel(); return; }
-    const reason = ((await res.json().catch(() => ({}))) as { reason?: string }).reason ?? "";
-    if (res.status === 410 || ["BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"].includes(reason)) {
-      dead.push(d.token);
-    } else if (res.status === 403 && reason === "ExpiredProviderToken" && retry) {
-      return sendOne(d, false);
-    } else {
-      console.error("apns error", res.status, reason);
-    }
-  };
+  // Browsers (Android, computers) get the same words.
+  const webReached = web
+    ? sendWebPush(admin, users, (u) => {
+      const p = payload(langOf.get(u) ?? "en") as { aps?: { alert?: { title?: string; subtitle?: string; body?: string } }; kind?: string; incident_id?: string; chat?: string };
+      const al = p.aps?.alert ?? {};
+      return { title: al.title ?? "Fire Ground Board", body: al.subtitle ? `${al.subtitle}: ${al.body ?? ""}` : (al.body ?? ""), kind: p.kind, incident_id: p.incident_id ?? null, chat: p.chat ?? null };
+    }, opts).catch((e) => { console.error("web push failed", e); return new Set<string>(); })
+    : Promise.resolve(new Set<string>());
 
-  // Ten at a time so a big department doesn't open hundreds of connections.
-  for (let i = 0; i < devices.length; i += 10) {
-    await Promise.all(devices.slice(i, i + 10).map((d) => sendOne(d)));
+  const reached = new Set<string>();
+  if (apple && devices.length) {
+    const host = (Deno.env.get("APNS_HOST") ?? "https://api.push.apple.com").replace(/\/$/, "");
+    const topic = Deno.env.get("APNS_BUNDLE_ID") ?? "ca.mkegroup.fireground";
+    const keyPem = Deno.env.get("APNS_KEY")!;
+    const keyId = Deno.env.get("APNS_KEY_ID")!.trim();
+    const teamId = Deno.env.get("APNS_TEAM_ID")!.trim();
+    const strings = new Map<Lang, string>();
+    const bodyFor = (l: Lang) => {
+      if (!strings.has(l)) strings.set(l, JSON.stringify(payload(l)));
+      return strings.get(l)!;
+    };
+
+    const dead: string[] = [];
+    const sendOne = async (d: { token: string; user_id: string }, retry = true): Promise<void> => {
+      const res = await fetch(`${host}/3/device/${d.token}`, {
+        method: "POST",
+        headers: {
+          authorization: `bearer ${await appleToken(keyPem, keyId, teamId, !retry)}`,
+          "apns-topic": topic,
+          "apns-push-type": "alert",
+          "apns-priority": opts.quiet ? "5" : "10",
+          "apns-expiration": String(Math.floor(Date.now() / 1000) + opts.ttl),
+          "apns-collapse-id": opts.collapse.slice(0, 64),
+          "content-type": "application/json",
+        },
+        body: bodyFor(langOf.get(d.user_id) ?? "en"),
+      }).catch((e) => { console.error("apns network error", e); return null; });
+      if (!res) return;
+      if (res.ok) { reached.add(d.user_id); await res.body?.cancel(); return; }
+      const reason = ((await res.json().catch(() => ({}))) as { reason?: string }).reason ?? "";
+      if (res.status === 410 || ["BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"].includes(reason)) {
+        dead.push(d.token);
+      } else if (res.status === 403 && reason === "ExpiredProviderToken" && retry) {
+        return sendOne(d, false);
+      } else {
+        console.error("apns error", res.status, reason);
+      }
+    };
+
+    // Ten at a time so a big department doesn't open hundreds of connections.
+    for (let i = 0; i < devices.length; i += 10) {
+      await Promise.all(devices.slice(i, i + 10).map((d) => sendOne(d)));
+    }
+    if (dead.length) await admin.from("push_devices").delete().in("token", dead);
   }
-  if (dead.length) await admin.from("push_devices").delete().in("token", dead);
+  for (const u of await webReached) reached.add(u);
+  if (!reached.size && !devices.length) return { sent: 0, reason: "no phones with alerts on" };
   return { sent: reached.size };
 }
 

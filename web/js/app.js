@@ -5,7 +5,7 @@ import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, 
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
 import { boardView } from "./board.js";
-import { startPush, stopPush, pushState, askForPush, settleViewport } from "./native.js";
+import { startPush, stopPush, pushState, askForPush, settleViewport, webOk } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 import { connectionsView } from "./connections.js";
 import { mountChat, lastSeen } from "./chat.js";
@@ -31,6 +31,13 @@ document.addEventListener("click", (e) => {
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // Tapping a call alert when the board is already open.
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data?.type === "open" && typeof e.data.url === "string") {
+      const u = new URL(e.data.url, location.href);
+      if (u.origin === location.origin) location.hash = u.hash || "#/";
+    }
+  });
 }
 let cleanup = null;
 let pendingJoinCode = null;
@@ -116,6 +123,8 @@ async function afterSignIn() {
     startPush({
       save: (t) => S.api.registerPushDevice(t),
       remove: (t) => S.api.unregisterPushDevice(t),
+      saveWeb: (sub) => S.api.registerWebPush(sub),
+      removeWeb: (endpoint) => S.api.unregisterWebPush(endpoint),
       openIncident: (id) => go(`#/incident/${id}`),
       openChat: (incidentId) => go(incidentId ? `#/incident/${incidentId}?chat=1` : "#/chat"),
       openAdmin: () => go("#/admin"),
@@ -620,7 +629,7 @@ function homeView() {
 
     const side = [
       ...openTraining.map((t) => `<div class="banner"><div class="grow"><b>${esc(t.title)}</b><br><span class="muted">Attendance is open. Mark yourself present.</span></div><button class="btn sm primary" data-act="attend" data-id="${t.id}">I was there</button></div>`),
-      alertsCard(push),
+      S.api.isDemo ? "" : alertsCard(push),
       appStoreCard(dismissed("appstore")),
       isOfficer() ? setupCard(recent.length + active.length) : howItWorks(),
     ].filter(Boolean).join("");
@@ -697,12 +706,16 @@ function homeView() {
     </div>`;
   }
 
-  // iPhone app: ask for alerts in context, with a reason, instead of on launch.
+  // Ask for alerts in context, with a reason, instead of on launch.
+  // iPhone app, Android phones and computers. iPhone Safari can't, so nothing shows there.
   function alertsCard(state) {
     if (state === "ask") {
-      return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Turn on call alerts</b><br><span class="muted">Get buzzed for new calls, PAR checks and Missing firefighters, even with the app closed.</span></div><button class="btn sm primary" data-act="alerts-on">Turn on</button></div>`;
+      return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Turn on call alerts</b><br><span class="muted">${IS_NATIVE ? "Get buzzed for new calls, PAR checks and Missing firefighters, even with the app closed." : "Get buzzed on this device for new calls, PAR checks and Missing firefighters, even with this page closed."}</span></div><button class="btn sm primary" data-act="alerts-on">Turn on</button></div>`;
     }
-    if (state === "off" && !dismissed("alerts")) {
+    if (state === "off" && !IS_NATIVE && !dismissed("alerts")) {
+      return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Call alerts are blocked</b><br><span class="muted">This browser is blocking notifications from this site. Allow them in the browser's site settings, then reload.</span></div><button class="iconbtn ghost" data-act="dismiss" data-k="alerts" aria-label="Hide">${icon("close", "sm")}</button></div>`;
+    }
+    if (state === "off" && IS_NATIVE && !dismissed("alerts")) {
       return `<div class="banner warn">${icon("alert")}<div class="grow"><b>Call alerts are off</b><br><span class="muted">Turn them on in iPhone Settings, Fire Ground, Notifications.</span></div><button class="btn sm" data-act="alerts-on">Settings</button><button class="iconbtn ghost" data-act="dismiss" data-k="alerts" aria-label="Hide">${icon("close", "sm")}</button></div>`;
     }
     return "";
@@ -725,7 +738,12 @@ function homeView() {
   const offClicks = bindActions(root, {
     start: () => startIncidentSheet(),
     switch: () => switchDeptSheet(),
-    "alerts-on": async () => { await askForPush(); paint().catch(() => {}); },
+    "alerts-on": async () => {
+      const ok = await askForPush();
+      if (ok && !IS_NATIVE) toast("Call alerts are on for this device.");
+      else if (!ok && !IS_NATIVE) toast("Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.", true);
+      paint().catch(() => {});
+    },
     dismiss: (b) => { try { localStorage.setItem(dismissKey(b.dataset.k), "1"); } catch { /* private mode */ } paint().catch(() => {}); },
     respond: async (b) => {
       b.disabled = true;
@@ -1556,7 +1574,7 @@ function meView() {
           <label class="check" style="margin-top:10px"><input type="checkbox" data-sound ${soundOn() ? "checked" : ""}> Sound an alarm for PAR and Missing</label>
           <button class="btn sm" data-act="test-sound">Test the alarm</button>
           <p class="hint">${IS_NATIVE ? "The alarm plays while the app is open. Call alerts below reach you when it's closed." : "Keep your ringer on. Phones only play sound while the app is open."}</p>
-          ${IS_NATIVE ? `<div class="label" style="margin-top:16px">Call alerts</div><div id="push-row" class="muted small">Checking...</div>
+          ${IS_NATIVE || (webOk() && !S.api.isDemo) ? `<div class="label" style="margin-top:16px">Call alerts${IS_NATIVE ? "" : " on this device"}</div><div id="push-row" class="muted small">Checking...</div>
           <label class="check" style="margin-top:6px"><input type="checkbox" data-chat-alerts ${S.me?.chat_alerts !== false ? "checked" : ""}> Chat alerts for station chat and your incidents</label>
           <p class="hint">You always get an alert when someone @mentions you.</p>` : ""}
         </div>
@@ -1606,11 +1624,16 @@ function meView() {
       const st = await pushState();
       pushRow.innerHTML = st === "on" ? `${icon("check", "sm")} On. You'll get new calls, PAR checks and Missing alerts.`
         : st === "ask" ? `<button class="btn sm primary" data-act="alerts-on">Turn on call alerts</button>`
-        : st === "off" ? `Off. <button class="btn sm" data-act="alerts-on">Open Settings</button>`
+        : st === "off" ? (IS_NATIVE ? `Off. <button class="btn sm" data-act="alerts-on">Open Settings</button>` : "Blocked by this browser. Allow notifications for this site in the browser's settings, then reload.")
         : "Not available on this device.";
     };
     show();
-    pushRow.addEventListener("click", async (e) => { if (e.target.closest('[data-act="alerts-on"]')) { await askForPush(); show(); } });
+    pushRow.addEventListener("click", async (e) => {
+      if (!e.target.closest('[data-act="alerts-on"]')) return;
+      const ok = await askForPush();
+      if (!ok && !IS_NATIVE) toast("Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.", true);
+      show();
+    });
   }
   root.querySelector("[data-sound]").addEventListener("change", (e) => { setSound(e.target.checked); toast(e.target.checked ? "Alarm sound on." : "Alarm sound off. You'll still see the banner."); });
 

@@ -12,6 +12,7 @@ import { adminClient, corsHeaders, getUser, json, lockedCors, membership } from 
 import { sendChatPush, sendIncidentPush } from "../_shared/push.ts";
 import { postToChat } from "../_shared/chat.ts";
 import { logError, sweepAdminEvents } from "../_shared/admin.ts";
+import { sweepOwnerEmails } from "../_shared/owner-mail.ts";
 
 Deno.serve(lockedCors(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -20,8 +21,13 @@ Deno.serve(lockedCors(async (req) => {
     const user = await getUser(req);
     if (!user) return json({ error: "Not signed in" }, 401);
     const { kind, incident_id, personnel_id, dept_id, message_id } = await req.json().catch(() => ({}));
-    // Sends any owner's-console alerts that are waiting (new sign-ups, departments, quote requests).
-    if (kind === "sweep") return json(await sweepAdminEvents(adminClient()));
+    // Sends any owner's-console alerts that are waiting (new sign-ups, departments, quote requests),
+    // and any emails due to department owners (welcome, trial ending).
+    if (kind === "sweep") {
+      const admin = adminClient();
+      const [alerts, mail] = await Promise.all([sweepAdminEvents(admin), sweepOwnerEmails(admin).catch((e) => { console.error("owner emails", e); return { sent: 0 }; })]);
+      return json({ ...alerts, emails: mail.sent });
+    }
     if (kind === "chat" && typeof message_id === "string") {
       const admin = adminClient();
       const { data: msg } = await admin.from("incident_messages").select("*").eq("id", message_id).maybeSingle();

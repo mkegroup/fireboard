@@ -1,6 +1,8 @@
-// iPhone app only: push alerts straight from Apple (no OneSignal, no Firebase).
-// On the web this whole file does nothing.
-import { IS_NATIVE } from "./config.js";
+// Call alerts.
+//  * iPhone app: straight from Apple (no OneSignal, no Firebase).
+//  * Browsers (Android phones, computers): the Web Push standard, through sw.js.
+// The same functions handle both, so screens don't need to care which.
+import { IS_NATIVE, CONFIG } from "./config.js";
 
 let PN = null;
 let listening = false;
@@ -22,10 +24,16 @@ function plugin() {
  * Ties this phone to the signed-in person so alerts reach them.
  * save(token) and remove(token) store the Apple token on the server.
  */
-export async function startPush({ save, remove, openIncident, openChat, openAdmin }) {
-  hooks = { save, remove, openIncident, openChat, openAdmin };
+export async function startPush({ save, remove, saveWeb, removeWeb, openIncident, openChat, openAdmin }) {
+  hooks = { save, remove, saveWeb, removeWeb, openIncident, openChat, openAdmin };
   const P = plugin();
-  if (!P) return;
+  if (!P) {
+    // Browser: if alerts were allowed before, make sure the server has this browser.
+    if (webOk() && Notification.permission === "granted") {
+      try { const sub = await webSubscription(true); if (sub) await hooks.saveWeb?.(sub.toJSON()); } catch (e) { console.warn("web alerts", e); }
+    }
+    return;
+  }
   try {
     if (!listening) {
       listening = true;
@@ -48,15 +56,30 @@ export async function startPush({ save, remove, openIncident, openChat, openAdmi
 
 /** Call before signing out so this phone stops getting that person's alerts. */
 export async function stopPush() {
+  if (!IS_NATIVE) {
+    if (!webOk()) return;
+    try {
+      const sub = await webSubscription(false);
+      if (sub) { await hooks.removeWeb?.(sub.endpoint).catch(() => {}); await sub.unsubscribe(); }
+    } catch { /* signing out anyway */ }
+    return;
+  }
   if (!token || !hooks.remove) return;
   try { await hooks.remove(token); } catch { /* signing out anyway */ }
   token = null;
 }
 
-/** "on", "off" (said no, has to use Settings), "ask" (not asked yet), or "none" (web). */
+/** "on", "off" (said no, has to use Settings), "ask" (not asked yet), or "none" (can't on this device). */
 export async function pushState() {
   const P = plugin();
-  if (!P) return "none";
+  if (!P) {
+    if (!webOk()) return "none";
+    if (Notification.permission === "denied") return "off";
+    if (Notification.permission === "granted") {
+      try { return (await webSubscription(false)) ? "on" : "ask"; } catch { return "ask"; }
+    }
+    return "ask";
+  }
   try {
     const p = await quick(P.checkPermissions());
     if (p.receive === "granted") return "on";
@@ -65,10 +88,20 @@ export async function pushState() {
   } catch { return "none"; }
 }
 
-/** Shows the iPhone permission prompt. If they said no before, opens Settings instead. */
+/** Shows the permission prompt. On iPhone, if they said no before, opens Settings instead. */
 export async function askForPush() {
   const P = plugin();
-  if (!P) return false;
+  if (!P) {
+    if (!webOk()) return false;
+    try {
+      const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (perm !== "granted") return false;
+      const sub = await webSubscription(true);
+      if (!sub) return false;
+      await hooks.saveWeb?.(sub.toJSON());
+      return true;
+    } catch (e) { console.warn("web alerts", e); return false; }
+  }
   try {
     const before = await P.checkPermissions();
     if (before.receive === "denied") { window.location.href = "app-settings:"; return false; }
@@ -76,6 +109,28 @@ export async function askForPush() {
     if (p.receive === "granted") { await P.register(); return true; }
     return false;
   } catch { return false; }
+}
+
+// ---------------- browsers ----------------
+/** Can this browser get call alerts? Android Chrome, Firefox, Edge, desktop browsers. Not iPhone Safari. */
+export function webOk() {
+  return !IS_NATIVE && !!CONFIG.WEB_PUSH_KEY && typeof window !== "undefined" && window.isSecureContext
+    && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+function keyBytes(b64) {
+  const s = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+
+/** This browser's alert subscription. With create, makes one if there isn't one. */
+async function webSubscription(create) {
+  const reg = await quick(navigator.serviceWorker.ready, 8000);
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub && create) {
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(CONFIG.WEB_PUSH_KEY) });
+  }
+  return sub;
 }
 
 // ---------------- keeping the screen in place ----------------

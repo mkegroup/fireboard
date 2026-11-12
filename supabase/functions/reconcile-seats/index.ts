@@ -5,6 +5,7 @@ import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, env, json } from "../_shared/util.ts";
 import { syncSeats } from "../_shared/seats.ts";
 import { logError, logEvent, sweepAdminEvents } from "../_shared/admin.ts";
+import { sweepOwnerEmails } from "../_shared/owner-mail.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 const MIN_SEATS = Math.max(1, Number(Deno.env.get("MIN_SEATS") ?? "1"));
@@ -45,5 +46,6 @@ Deno.serve(async (req) => {
     });
   }
   await sweepAdminEvents(admin);
-  return json({ checked, failed }, failed ? 207 : 200);
+  const mail = await sweepOwnerEmails(admin).catch(async (e) => { await logError(admin, "owner emails", e); return { sent: 0 }; });
+  return json({ checked, failed, emails: mail.sent }, failed ? 207 : 200);
 });

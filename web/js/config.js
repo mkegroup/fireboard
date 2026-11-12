@@ -8,7 +8,7 @@ export const CONFIG = {
   SUPPORT_EMAIL: "hello@mkegroup.ca",
   // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
   APP_STORE_URL: "",
-  VERSION: "2.6.5",
+  VERSION: "2.7.0",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.
@@ -16,7 +16,7 @@ export const CONFIG = {
     monthly: 9.99, // per member who uses the app, per month
     annual: 99.99, // per member who uses the app, per year
     currency: "CAD",
-    trialDays: 7,
+    trialDays: 30,
     seatCap: 20, // a department never pays for more than this many people. Keep in sync with SEAT_CAP.
     quoteFrom: 60, // departments this size and counties are invited to ask for a quote
     taxNote: "plus tax",
@@ -25,6 +25,9 @@ export const CONFIG = {
   // Dispatch email domain. Each department gets <code>@<this domain>.
   // Empty until inbound email is set up (see SETUP.md, "Dispatch email").
   INBOX_DOMAIN: "",
+  // Public key for call alerts in browsers (Android, computers). Safe to share.
+  // Its private half is the VAPID_PRIVATE_KEY secret in Supabase.
+  WEB_PUSH_KEY: "BCfdI0UroBa1a92aXpAVDBIa_EpZR0TgfGcieGhvngH4ofZpJzD9Rx3iJZUPgoMq2S9Y5Xn6QVvjN3-NHsmq53w",
 
   // Google Maps (map, satellite, address lookup). Browser key from Google Cloud,
   // restricted to your site. Filled in by the deploy from the GitHub variable

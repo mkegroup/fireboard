@@ -1152,4 +1152,12 @@ export default {
   "More seats": "Plus de places",
   "Seats": "Places",
   "Email us": "Écrivez-nous",
+  "For chiefs and officers. Free for 30 days, no card needed. Then {m} a month or {y} a year per member with the app.": "Pour les chefs et officiers. Gratuit 30 jours, sans carte. Ensuite {m} par mois ou {y} par année par membre qui utilise l'appli.",
+  "Get buzzed on this device for new calls, PAR checks and Missing firefighters, even with this page closed.": "Soyez averti sur cet appareil des nouveaux appels, des appels PAR et des pompiers manquants, même avec cette page fermée.",
+  "Call alerts are blocked": "Les alertes d'appel sont bloquées",
+  "This browser is blocking notifications from this site. Allow them in the browser's site settings, then reload.": "Ce navigateur bloque les notifications de ce site. Autorisez-les dans les paramètres du site du navigateur, puis rechargez.",
+  "Call alerts on this device": "Alertes d'appel sur cet appareil",
+  "Blocked by this browser. Allow notifications for this site in the browser's settings, then reload.": "Bloquées par ce navigateur. Autorisez les notifications pour ce site dans les paramètres du navigateur, puis rechargez.",
+  "Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.": "Les alertes n'ont pas été activées. Si vous les avez bloquées, autorisez les notifications pour ce site dans les paramètres de votre navigateur.",
+  "Call alerts are on for this device.": "Les alertes d'appel sont activées sur cet appareil.",
 };

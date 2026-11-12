@@ -4,6 +4,7 @@ import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, env } from "../_shared/util.ts";
 import { standardPrices } from "../_shared/seats.ts";
 import { logError, logEvent, sweepAdminEvents } from "../_shared/admin.ts";
+import { emails, mailOwnersOnce } from "../_shared/owner-mail.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 const crypto = Stripe.createSubtleCryptoProvider();
@@ -112,6 +113,10 @@ Deno.serve(async (req) => {
           detail: `$${amount.toFixed(2)} ${(inv.currency ?? "cad").toUpperCase()}${inv.collection_method === "send_invoice" ? " by invoice" : " by card"}`,
           dept_id: d?.id ?? null, amount: paid ? amount : null, meta: { invoice: inv.id }, notify: paid,
         });
+        // Tell the department owner too, so they can fix it before the board pauses.
+        if (!paid && d?.id && inv.id) {
+          await mailOwnersOnce(admin, d.id, "payment_failed", inv.id, emails.paymentFailed(d.name, inv.collection_method === "send_invoice")).catch((e) => console.error("payment email", e));
+        }
         break;
       }
       case "customer.subscription.created":

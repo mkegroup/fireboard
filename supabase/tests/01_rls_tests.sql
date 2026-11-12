@@ -170,7 +170,7 @@ select t_eq((select count(*) from incidents where status='active')::int, 1, 'pai
 
 -- ---------- Pricing rules ----------
 reset role;
-select t_eq((select round(extract(epoch from trial_ends_at - now()) / 86400)::int from departments where id=(select v::uuid from ids where k='deptB')), 7, 'trial is 7 days');
+select t_eq((select round(extract(epoch from trial_ends_at - now()) / 86400)::int from departments where id=(select v::uuid from ids where k='deptB')), 30, 'trial is 30 days');
 set role authenticated;
 select t_fail($$update departments set past_due_since = null$$, 'permission denied');
 -- Roster import: officers only, skips names already on the roster

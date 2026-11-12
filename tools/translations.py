@@ -1192,6 +1192,14 @@ ROWS = [
 ('More seats', 'Plus de places', 'Más plazas'),
 ('Seats', 'Places', 'Plazas'),
 ('Email us', 'Écrivez-nous', 'Escríbanos'),
+("For chiefs and officers. Free for 30 days, no card needed. Then {m} a month or {y} a year per member with the app.", "Pour les chefs et officiers. Gratuit 30 jours, sans carte. Ensuite {m} par mois ou {y} par année par membre qui utilise l'appli.", "Para jefes y oficiales. Gratis 30 días, sin tarjeta. Luego {m} al mes o {y} al año por miembro con la app."),
+('Get buzzed on this device for new calls, PAR checks and Missing firefighters, even with this page closed.', 'Soyez averti sur cet appareil des nouveaux appels, des appels PAR et des pompiers manquants, même avec cette page fermée.', 'Reciba avisos en este dispositivo de llamadas nuevas, controles PAR y bomberos desaparecidos, incluso con esta página cerrada.'),
+('Call alerts are blocked', "Les alertes d'appel sont bloquées", 'Las alertas de llamada están bloqueadas'),
+("This browser is blocking notifications from this site. Allow them in the browser's site settings, then reload.", 'Ce navigateur bloque les notifications de ce site. Autorisez-les dans les paramètres du site du navigateur, puis rechargez.', 'Este navegador bloquea las notificaciones de este sitio. Permítalas en la configuración del sitio del navegador y vuelva a cargar.'),
+('Call alerts on this device', "Alertes d'appel sur cet appareil", 'Alertas de llamada en este dispositivo'),
+("Blocked by this browser. Allow notifications for this site in the browser's settings, then reload.", 'Bloquées par ce navigateur. Autorisez les notifications pour ce site dans les paramètres du navigateur, puis rechargez.', 'Bloqueadas por este navegador. Permita las notificaciones de este sitio en la configuración del navegador y vuelva a cargar.'),
+("Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.", "Les alertes n'ont pas été activées. Si vous les avez bloquées, autorisez les notifications pour ce site dans les paramètres de votre navigateur.", 'No se activaron las alertas. Si las bloqueó, permita las notificaciones de este sitio en la configuración de su navegador.'),
+('Call alerts are on for this device.', "Les alertes d'appel sont activées sur cet appareil.", 'Las alertas de llamada están activadas en este dispositivo.'),
 ]
 
 import json, os, re

@@ -220,12 +220,12 @@ The map uses Google Maps (map and satellite), finds the incident pin from its ad
 Do this in Stripe test mode with two phones or two browsers.
 
 1. Open `https://fire.mkegroup.ca`. Enter your email, type the code from the email.
-2. Create a department. You should see "Free trial, 7 days left" and the setup checklist.
+2. Create a department. You should see "Free trial, 30 days left" and the setup checklist.
 3. On the second device, open the invite link from Department, Share link. Enter a different email, type the code, then just your name.
 4. Start an incident. Both devices should see each other's status changes within a second or two.
 5. Call a PAR. Confirm on the second device. Close it.
 6. Close the incident. Check the report downloads.
-7. **Department > Pay monthly by card**. Pay with card `4242 4242 4242 4242`, any future date, any CVC. You should land back in the app showing "Plan set up, billing starts in 7 days". Stripe should show quantity 2 at $10.
+7. **Department > Pay monthly by card**. Pay with card `4242 4242 4242 4242`, any future date, any CVC. You should land back in the app showing "Plan set up, billing starts in 30 days". Stripe should show quantity 2 at $10.
 8. On a second test department, try **Pay yearly by invoice** with your own email. The subscription shows up in Stripe with "Send invoice" at $99.
 9. Remove the second member. Within a few seconds Stripe should show quantity 1. Try rejoining with the invite code on the removed device: it should be refused until you tap **Allow back**.
 10. **Manage plan, card and receipts** should open the Stripe portal, where you can switch monthly and yearly.
@@ -382,3 +382,20 @@ The owner picks how many people to pay for, before checkout and any time after w
 In Stripe, **Settings > Billing > Customer portal > Subscriptions**: turn **off** "Customers can change quantity" so seats only change from the Plan page. Switching monthly and yearly can stay on.
 
 Requires migration `20261114000000_seats.sql` (applied by the GitHub action).
+
+## 18. Emails to chiefs, and call alerts on Android and computers
+
+**Emails.** Department owners get short emails from hello@mkegroup.ca: welcome with setup steps, trial ends in 3 days, trial ends tomorrow, trial ended, seat added, payment failed. Each goes out once. Replies land in your inbox.
+
+Supabase > Edge Functions > Secrets:
+- `SMTP_USER` = `hello@mkegroup.ca`
+- `SMTP_PASS` = a Google app password for that mailbox (Google Account > Security > App passwords). Make a new one named "Fire Ground emails".
+
+Optional: `SMTP_HOST` (default smtp.gmail.com), `SMTP_PORT` (default 465), `MAIL_FROM` (default `Fire Ground Board <hello@mkegroup.ca>`).
+
+**Browser call alerts.** Android phones and computers can get the same new call, PAR, Missing, chat and seat alerts as the iPhone app, even with the page closed. People tap "Turn on call alerts" on the home screen or in Me. iPhone Safari can't, so iPhone users use the App Store app.
+
+Supabase > Edge Functions > Secrets:
+- `VAPID_PUBLIC_KEY` = the same value as `WEB_PUSH_KEY` in `web/js/config.js`
+- `VAPID_PRIVATE_KEY` = its private half (keep it secret; if it's ever lost, generate a new pair and update both)
+- `VAPID_SUBJECT` = `mailto:hello@mkegroup.ca`

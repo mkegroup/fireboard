@@ -16,6 +16,7 @@ import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, appUrl as cleanAppUrl, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
 import { SEAT_CAP, isCustom, syncSeats, targetSeats } from "../_shared/seats.ts";
 import { pushTo } from "../_shared/push.ts";
+import { emails, mailOwnersOnce } from "../_shared/owner-mail.ts";
 import { logError } from "../_shared/admin.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
@@ -44,7 +45,7 @@ const SEAT_WORDS = {
 };
 
 /** Push to the department's owners when billing grew because someone joined. */
-async function alertOwners(admin: Admin, dept: { id: string; name: string }, joinerId: string, billed: number) {
+async function alertOwners(admin: Admin, dept: { id: string; name: string; plan_interval?: string | null }, joinerId: string, billed: number) {
   const { data: joiner } = await admin.from("members").select("name").eq("dept_id", dept.id).eq("user_id", joinerId).maybeSingle();
   const { data: owners } = await admin.from("members").select("user_id").eq("dept_id", dept.id).eq("role", "owner").eq("active", true).not("user_id", "is", null);
   const users = (owners ?? []).map((o) => o.user_id as string).filter((u) => u && u !== joinerId);
@@ -53,6 +54,8 @@ async function alertOwners(admin: Admin, dept: { id: string; name: string }, joi
     const w = (SEAT_WORDS[l as keyof typeof SEAT_WORDS] ?? SEAT_WORDS.en)(who, billed);
     return { aps: { alert: { title: w.title, body: w.body.slice(0, 160) }, sound: "default" }, kind: "seats" };
   }, { collapse: `seats-${dept.id}`, ttl: 86400, quiet: true });
+  await mailOwnersOnce(admin, dept.id, "seat_added", `${billed}:${new Date().toISOString().slice(0, 10)}`,
+    emails.seatAdded(dept.name, who, billed, dept.plan_interval ?? null));
 }
 
 Deno.serve(lockedCors(async (req) => {

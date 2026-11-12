@@ -67,6 +67,14 @@ export function createApi() {
     async unregisterPushDevice(token) {
       await sb.rpc("unregister_push_device", { p_token: token });
     },
+    /** Call alerts in this browser (Android, computers). sub is PushSubscription.toJSON(). */
+    async registerWebPush(sub) {
+      const device = (navigator.userAgentData?.platform || navigator.platform || "").slice(0, 60);
+      must(await sb.rpc("register_web_push", { p_endpoint: sub.endpoint, p_p256dh: sub.keys?.p256dh, p_auth: sub.keys?.auth, p_device: device || null }));
+    },
+    async unregisterWebPush(endpoint) {
+      await sb.rpc("unregister_web_push", { p_endpoint: endpoint });
+    },
     async deleteAccount() {
       const { data, error } = await sb.functions.invoke("delete-account", { body: {} });
       if (error) throw new Error(await fnError(error));
@@ -87,7 +95,9 @@ export function createApi() {
       return must(await sb.from("departments").select(DEPT_COLS).eq("id", id).single());
     },
     async createDepartment(name, memberName, rank) {
-      return must(await sb.rpc("create_department", { p_name: name, p_member_name: memberName, p_rank: rank }));
+      const id = must(await sb.rpc("create_department", { p_name: name, p_member_name: memberName, p_rank: rank }));
+      api.sweepAlerts(); // sends the welcome email to the new owner
+      return id;
     },
     async invitePreview(code) {
       return must(await sb.rpc("invite_preview", { p_code: code }));
