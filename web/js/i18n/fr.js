@@ -1069,4 +1069,5 @@ export default {
   "Use where I am": "Utiliser ma position",
   "Finding you...": "Recherche...",
   "Anything officers should know": "Ce que les officiers devraient savoir",
+  "Playing the PAR tone, then the Missing alarm. Turn your volume up.": "Tonalité PAR, puis alarme Manquant. Montez le volume.",
 };

@@ -183,17 +183,32 @@ window.matchMedia?.("(prefers-color-scheme: light)").addEventListener?.("change"
 // ---------------- alert sounds ----------------
 // iPhones ignore vibration, so PAR and Missing alerts also play a tone.
 // Browsers only allow sound after the user has touched the page once.
+// On iPhone, sound from a web page counts as "ambient" and the silent switch mutes it.
+// Marking it as playback makes the alarm sound even with the ringer switch off.
 let audioCtx = null;
 function ctx() {
   if (!audioCtx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* older iOS */ }
     audioCtx = new AC();
   }
-  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
   return audioCtx;
 }
-["pointerdown", "keydown"].forEach((ev) => window.addEventListener(ev, () => ctx(), { once: true, capture: true }));
+/** iOS only lets sound start from a tap. The first tap anywhere wakes the audio up with a silent blip. */
+function unlockAudio() {
+  const c = ctx();
+  if (!c) return;
+  c.resume().catch(() => {});
+  try {
+    const b = c.createBuffer(1, 1, 22050);
+    const s = c.createBufferSource();
+    s.buffer = b;
+    s.connect(c.destination);
+    s.start(0);
+  } catch { /* ignore */ }
+}
+["pointerdown", "touchend", "keydown"].forEach((ev) => window.addEventListener(ev, unlockAudio, { once: true, capture: true }));
 
 export function soundOn() {
   try { return localStorage.getItem("fgb_sound") !== "off"; } catch { return true; }
@@ -203,10 +218,11 @@ export function setSound(on) {
 }
 
 /** kind: "par" (three short beeps) or "missing" (two-tone alarm). */
-export function alertTone(kind = "par") {
+export async function alertTone(kind = "par") {
   if (!soundOn()) return;
   const c = ctx();
   if (!c) return;
+  if (c.state !== "running") { try { await c.resume(); } catch { /* blocked until a tap */ } }
   const notes = kind === "missing"
     ? [[960, 0, 0.32], [640, 0.34, 0.32], [960, 0.68, 0.32], [640, 1.02, 0.32], [960, 1.36, 0.32], [640, 1.7, 0.32]]
     : [[1046, 0, 0.14], [1046, 0.22, 0.14], [1318, 0.44, 0.3]];

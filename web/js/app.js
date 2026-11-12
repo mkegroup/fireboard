@@ -1523,7 +1523,12 @@ function meView() {
       if (!S.api.isDemo) await S.api.setLanguage(S.user.id, b.dataset.k).catch(() => {});
       setLang(b.dataset.k);
     },
-    "test-sound": () => { if (!soundOn()) return toast("Turn the alarm sound on first.", true); alertTone("par"); setTimeout(() => alertTone("missing"), 1400); },
+    "test-sound": () => {
+      if (!soundOn()) return toast("Turn the alarm sound on first.", true);
+      toast("Playing the PAR tone, then the Missing alarm. Turn your volume up.");
+      alertTone("par");
+      setTimeout(() => alertTone("missing"), 1400);
+    },
     profile: () => openMemberProfile(S.me.id, () => refreshDept()),
     switch: () => switchDeptSheet(),
     join: () => renderOnboarding(),
