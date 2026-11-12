@@ -1160,6 +1160,8 @@ function deptView() {
 function planView() {
   let alive = true;
   let owner = null;
+  let roster = 0;
+  let pick = null; // seats chosen in the picker before checkout
 
   const paint = async () => {
     const d = S.dept;
@@ -1167,11 +1169,16 @@ function planView() {
     if (!owner) {
       const members = await S.api.listMembers(d.id).catch(() => []);
       owner = members.find((m) => m.role === "owner") || null;
+      roster = members.length;
     }
     if (!alive) return;
     const status = d.subscription_status || "none";
     const subscribed = ["active", "trialing", "past_due"].includes(status);
-    const { n, billed, capped, monthly, annual } = priceFor(d.seat_count);
+    const used = Math.max(1, d.seat_count || 0);
+    if (pick === null) pick = Math.min(P.seatCap, Math.max(used, d.seats_paid || 0, roster || 0, 1));
+    pick = Math.min(P.seatCap, Math.max(1, pick));
+    const { n, billed, capped, monthly, annual } = priceFor(Math.max(pick, Math.min(used, P.seatCap)));
+    const seatsBilled = d.seats_billed || priceFor(d.seat_count).billed;
     const capM = money(P.seatCap * P.monthly);
     const capY = money(P.seatCap * P.annual);
     const save = money(P.monthly * 12 - P.annual);
@@ -1180,10 +1187,10 @@ function planView() {
     const inTrial = left > 0;
     const yearly = d.plan_interval === "year";
     const planName = d.plan_custom ? "Custom plan" : d.plan_interval ? (yearly ? "Yearly plan" : "Monthly plan") : "Your plan";
-    const amount = d.plan_amount != null ? Number(d.plan_amount) : (yearly ? annual : monthly);
+    const amount = d.plan_amount != null ? Number(d.plan_amount) : seatsBilled * (yearly ? P.annual : P.monthly);
     const cost = d.plan_interval ? t(yearly ? "{x} a year" : "{x} a month", { x: money(amount) }) : "";
     const whoLine = d.plan_custom ? t("Custom plan, {cost} plus tax.", { cost })
-      : t(n === 1 ? "1 member with the app, {cost} plus tax." : "{n} members with the app, {cost} plus tax.", { n, cost });
+      : t(seatsBilled === 1 ? "1 seat, {cost} plus tax." : "{n} seats, {cost} plus tax.", { n: seatsBilled, cost });
     const ownerName = owner ? (owner.user_id === S.user.id ? t("you") : owner.name) : t("the department owner");
 
     // ---- where things stand ----
@@ -1232,7 +1239,7 @@ function planView() {
       return `<div class="plan-card ${isYear ? "best" : ""}">
         <div class="plan-top"><span class="plan-name">${isYear ? "Yearly" : "Monthly"}</span>${isYear ? `<span class="pill save">Save ${save} a member</span>` : ""}</div>
         <div class="plan-price"><b>${money(isYear ? P.annual : P.monthly)}</b><span>per member<br>${isYear ? "a year" : "a month"}</span></div>
-        <div class="plan-total">${n} member${n === 1 ? "" : "s"} now: <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}${capped ? `<br><span class="small">${t("You pay for {b}. Everyone after that is free.", { b: billed })}</span>` : ""}</div>
+        <div class="plan-total">${t(n === 1 ? "1 seat:" : "{n} seats:", { n })} <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}</div>
         <ul class="plan-list">
           <li>${icon("check", "sm")}${t("Never more than {x} for the whole department", { x: isYear ? t("{x} a year", { x: capY }) : t("{x} a month", { x: capM }) })}</li>
           ${isYear
@@ -1260,7 +1267,8 @@ function planView() {
         ${choose ? `
         <section class="section">
           <div class="section-head"><div class="h2">Choose a plan</div></div>
-          <p class="muted" style="margin:4px 0 14px">${t("One price per member who uses the app, and never more than {b} paid members. People on your roster without the app are free.", { b: P.seatCap })}</p>
+          <p class="muted" style="margin:4px 0 14px">${t("One price per person who signs in to the app, and never more than {b} paid seats. People on your roster without the app are free.", { b: P.seatCap })}</p>
+          ${isOwner() ? seatPicker() : ""}
           <div class="plans">${planCard("annual")}${planCard("monthly")}</div>
           ${isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
             : `<div class="banner" style="margin-top:14px">${icon("user")}<div class="grow">Only ${esc(ownerName)} can choose the plan. Send them this page.</div></div>`}
@@ -1275,11 +1283,7 @@ function planView() {
               </div>
             </div>
             <div class="col">
-              <div class="panel">
-                <div class="h3">Who you pay for</div>
-                <p class="muted small" style="margin:6px 0 14px">${n} member${n === 1 ? "" : "s"} with the app. Add or remove people any time in Department. Your bill adjusts on its own.</p>
-                <a class="btn block" href="#/dept">Go to Department</a>
-              </div>
+              ${seatsPanel()}
             </div>
           </div>
         </section>`}
@@ -1297,9 +1301,10 @@ function planView() {
         <section class="section" style="margin-bottom:40px">
           <div class="section-head"><div class="h2">Questions</div></div>
           <div class="panel faq-list">
-            ${faq("Who counts as a member?", "Anyone in your department who has signed in to the app. Names you add to the roster for people without the app are free.")}
-            ${faq("Is there a limit on what we pay?", t("Yes. You never pay for more than {b} members: {m} a month or {y} a year, plus tax, however many people you have.", { b: P.seatCap, m: capM, y: capY }))}
-            ${faq("What happens when people join or leave?", "Your bill adjusts on its own. Stripe works out the difference on your next bill, so you only pay for the time someone was in.")}
+            ${faq("How do seats work?", "Choose how many people will sign in to the app. Each one uses a seat. Names you add to the roster for people without the app are free. Change the number any time in Plan.")}
+            ${faq("What if more people join than we paid for?", "They get in right away. Nobody is ever locked out of the board. We add a seat to your plan, up to the limit, and let you know.")}
+            ${faq("Is there a limit on what we pay?", t("Yes. You never pay for more than {b} seats: {m} a month or {y} a year, plus tax, however many people you have.", { b: P.seatCap, m: capM, y: capY }))}
+            ${faq("What happens when we add or remove seats?", "Added seats are charged for the rest of the current period on your next bill. Fewer seats lower your next bill. You can't go below the number of people signed in. Remove people in Department first.")}
             ${faq("Can we pay by cheque or EFT?", `Yes. Choose yearly, then Pay by invoice. We email a yearly invoice your treasurer can pay within 30 days.`)}
             ${faq("Is tax included?", `Prices are in ${esc(P.currency)}, plus tax where it applies.`)}
             ${faq("Can we switch or cancel?", "Any time, in Open billing. If you cancel, the board keeps working until the end of what you've paid for.")}
@@ -1313,6 +1318,100 @@ function planView() {
   };
 
   const faq = (q, a) => `<details class="faq"><summary>${q}</summary><p>${a}</p></details>`;
+
+  // ---- seat picker (before checkout) ----
+  function seatPicker() {
+    const P = CONFIG.PRICING;
+    const used = Math.max(1, S.dept.seat_count || 0);
+    const quick = [
+      [Math.min(used, P.seatCap), t(used === 1 ? "Just me" : "Signed in now ({n})", { n: used })],
+      ...(roster > used ? [[Math.min(roster, P.seatCap), t("Whole roster ({n})", { n: roster })]] : []),
+      [P.seatCap, t("{n} or more", { n: P.seatCap })],
+    ].filter((q, i, a) => a.findIndex((x) => x[0] === q[0]) === i);
+    return `<div class="seat-pick panel">
+      <div class="seat-pick-head">
+        <div class="grow">
+          <div class="h3">How many people will use the app?</div>
+          <p class="muted small">Count everyone who will sign in on their phone. If more join later, they get in right away and we add a seat.</p>
+        </div>
+        <div class="stepper" role="group" aria-label="Seats">
+          <button type="button" class="iconbtn" data-act="seat-step" data-d="-1" aria-label="Fewer seats" ${pick <= Math.min(used, P.seatCap) ? "disabled" : ""}>${icon("minus")}</button>
+          <output aria-live="polite">${pick}</output>
+          <button type="button" class="iconbtn" data-act="seat-step" data-d="1" aria-label="More seats" ${pick >= P.seatCap ? "disabled" : ""}>${icon("plus")}</button>
+        </div>
+      </div>
+      <div class="seat-quick">${quick.map(([v, l]) => `<button type="button" class="chip ${pick === v ? "on" : ""}" data-act="seat-set" data-n="${v}">${esc(l)}</button>`).join("")}</div>
+      ${pick >= P.seatCap ? `<p class="faint small" style="margin-top:8px">${t("Past {b}, everyone is free.", { b: P.seatCap })}</p>` : ""}
+    </div>`;
+  }
+
+  // ---- seats on an active plan ----
+  function seatsPanel() {
+    const P = CONFIG.PRICING;
+    const d = S.dept;
+    const used = d.seat_count || 0;
+    const billed = d.seats_billed || priceFor(used).billed;
+    const chose = d.seats_paid || 0;
+    const pct = Math.min(100, Math.round((Math.min(used, billed) / Math.max(1, billed)) * 100));
+    const extra = chose && used > chose ? Math.min(used, P.seatCap) - chose : 0;
+    return `<div class="panel">
+      <div class="h3">Seats</div>
+      ${d.plan_custom ? `<p class="muted small" style="margin:6px 0 14px">${t("Custom plan. {u} people signed in. Email us to change it.", { u: used })}</p>
+        <a class="btn block" href="mailto:${CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(`Fire Ground seats: ${d.name}`)}">${icon("mail", "sm")} Email us</a>` : `
+      <div class="seat-meter" role="img" aria-label="${used} of ${billed}"><i style="width:${pct}%"></i></div>
+      <p class="small" style="margin:8px 0 2px"><b>${t("{u} of {b} seats in use", { u: Math.min(used, billed), b: billed })}</b></p>
+      <p class="muted small" style="margin:0 0 14px">${extra > 0 ? t("{x} joined after you chose {c}, so we added seats for them.", { x: extra, c: chose }) : used > P.seatCap ? t("Past {b}, everyone is free.", { b: P.seatCap }) : t("Anyone past that still gets in. We add a seat and let you know.")}</p>
+      ${isOwner() ? `<button class="btn block" data-act="seats">${icon("user", "sm")} Change seats</button>` : ""}`}
+      <a class="btn quiet block sm" href="#/dept" style="margin-top:8px">Manage people in Department</a>
+    </div>`;
+  }
+
+  function seatsSheet() {
+    const P = CONFIG.PRICING;
+    const d = S.dept;
+    const used = Math.min(d.seat_count || 0, P.seatCap);
+    const min = Math.max(1, used);
+    const current = d.seats_billed || priceFor(d.seat_count).billed;
+    let v = Math.min(P.seatCap, Math.max(min, d.seats_paid || current));
+    const yearly = d.plan_interval === "year";
+    const each = yearly ? P.annual : P.monthly;
+    const { el, close } = openSheet({
+      title: "Change seats",
+      body: `<p class="muted small" style="margin-bottom:14px">${t("{u} people are signed in, so the lowest you can choose is {m}. To go lower, remove people in Department first.", { u: d.seat_count || 0, m: min })}</p>
+        <div class="stepper big" role="group" aria-label="Seats">
+          <button type="button" class="iconbtn" data-d="-1" aria-label="Fewer seats">${icon("minus")}</button>
+          <output aria-live="polite"></output>
+          <button type="button" class="iconbtn" data-d="1" aria-label="More seats">${icon("plus")}</button>
+        </div>
+        <div class="seat-sum panel" aria-live="polite"></div>`,
+      submitLabel: "Save seats",
+      errorText: friendlyError,
+      onSubmit: async () => {
+        if (S.api.isDemo) { toast("Payments are turned off in the demo."); return; }
+        await S.api.billing("seats", d.id, { seats: v });
+        await refreshDept();
+        toast(t("Saved. Your plan now has {n} seats.", { n: Math.max(v, used) }));
+        paint().catch(() => {});
+      },
+    });
+    const out = el.querySelector("output");
+    const sum = el.querySelector(".seat-sum");
+    const btns = el.querySelectorAll("[data-d]");
+    const show = () => {
+      out.textContent = String(v);
+      btns[0].disabled = v <= min;
+      btns[1].disabled = v >= P.seatCap;
+      const total = money(v * each);
+      const diff = v - current;
+      sum.innerHTML = `<div><b>${t(yearly ? "{x} a year" : "{x} a month", { x: total })}</b> ${esc(P.taxNote)}</div>
+        <div class="muted small" style="margin-top:4px">${diff > 0 ? t("Adding {n}. They're charged for the rest of this period on your next bill.", { n: diff })
+          : diff < 0 ? t("Removing {n}. Your next bill is lower. No refund for the current period.", { n: -diff })
+          : t("No change.")}</div>`;
+    };
+    btns.forEach((b) => b.addEventListener("click", () => { v = Math.min(P.seatCap, Math.max(min, v + Number(b.dataset.d))); show(); }));
+    show();
+    return { close };
+  }
 
   function invoiceSheet() {
     const PROV = ["ON", "QC", "NS", "NB", "MB", "SK", "AB", "BC", "PE", "NL", "YT", "NT", "NU"];
@@ -1330,7 +1429,7 @@ function planView() {
         const f = formData(form);
         if (!/^\S+@\S+\.\S+$/.test(f.email)) throw new Error("Enter the email where invoices should go.");
         if (!f.line1 || !f.city || !f.postal) throw new Error("Enter the full billing address.");
-        await S.api.billing("invoice", S.dept.id, f);
+        await S.api.billing("invoice", S.dept.id, { ...f, seats: pick });
         await refreshDept();
         toast(`Done. Invoices go to ${f.email}.`);
       },
@@ -1375,10 +1474,13 @@ function planView() {
       b.disabled = true;
       const label = b.textContent;
       b.textContent = "Opening secure checkout...";
-      try { const { url } = await S.api.billing("checkout", S.dept.id, { plan: b.dataset.plan }); location.href = url; }
+      try { const { url } = await S.api.billing("checkout", S.dept.id, { plan: b.dataset.plan, seats: pick }); location.href = url; }
       catch (e) { toast(friendlyError(e), true); b.disabled = false; b.textContent = label; }
     },
     invoice: () => (S.api.isDemo ? toast("Payments are turned off in the demo.") : invoiceSheet()),
+    "seat-step": (b) => { pick += Number(b.dataset.d); paint().catch(() => {}); },
+    "seat-set": (b) => { pick = Number(b.dataset.n); paint().catch(() => {}); },
+    seats: () => seatsSheet(),
     portal: async (b) => {
       if (S.api.isDemo) return toast("Payments are turned off in the demo.");
       b.disabled = true;

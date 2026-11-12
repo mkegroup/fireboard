@@ -34,6 +34,9 @@ function planDetails(sub: Stripe.Subscription) {
     plan_custom: std.length > 0 && custom,
     plan_invoice: s.collection_method === "send_invoice",
     plan_cancel_at: cancelTs && sub.status !== "canceled" ? new Date(cancelTs * 1000).toISOString() : null,
+    // How many seats Stripe bills, and how many the owner chose (kept in metadata).
+    seats_billed: items.length ? Number(items[0].quantity ?? 1) : null,
+    ...(Number.isInteger(Number(s.metadata?.seats_paid)) && Number(s.metadata.seats_paid) > 0 ? { seats_paid: Number(s.metadata.seats_paid) } : {}),
   };
 }
 

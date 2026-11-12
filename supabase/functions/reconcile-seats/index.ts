@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
   const admin = adminClient();
   const { data: depts, error } = await admin.from("departments")
-    .select("id, subscription_status, stripe_subscription_id")
+    .select("id, subscription_status, stripe_subscription_id, seats_paid")
     .not("stripe_subscription_id", "is", null)
     .in("subscription_status", ["active", "trialing", "past_due"]);
   if (error) return json({ error: error.message }, 500);

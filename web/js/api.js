@@ -2,7 +2,7 @@
 import { CONFIG } from "./config.js";
 
 const DEPT_COLS =
-  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at, plan_amount, plan_custom";
+  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at, plan_amount, plan_custom, seats_paid, seats_billed";
 const MEMBER_COLS =
   "id, dept_id, user_id, role, active, name, rank, call_sign, crew, phone, radio, years, certifications, notes, ec_name, ec_rel, ec_phone, chat_alerts, created_at";
 

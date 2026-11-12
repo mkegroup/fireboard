@@ -987,3 +987,20 @@ ol.steps b { color: var(--text); }
 .map-wrap.full .gm-style .gmnoprint[role="menubar"], .map-wrap.full .gm-style-mtc-bbw { margin-top: calc(10px + var(--safe-t)) !important; }
 html.map-open, html.map-open body { overflow: hidden; }
 html.map-open .fab, html.map-open .chat-fab { visibility: hidden; }
+
+/* ---------- seats ---------- */
+.seat-pick { margin-bottom: 14px; }
+.seat-pick-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.seat-pick-head .grow { flex: 1 1 220px; }
+.stepper { display: inline-flex; align-items: center; gap: 10px; }
+.stepper output { min-width: 2.2ch; text-align: center; font: 800 34px/1 var(--head); color: var(--gold); }
+.stepper .iconbtn:disabled { opacity: .35; }
+.stepper.big { display: flex; justify-content: center; margin: 4px 0 14px; }
+.stepper.big output { font-size: 54px; min-width: 2.4ch; }
+.seat-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.seat-quick .chip { cursor: pointer; }
+.seat-quick .chip.on { background: var(--gold); color: #17181a; border-color: var(--gold); }
+.seat-meter { height: 10px; border-radius: 6px; background: var(--raise); overflow: hidden; margin-top: 10px; border: 1px solid var(--line); }
+.seat-meter i { display: block; height: 100%; background: var(--gold); }
+.seat-sum { text-align: center; padding: 12px; }
+.plan-page .cols .col > .panel { margin-bottom: 12px; }

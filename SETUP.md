@@ -369,3 +369,16 @@ Officers can bring in existing records instead of typing them:
 - Up to 500 rows per import call; bigger files are sent in batches automatically.
 
 Requires migration `20261113000000_imports.sql` (applied by the GitHub action).
+
+## 17. Seats
+
+The owner picks how many people to pay for, before checkout and any time after with **Plan > Change seats**.
+
+- Billing is the larger of the seats they chose and the people actually signed in, never more than 20.
+- If more people join than they chose, those people get in right away (nobody is ever locked out), a seat is added, and the owner gets a push alert.
+- More seats are prorated onto the next bill. Fewer seats take effect on the next bill, no mid-period refund. They can't go below the number of people signed in.
+- Custom deals (a price that isn't one of the two standard prices, or metadata `seats=fixed`) are never touched.
+
+In Stripe, **Settings > Billing > Customer portal > Subscriptions**: turn **off** "Customers can change quantity" so seats only change from the Plan page. Switching monthly and yearly can stay on.
+
+Requires migration `20261114000000_seats.sql` (applied by the GitHub action).

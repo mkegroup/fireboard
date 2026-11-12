@@ -5,11 +5,17 @@
 //   invoice    (owner)  -> yearly plan billed by emailed invoice (net 30),
 //                         for departments that pay by cheque or EFT.
 //   portal     (owner)  -> Stripe customer portal URL (card, invoices, cancel).
-//   sync-seats (member) -> pushes the current seat count to Stripe.
+//   seats      (owner)  -> changes how many seats the department pays for.
+//   sync-seats (member) -> pushes the current seat count to Stripe. When someone
+//                         joins past what the owner chose, billing grows on its
+//                         own and the owner gets an alert.
+// The owner picks a number of seats (a floor). Billing is the larger of that and
+// the people actually signed in, never more than SEAT_CAP.
 // If the free trial is still running, billing starts when it ends.
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, appUrl as cleanAppUrl, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
-import { billedSeats, syncSeats } from "../_shared/seats.ts";
+import { SEAT_CAP, isCustom, syncSeats, targetSeats } from "../_shared/seats.ts";
+import { pushTo } from "../_shared/push.ts";
 import { logError } from "../_shared/admin.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
@@ -24,6 +30,30 @@ const TAX = Deno.env.get("STRIPE_TAX") === "on";
 const LIVE = ["active", "trialing", "past_due"];
 
 const clean = (v: unknown, max = 120) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+/** A seat count from the app: a whole number from 1 to the cap, or null. */
+const seatsFrom = (v: unknown): number | null => {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= SEAT_CAP ? n : null;
+};
+
+type Admin = ReturnType<typeof adminClient>;
+const SEAT_WORDS = {
+  en: (who: string, n: number) => ({ title: "Seat added", body: `${who} joined. Your plan now covers ${n} people.` }),
+  fr: (who: string, n: number) => ({ title: "Place ajoutée", body: `${who} s'est joint. Votre forfait couvre maintenant ${n} personnes.` }),
+  es: (who: string, n: number) => ({ title: "Plaza agregada", body: `${who} se unió. Su plan ahora cubre ${n} personas.` }),
+};
+
+/** Push to the department's owners when billing grew because someone joined. */
+async function alertOwners(admin: Admin, dept: { id: string; name: string }, joinerId: string, billed: number) {
+  const { data: joiner } = await admin.from("members").select("name").eq("dept_id", dept.id).eq("user_id", joinerId).maybeSingle();
+  const { data: owners } = await admin.from("members").select("user_id").eq("dept_id", dept.id).eq("role", "owner").eq("active", true).not("user_id", "is", null);
+  const users = (owners ?? []).map((o) => o.user_id as string).filter((u) => u && u !== joinerId);
+  const who = joiner?.name || "Someone";
+  await pushTo(admin, dept.id, users, (l) => {
+    const w = (SEAT_WORDS[l as keyof typeof SEAT_WORDS] ?? SEAT_WORDS.en)(who, billed);
+    return { aps: { alert: { title: w.title, body: w.body.slice(0, 160) }, sound: "default" }, kind: "seats" };
+  }, { collapse: `seats-${dept.id}`, ttl: 86400, quiet: true });
+}
 
 Deno.serve(lockedCors(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -42,7 +72,7 @@ Deno.serve(lockedCors(async (req) => {
     if (!me) return json({ error: "Not a member of this department" }, 403);
 
     const { data: dept, error } = await admin.from("departments")
-      .select("id, name, trial_ends_at, subscription_status, stripe_customer_id, stripe_subscription_id")
+      .select("id, name, trial_ends_at, subscription_status, stripe_customer_id, stripe_subscription_id, seats_paid, plan_interval")
       .eq("id", dept_id).single();
     if (error || !dept) return json({ error: "Department not found" }, 404);
 
@@ -50,8 +80,12 @@ Deno.serve(lockedCors(async (req) => {
     const appUrl = cleanAppUrl();
 
     if (action === "sync-seats") {
-      const seats = await syncSeats(stripe, admin, dept, MIN_SEATS);
-      return json({ seats });
+      const r = await syncSeats(stripe, admin, dept, MIN_SEATS);
+      // Someone joined past what the owner chose: billing grew. Tell the owner.
+      if (r.billed !== null && r.before !== null && r.billed > r.before && r.seats > (dept.seats_paid ?? 0)) {
+        await alertOwners(admin, dept, user.id, r.billed).catch((e) => console.error("seat alert failed", e));
+      }
+      return json({ seats: r.seats, billed: r.billed });
     }
 
     if (me.role !== "owner") return json({ error: "Only the department owner can manage billing" }, 403);
@@ -63,6 +97,32 @@ Deno.serve(lockedCors(async (req) => {
         return_url: `${appUrl}/?billing=portal`,
       });
       return json({ url: session.url });
+    }
+
+    // ---------- change seats ----------
+    if (action === "seats") {
+      if (!dept.stripe_subscription_id || !LIVE.includes(dept.subscription_status)) {
+        return json({ error: "Choose a plan first." }, 400);
+      }
+      const chosen = seatsFrom(body.seats);
+      if (!chosen) return json({ error: `Pick between 1 and ${SEAT_CAP} seats.` }, 400);
+      const sub = await stripe.subscriptions.retrieve(dept.stripe_subscription_id);
+      if (isCustom(sub)) return json({ error: "You're on a custom plan. Email us and we'll change it for you." }, 400);
+      const item = sub.items.data[0];
+      const used = await countSeats(admin, dept_id);
+      const qty = targetSeats(used, chosen, MIN_SEATS);
+      if (item && (item.quantity !== qty || sub.metadata?.seats_paid !== String(chosen))) {
+        // More seats: charged for the rest of this period on the next bill.
+        // Fewer seats: no refund mid-period, the next bill is lower.
+        await stripe.subscriptions.update(sub.id, {
+          items: [{ id: item.id, quantity: qty }],
+          proration_behavior: qty > (item.quantity ?? 0) ? "create_prorations" : "none",
+          // Kept on the subscription so the webhook never puts back an old number.
+          metadata: { ...sub.metadata, seats_paid: String(chosen) },
+        });
+      }
+      await admin.from("departments").update({ seats_paid: chosen, seats_billed: qty, seat_count: used }).eq("id", dept_id);
+      return json({ seats_paid: chosen, billed: qty, used });
     }
 
     if (action !== "checkout" && action !== "invoice") return json({ error: "Unknown action" }, 400);
@@ -81,7 +141,11 @@ Deno.serve(lockedCors(async (req) => {
       return json({ url: session.url });
     }
 
-    const seats = billedSeats(await countSeats(admin, dept_id), MIN_SEATS);
+    // The owner picks how many people to pay for. Never less than who's already signed in.
+    const used = await countSeats(admin, dept_id);
+    const chosen = seatsFrom(body.seats) ?? dept.seats_paid ?? Math.max(1, Math.min(used, SEAT_CAP));
+    const seats = targetSeats(used, chosen, MIN_SEATS);
+    await admin.from("departments").update({ seats_paid: chosen }).eq("id", dept_id);
     // Stripe needs trial_end at least 48h out. Inside that window we bill now.
     const trialEnd = Math.floor(new Date(dept.trial_ends_at).getTime() / 1000);
     const keepTrial = trialEnd > Math.floor(Date.now() / 1000) + 49 * 3600;
@@ -120,7 +184,7 @@ Deno.serve(lockedCors(async (req) => {
         items: [{ price: PRICE, quantity: seats }],
         collection_method: "send_invoice",
         days_until_due: 30,
-        metadata: { dept_id },
+        metadata: { dept_id, seats_paid: String(chosen) },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
         ...(TAX ? { automatic_tax: { enabled: true } } : {}),
       });
@@ -128,7 +192,8 @@ Deno.serve(lockedCors(async (req) => {
       await admin.from("departments").update({
         stripe_subscription_id: sub.id,
         subscription_status: sub.status,
-        seat_count: await countSeats(admin, dept_id),
+        seat_count: used,
+        seats_billed: seats,
       }).eq("id", dept_id);
       return json({ ok: true, status: sub.status });
     }
@@ -154,7 +219,7 @@ Deno.serve(lockedCors(async (req) => {
       billing_address_collection: "required",
       ...(TAX ? { automatic_tax: { enabled: true }, customer_update: { address: "auto", name: "auto" } } : {}),
       subscription_data: {
-        metadata: { dept_id },
+        metadata: { dept_id, seats_paid: String(chosen) },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
       },
       success_url: `${appUrl}/?billing=success`,
