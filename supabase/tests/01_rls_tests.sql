@@ -405,4 +405,23 @@ select public.admin_set_alerts(array['payment','quote']);
 select t_eq(jsonb_array_length(public.admin_settings()->'alerts'), 2, 'alert choices saved');
 reset role;
 
+-- ---------- Bulk import ----------
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+set role authenticated;
+select t_eq(public.import_roster((select v::uuid from ids where k='deptA'), '[{"name":"Imp One","rank":"Captain","call_sign":"C9","years":"7","certifications":[{"name":"NFPA 1001","date":"2024-01-02","expiry":""}]},{"name":"Imp Two"},{"name":""}]'::jsonb), 2, 'roster import adds people');
+select t_eq((select call_sign || years::text from members where name='Imp One'), 'C97', 'extra roster columns saved');
+select t_eq(public.import_roster((select v::uuid from ids where k='deptA'), '[{"name":"imp two","phone":"613-555-0100","certifications":[{"name":"First Aid"}]}]'::jsonb), 0, 'existing person not added twice');
+select t_eq((select phone || jsonb_array_length(certifications)::text from members where name='Imp Two'), '613-555-01001', 'blank fields filled, certification added');
+select t_eq((public.import_training((select v::uuid from ids where k='deptA'), '[{"title":"Pump ops","session_date":"2026-10-01","hours":"3","attendees":["Imp One","Nobody Here"]},{"title":""}]'::jsonb)->>'sessions')::int, 1, 'training import');
+select t_eq((select count(*) from training_attendance a join training_sessions s on s.id=a.session_id where s.title='Pump ops')::int, 1, 'attendance matched by name');
+select t_eq(public.import_equipment((select v::uuid from ids where k='deptA'), '[{"name":"SCBA bottle","qty":"12","status":"Bogus","next_service":"2027-01-01"},{"name":"Hose 1.75"}]'::jsonb), 2, 'equipment import');
+select t_eq((select status || qty::text from equipment where name='SCBA bottle'), 'Available12', 'bad status falls back');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false);
+set role authenticated;
+select t_fail($$select public.import_equipment((select v::uuid from ids where k='deptA'), '[{"name":"x"}]'::jsonb)$$, 'not allowed');
+select t_fail($$select public.import_training((select v::uuid from ids where k='deptA'), '[{"title":"x"}]'::jsonb)$$, 'not allowed');
+reset role;
+
 \echo ALL_TESTS_PASSED

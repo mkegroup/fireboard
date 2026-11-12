@@ -96,8 +96,19 @@ export function formData(form) {
   return o;
 }
 
-export function download(filename, text, type = "text/plain") {
-  const blob = new Blob([text], { type: `${type};charset=utf-8` });
+export async function download(filename, text, type = "text/plain") {
+  // A byte-order mark makes Excel read accents (Rivière, Désormeaux) correctly.
+  const body = type === "text/csv" && !String(text).startsWith("\ufeff") ? `\ufeff${text}` : text;
+  const blob = new Blob([body], { type: `${type};charset=utf-8` });
+  // The iPhone app can't save from a link, so hand the file to the share sheet
+  // (Save to Files, Mail, AirDrop, Numbers).
+  const native = !!window.Capacitor?.isNativePlatform?.();
+  if (native || !("download" in HTMLAnchorElement.prototype)) {
+    try {
+      const file = new File([blob], filename, { type });
+      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: filename }); return true; }
+    } catch (e) { if (e?.name === "AbortError") return false; }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -105,7 +116,8 @@ export function download(filename, text, type = "text/plain") {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return true;
 }
 
 export function csv(rows) {

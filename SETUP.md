@@ -354,3 +354,18 @@ The app comes in English, French and Spanish. It picks the phone's language, and
 Translations live in `tools/translations.py`. Edit a line there, run `python3 tools/translations.py`, and upload. Have a francophone firefighter read the French once: fire service words vary by region.
 
 The privacy and terms pages are English only for now. Quebec's language law (Bill 96) expects French versions before you sign Quebec departments.
+
+## 16. Importing from a spreadsheet
+
+Officers can bring in existing records instead of typing them:
+
+- Records, tap the upload arrow (next to export). Pick Roster, Certifications, Training, Equipment or Trucks.
+- Department, Trucks, Import does the same for apparatus.
+- Each one has a template (CSV with the right headings and two example rows). Fill it in Excel, Numbers or Google Sheets, then choose the saved CSV file or copy the cells and paste them.
+- Headings don't have to match exactly. Common English, French and Spanish names work (Name, Nom, Nombre, Qty, Quantité...).
+- Dates can be 2026-03-05, 3/5/2026, Mar 5 2026 or an Excel date number.
+- Every row is checked first. You see what will be added and why any row is skipped before anything is saved.
+- Roster rows with a name already on the roster fill in that person's blank details instead of adding them twice.
+- Up to 500 rows per import call; bigger files are sent in batches automatically.
+
+Requires migration `20261113000000_imports.sql` (applied by the GitHub action).

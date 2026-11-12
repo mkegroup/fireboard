@@ -267,6 +267,23 @@ export function boardView(root, incidentId) {
   }
 
   // ---------------- map ----------------
+  // The map fills what's left of the screen under the header, so the page
+  // doesn't grow past the bottom and drag everything with it.
+  function sizeMap() {
+    const el = root.querySelector("#map");
+    if (!el) return;
+    const vh = window.visualViewport?.height || window.innerHeight;
+    const head = root.querySelector(".topbar")?.getBoundingClientRect().height || 0;
+    const nav = document.querySelector(".bottomnav");
+    const navH = nav && getComputedStyle(nav).display !== "none" ? nav.getBoundingClientRect().height : 0;
+    const before = el.getBoundingClientRect().top + window.scrollY - (root.querySelector("#b-body")?.getBoundingClientRect().top + window.scrollY || 0);
+    const banners = root.querySelector("#b-banners")?.getBoundingClientRect().height || 0;
+    const h = Math.round(vh - head - banners - navH - Math.max(0, before) - 28);
+    el.style.setProperty("--map-h", `${Math.max(280, Math.min(h, 900))}px`);
+  }
+  const onResize = () => { if (tab === "map") { sizeMap(); if (map && map !== "loading") map.resize?.(); } };
+  window.addEventListener("resize", onResize);
+
   function paintMap(body) {
     if (!map) {
       const sharing = watchId !== null;
@@ -280,6 +297,7 @@ export function boardView(root, incidentId) {
         <div id="map" role="application" aria-label="Map of crew positions"></div>
         <div id="map-list" class="section"></div>`;
       const el = body.querySelector("#map");
+      sizeMap();
       map = "loading";
       geoTried = "";
       createMap(el).then((m) => {
@@ -815,6 +833,7 @@ export function boardView(root, incidentId) {
 
   return () => {
     alive = false;
+    window.removeEventListener("resize", onResize);
     releaseScreen();
     offClicks();
     root.removeEventListener("change", onChange);

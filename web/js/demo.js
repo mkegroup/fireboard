@@ -271,6 +271,26 @@ export function createDemoApi() {
       }
       return n;
     },
+    async importTraining(_d, sessions) {
+      let n = 0, att = 0; const unmatched = [];
+      for (const s of sessions) {
+        if (!s.title) continue;
+        const row = { id: id("t"), dept_id: DEPT, title: s.title, session_date: s.session_date || new Date().toISOString().slice(0, 10), kind: s.kind || null, hours: s.hours ? Number(s.hours) : null, location: s.location || null, instructor: s.instructor || null, notes: s.notes || null, attendance_open: false, created_at: new Date().toISOString() };
+        db.training.push(row); n++;
+        for (const who of s.attendees || []) {
+          const m = db.members.find((x) => x.active && x.name.toLowerCase() === who.toLowerCase());
+          if (!m) { if (!unmatched.includes(who)) unmatched.push(who); continue; }
+          db.attendance.push({ session_id: row.id, member_id: m.id, dept_id: DEPT, self_marked: false }); att++;
+        }
+      }
+      notify("training_sessions");
+      return { sessions: n, attendance: att, unmatched };
+    },
+    async importEquipment(_d, items) {
+      let n = 0;
+      for (const e of items) { if (!e.name) continue; db.equipment.push({ id: id("e"), dept_id: DEPT, status: "Available", qty: 1, ...e, qty: Math.max(1, parseInt(e.qty, 10) || 1) }); n++; }
+      return n;
+    },
     async deleteRosterEntry(mid) { db.members = db.members.filter((x) => x.id !== mid); },
     async listRemoved() { return []; },
     async allowBack() {},

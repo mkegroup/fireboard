@@ -269,6 +269,12 @@ export function createApi() {
     async importRoster(deptId, people) {
       return must(await sb.rpc("import_roster", { p_dept: deptId, p_people: people }));
     },
+    async importTraining(deptId, sessions) {
+      return must(await sb.rpc("import_training", { p_dept: deptId, p_sessions: sessions }));
+    },
+    async importEquipment(deptId, items) {
+      return must(await sb.rpc("import_equipment", { p_dept: deptId, p_items: items }));
+    },
     async deleteRosterEntry(id) {
       mustRows(await sb.from("members").delete().eq("id", id).select("id"));
     },

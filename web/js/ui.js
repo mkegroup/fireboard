@@ -16,6 +16,7 @@ const PATHS = {
   pin: '<path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
   radio: '<rect x="4" y="8" width="16" height="13" rx="2"/><path d="M8 8l8-5"/><circle cx="15" cy="14.5" r="2.5"/><path d="M7 13h3M7 16h3"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5M5 21h14"/>',
   copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   play: '<path d="M7 4l13 8-13 8z"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',

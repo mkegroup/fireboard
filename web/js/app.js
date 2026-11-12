@@ -5,11 +5,12 @@ import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, 
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
 import { boardView } from "./board.js";
-import { startPush, stopPush, pushState, askForPush } from "./native.js";
+import { startPush, stopPush, pushState, askForPush, settleViewport } from "./native.js";
 import { recordsView, openMemberProfile } from "./records.js";
 import { connectionsView } from "./connections.js";
 import { mountChat, lastSeen } from "./chat.js";
 import { adminView } from "./admin.js";
+import { openImport } from "./importer.js";
 import { bestDirections, addressPicker } from "./maps.js";
 import { getLocale, getLang, setLang, LANGS, startTranslating, t } from "./i18n.js";
 
@@ -38,6 +39,7 @@ let pendingJoinCode = null;
 // Boot
 // ============================================================
 async function boot() {
+  settleViewport();
   applyTheme();
   startTranslating();
   const params = new URLSearchParams(location.search);
@@ -941,7 +943,7 @@ function deptView() {
 
         ${isOfficer() ? `
         <section class="section">
-          <div class="section-head"><div class="h2">Trucks</div></div>
+          <div class="section-head"><div class="h2">Trucks</div><button class="btn sm" data-act="trucks-import">${icon("upload", "sm")} Import</button></div>
           <div class="panel">
             <p class="muted small" style="margin-bottom:12px">Your department's apparatus. They show up as one-tap choices when you start an incident.</p>
             ${apparatus.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${apparatus.map((a, i) => `<span class="chip">${icon("truck", "sm")}${esc(a.name)} <button data-act="app-del" data-i="${i}" aria-label="Remove ${esc(a.name)}" class="faint">${icon("close", "sm")}</button></span>`).join("")}</div>` : ""}
@@ -1089,6 +1091,7 @@ function deptView() {
       catch (e) { toast(friendlyError(e), true); }
     },
     poster: () => printPoster(),
+    "trucks-import": () => openImport("trucks", async () => { await refreshDept(); paint().catch(() => {}); }),
     "app-del": async (b) => {
       const list = [...(S.dept.settings?.apparatus || [])];
       list.splice(Number(b.dataset.i), 1);

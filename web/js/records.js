@@ -3,6 +3,7 @@ import { S, RANKS, CREWS, TRAINING_TYPES, EQUIP_STATUSES, EQUIP_CATEGORIES, COND
 import { esc, initials, colorFor, dateLabel, formData, download, csv, slug, todayISO, friendlyError, daysUntil, parseRoster } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
 import { bindActions, bottomNav, demoStrip, accessBanner } from "./app.js";
+import { openImport } from "./importer.js";
 
 const canEdit = () => isOfficer() && hasAccess();
 
@@ -30,7 +31,8 @@ export function recordsView(root, tab) {
     <div class="screen with-nav">
       <header class="topbar"><div class="wrap">
         <div class="topbar-in"><h1>Records</h1>
-          <button class="iconbtn" data-act="export" aria-label="Export ${tab}">${icon("download")}</button>
+          ${canEdit() ? `<button class="iconbtn" data-act="import" aria-label="Import from a spreadsheet" title="Import from a spreadsheet">${icon("upload")}</button>` : ""}
+          <button class="iconbtn" data-act="export" aria-label="Export ${tab}" title="Export">${icon("download")}</button>
           ${canEdit() ? `<button class="btn sm primary" data-act="add">${icon("plus", "sm")} ${tab === "roster" ? "Add person" : tab === "training" ? "Log training" : "Add item"}</button>` : ""}
         </div>
         <nav class="views" style="border:0">
@@ -286,6 +288,7 @@ export function recordsView(root, tab) {
       else equipmentForm();
     },
     export: exportCsv,
+    import: () => openImport(tab, load),
     member: (b) => openMemberProfile(b.dataset.id, load, data),
     session: (b) => sessionSheet(data.training.find((t) => t.id === b.dataset.id)),
     item: (b) => equipmentForm(data.equipment.find((e) => e.id === b.dataset.id)),
@@ -304,6 +307,7 @@ function addPersonForm(onDone) {
     body: `<div class="segment" style="margin-bottom:16px" role="tablist">
         <button type="button" class="on" data-mode="one" role="tab">One person</button>
         <button type="button" data-mode="many" role="tab">Paste a list</button>
+        <button type="button" data-spreadsheet>Spreadsheet</button>
       </div>
       <form data-one novalidate>
         <p class="muted small" style="margin-bottom:14px">For people who don't use the app. Anyone with the app joins with your invite code instead.</p>
@@ -323,6 +327,7 @@ function addPersonForm(onDone) {
   });
   const one = el.querySelector("[data-one]");
   const many = el.querySelector("[data-many]");
+  el.querySelector("[data-spreadsheet]").addEventListener("click", () => { close(); openImport("roster", onDone); });
   el.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
     el.querySelectorAll("[data-mode]").forEach((x) => x.classList.toggle("on", x === b));
     one.hidden = b.dataset.mode !== "one";

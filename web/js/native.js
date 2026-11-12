@@ -77,3 +77,34 @@ export async function askForPush() {
     return false;
   } catch { return false; }
 }
+
+// ---------------- keeping the screen in place ----------------
+// iOS can leave the page shifted up after the keyboard closes, after a sheet
+// closes, or when you come back from Maps or another app. That's what pushes
+// the buttons up the screen and lets you scroll into empty space.
+// This snaps the page back inside its real bounds.
+export function settleViewport() {
+  const typing = () => {
+    const a = document.activeElement;
+    return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable);
+  };
+  const settle = () => {
+    if (typing()) return;
+    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const vv = window.visualViewport;
+    if (window.scrollY > max || (vv && vv.offsetTop > 0.5)) window.scrollTo(window.scrollX, Math.min(window.scrollY, max));
+  };
+  let t;
+  const later = (ms = 120) => { clearTimeout(t); t = setTimeout(settle, ms); };
+  document.addEventListener("focusout", () => later(150));
+  window.visualViewport?.addEventListener("resize", () => later(100));
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { later(50); later(400); } });
+  window.addEventListener("pageshow", () => later(50));
+  window.addEventListener("hashchange", () => later(60));
+  if (IS_NATIVE) {
+    const K = window.Capacitor?.Plugins?.Keyboard;
+    K?.setAccessoryBarVisible?.({ isVisible: true }).catch?.(() => {});
+    K?.addListener?.("keyboardDidHide", () => later(30));
+    window.Capacitor?.Plugins?.App?.addListener?.("resume", () => later(80));
+  }
+}
