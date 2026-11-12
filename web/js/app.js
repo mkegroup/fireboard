@@ -505,6 +505,10 @@ async function renderOnboarding(code = "") {
   const P = CONFIG.PRICING;
   let deptName = null;
   if (code) deptName = await S.api.invitePreview(code).catch(() => null);
+  // Waiting on an officer to approve a join request?
+  const waiting = S.api.isDemo ? [] : await S.api.myJoinRequests().catch(() => []);
+  const waitingCards = waiting.map((w) => `<div class="banner warn section">${icon("user")}<div class="grow"><b>${esc(t("Waiting for {dept} to approve you", { dept: w.dept_name }))}</b><br><span class="muted">An officer needs to approve new people. You'll get in as soon as they do. Ask your chief if it's taking a while.</span>
+      <div class="btn-row" style="margin-top:10px"><button class="btn sm primary" data-act="check-again">Check again</button><button class="btn sm quiet" data-act="cancel-request" data-id="${w.dept_id}">Cancel request</button></div></div></div>`).join("");
   const optional = (rankDefault) => `<details class="more"><summary class="muted small">Rank and crew (optional)</summary>
       <div class="grid2" style="margin-top:10px">${field("Rank", select("rank", RANKS, rankDefault))}${field("Crew", select("crew", ["", ...CREWS], ""))}</div></details>`;
   root.innerHTML = `
@@ -512,6 +516,7 @@ async function renderOnboarding(code = "") {
   <div class="screen">
     <div class="wrap" style="padding-top:calc(28px + env(safe-area-inset-top));max-width:520px">
       ${hasDepts ? `<button class="btn quiet" data-act="cancel">${icon("back")} Back</button>` : `<div style="width:200px;margin-bottom:8px">${logo()}</div>`}
+      ${waitingCards}
       ${deptName ? `
       <div class="h2" style="font-size:32px;margin-top:10px">Join ${esc(deptName)}</div>
       <p class="muted" style="margin-top:6px">Last step. Your name is what command sees on the board.</p>
@@ -551,6 +556,11 @@ async function renderOnboarding(code = "") {
   const off = bindActions(root, {
     cancel: () => { clearJoinCode(); location.hash = "#/"; afterSignIn(); },
     "no-invite": () => { clearJoinCode(); renderOnboarding(); },
+    "check-again": async () => { await afterSignIn(); if (!S.memberships.length) toast("Still waiting for approval."); },
+    "cancel-request": async (b) => {
+      try { await S.api.cancelJoinRequest(b.dataset.id); toast("Request cancelled."); renderOnboarding(); }
+      catch (e) { toast(friendlyError(e), true); }
+    },
     help: () => helpSheet(),
     signout: () => S.api.signOut().then(() => S.api.isDemo ? exitDemo() : renderAuth("email")),
   });
@@ -592,6 +602,13 @@ async function renderOnboarding(code = "") {
     if (!f.name) throw new Error("Enter your name.");
     const deptId = await S.api.joinDepartment(c, f.name, f.rank, f.crew);
     clearJoinCode();
+    const pend = await S.api.myJoinRequests().catch(() => []);
+    if (pend.some((p) => p.dept_id === deptId)) {
+      location.hash = "#/";
+      await afterSignIn();
+      toast("Request sent. An officer needs to approve you.");
+      return;
+    }
     localStorage.setItem("fgb_dept", deptId);
     location.hash = "#/";
     await afterSignIn();
@@ -881,11 +898,13 @@ function deptView() {
   let alive = true;
   let members = [];
   let removed = [];
+  let requests = [];
 
   const paint = async () => {
-    [members, removed] = await Promise.all([
+    [members, removed, requests] = await Promise.all([
       S.api.listMembers(S.dept.id),
       isOfficer() ? S.api.listRemoved(S.dept.id).catch(() => []) : Promise.resolve([]),
+      isOfficer() && !S.api.isDemo ? S.api.listJoinRequests(S.dept.id).catch(() => []) : Promise.resolve([]),
     ]);
     if (!alive) return;
     const withAccount = members.filter((m) => m.user_id);
@@ -903,6 +922,16 @@ function deptView() {
         ${accessBanner()}
         <div class="cols">
         <div class="col">
+        ${requests.length ? `<section class="section">
+          <div class="section-head"><div class="h2">Waiting for approval</div><span class="pill">${requests.length}</span></div>
+          <div class="list">${requests.map((r) => `<div class="row">
+            <div class="avatar" style="background:${colorFor(r.name)}">${esc(initials(r.name))}</div>
+            <div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${esc(r.email || "")}${r.email ? ", " : ""}${esc(t("asked {x}", { x: ago(r.requested_at) }))}</div></div>
+            <button class="btn sm primary" data-act="join-ok" data-id="${r.id}">Approve</button>
+            <button class="btn sm" data-act="join-no" data-id="${r.id}" data-name="${esc(r.name)}">Decline</button>
+          </div>`).join("")}</div>
+          <p class="hint">Approved people use a seat. Don't know someone? Decline them, then make a new invite code.</p>
+        </section>` : ""}
         <section class="section">
           <div class="section-head"><div class="h2">Invite your crew</div></div>
           <div class="panel">
@@ -913,7 +942,9 @@ function deptView() {
               <button class="btn" data-act="qr">Show QR code</button>
             </div>
             <button class="btn block" style="margin-top:10px" data-act="poster">${icon("print", "sm")} Print a poster for the station</button>
-            ${isOfficer() ? `<button class="btn quiet sm" style="margin-top:8px" data-act="new-code">Make a new code (old one stops working)</button>` : ""}
+            ${isOfficer() ? `<button class="btn quiet sm" style="margin-top:8px" data-act="new-code">Make a new code (old one stops working)</button>
+            <label class="check" style="margin-top:12px"><input type="checkbox" data-join-approval ${d.join_approval ? "checked" : ""}> New people need approval</label>
+            <p class="hint" style="margin-top:2px">When this is on, people who use the code wait until an officer approves them. They don't see anything or use a seat until then.</p>` : ""}
           </div>
           <input type="hidden" id="invite-link" value="${esc(inviteLink)}">
         </section>
@@ -1075,6 +1106,15 @@ function deptView() {
       list.push({ name: f.name.slice(0, 40), kind: f.kind });
       await saveSettings({ ...S.dept.settings, apparatus: list });
     });
+    root.querySelector("[data-join-approval]")?.addEventListener("change", async (e) => {
+      const on = e.target.checked;
+      try {
+        if (S.api.isDemo) throw new Error("Not available in the demo.");
+        await S.api.setJoinApproval(S.dept.id, on);
+        await refreshDept();
+        toast(on ? "New people now wait for approval." : "Anyone with the code joins right away.");
+      } catch (ex) { e.target.checked = !on; toast(friendlyError(ex), true); }
+    });
     root.querySelector("#name-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const { name } = formData(e.target);
@@ -1109,6 +1149,16 @@ function deptView() {
       catch (e) { toast(friendlyError(e), true); }
     },
     member: (b) => memberSheet(members.find((m) => m.id === b.dataset.id)),
+    "join-ok": async (b) => {
+      b.disabled = true;
+      try { await S.api.approveJoin(b.dataset.id, S.dept.id); toast("Approved. They're in."); await refreshDept(); paint().catch(() => {}); }
+      catch (e) { toast(friendlyError(e), true); b.disabled = false; }
+    },
+    "join-no": async (b) => {
+      if (!(await confirmSheet({ title: t("Decline {name}?", { name: b.dataset.name }), message: "They won't be able to ask again with the code unless you allow them back. If you don't know them, make a new invite code too.", confirmLabel: "Decline", danger: true }))) return;
+      try { await S.api.declineJoin(b.dataset.id); toast("Declined."); paint().catch(() => {}); }
+      catch (e) { toast(friendlyError(e), true); }
+    },
     "allow-back": async (b) => {
       try { await S.api.allowBack(b.dataset.id); toast("They can rejoin with the invite code now."); paint(); }
       catch (e) { toast(friendlyError(e), true); }
@@ -1327,6 +1377,7 @@ function planView() {
             ${faq("How do seats work?", "Choose how many people will sign in to the app. Each one uses a seat. Names you add to the roster for people without the app are free. Change the number any time in Plan.")}
             ${faq("What if more people join than we paid for?", "They get in right away. Nobody is ever locked out of the board. We add a seat to your plan, up to the limit, and let you know.")}
             ${faq("Is there a limit on what we pay?", t("Yes. Up to {p} people, you never pay for more than {b} seats: {m} a month or {y} a year, plus tax. Bigger departments pay for {b} more seats for every {p} more people, or ask us for a quote.", { b: P.seatCap, p: P.capPer, m: capM, y: capY }))}
+            ${faq("How do we give a seat to someone else?", "Remove the person leaving in Department. Their seat frees up, and the next person who joins with your invite code takes it. Want to check everyone first? Turn on New people need approval in Department.")}
             ${faq("What happens when we add or remove seats?", "Added seats are charged for the rest of the current period on your next bill. Fewer seats lower your next bill. You can't go below the number of people signed in. Remove people in Department first.")}
             ${faq("Can we pay by cheque or EFT?", `Yes. Choose yearly, then Pay by invoice. We email a yearly invoice your treasurer can pay within 30 days.`)}
             ${faq("Is tax included?", `Prices are in ${esc(P.currency)}, plus tax where it applies.`)}

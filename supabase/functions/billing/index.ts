@@ -44,9 +44,33 @@ const SEAT_WORDS = {
   es: (who: string, n: number) => ({ title: "Plaza agregada", body: `${who} se unió. Su plan ahora cubre ${n} personas.` }),
 };
 
+const JOIN_WORDS = {
+  en: (who: string) => ({ title: "Waiting for approval", body: `${who} asked to join. Approve or decline in Department.` }),
+  fr: (who: string) => ({ title: "En attente d'approbation", body: `${who} demande à se joindre. Approuvez ou refusez dans Service.` }),
+  es: (who: string) => ({ title: "Esperando aprobación", body: `${who} pidió unirse. Apruebe o rechace en Departamento.` }),
+};
+
+/** Tells owners and officers someone is waiting to be approved: push to all of them, email to owners. Once per request. */
+async function alertJoinRequest(admin: Admin, deptId: string, memberId: string, who: string, email: string) {
+  const { data: dept } = await admin.from("departments").select("id, name").eq("id", deptId).maybeSingle();
+  if (!dept) return;
+  // Claim it first so a second call doesn't alert twice.
+  const { error } = await admin.from("owner_emails").insert({ dept_id: deptId, kind: "join_alert", ref: memberId });
+  if (error) return;
+  const { data: officers } = await admin.from("members").select("user_id").eq("dept_id", deptId).eq("active", true).in("role", ["owner", "officer"]).not("user_id", "is", null);
+  await pushTo(admin, deptId, (officers ?? []).map((o) => o.user_id as string), (l) => {
+    const w = (JOIN_WORDS[l as keyof typeof JOIN_WORDS] ?? JOIN_WORDS.en)(who);
+    return { aps: { alert: { title: w.title, body: w.body.slice(0, 160) }, sound: "default" }, kind: "join" };
+  }, { collapse: `join-${memberId}`, ttl: 86400 * 3, quiet: true });
+  await mailOwnersOnce(admin, deptId, "join_request", memberId, emails.joinRequest(dept.name, who, email));
+}
+
 /** Push to the department's owners when billing grew because someone joined. */
-async function alertOwners(admin: Admin, dept: { id: string; name: string; plan_interval?: string | null }, joinerId: string, billed: number) {
-  const { data: joiner } = await admin.from("members").select("name").eq("dept_id", dept.id).eq("user_id", joinerId).maybeSingle();
+async function alertOwners(admin: Admin, dept: { id: string; name: string; plan_interval?: string | null }, joinerId: string, billed: number, memberId: string | null = null) {
+  // memberId: an officer just approved this person. Otherwise the caller is the person who joined.
+  const { data: joiner } = memberId
+    ? await admin.from("members").select("name").eq("dept_id", dept.id).eq("id", memberId).maybeSingle()
+    : await admin.from("members").select("name").eq("dept_id", dept.id).eq("user_id", joinerId).maybeSingle();
   const { data: owners } = await admin.from("members").select("user_id").eq("dept_id", dept.id).eq("role", "owner").eq("active", true).not("user_id", "is", null);
   const users = (owners ?? []).map((o) => o.user_id as string).filter((u) => u && u !== joinerId);
   const who = joiner?.name || "Someone";
@@ -72,7 +96,19 @@ Deno.serve(lockedCors(async (req) => {
 
     const admin = adminClient();
     const me = await membership(admin, dept_id, user.id);
-    if (!me) return json({ error: "Not a member of this department" }, 403);
+    if (!me) {
+      // Someone who just asked to join a department that approves new people.
+      // The app calls this right after joining, so this is where officers hear about it.
+      if (action === "sync-seats") {
+        const { data: req } = await admin.from("members").select("id, name, pending_at")
+          .eq("dept_id", dept_id).eq("user_id", user.id).eq("active", false).not("pending_at", "is", null).is("removed_at", null).maybeSingle();
+        if (req) {
+          await alertJoinRequest(admin, dept_id, req.id as string, (req.name as string) || "Someone", user.email ?? "").catch((e) => console.error("join alert failed", e));
+          return json({ pending: true });
+        }
+      }
+      return json({ error: "Not a member of this department" }, 403);
+    }
 
     const { data: dept, error } = await admin.from("departments")
       .select("id, name, trial_ends_at, subscription_status, stripe_customer_id, stripe_subscription_id, seats_paid, plan_interval")
@@ -83,10 +119,20 @@ Deno.serve(lockedCors(async (req) => {
     const appUrl = cleanAppUrl();
 
     if (action === "sync-seats") {
+      // An officer just approved someone: tell that person they're in.
+      if (typeof body.member_id === "string" && me.role !== "member") {
+        const { data: m } = await admin.from("members").select("user_id, active").eq("id", body.member_id).eq("dept_id", dept_id).maybeSingle();
+        if (m?.active && m.user_id) {
+          await pushTo(admin, dept_id, [m.user_id as string], (l) => ({
+            aps: { alert: { title: dept.name, body: l === "fr" ? "Vous êtes approuvé. Ouvrez l'appli pour voir le tableau." : l === "es" ? "Fue aprobado. Abra la app para ver el tablero." : "You're approved. Open the app to see the board." }, sound: "default" },
+            kind: "approved",
+          }), { collapse: `approved-${body.member_id}`, ttl: 86400 * 3, quiet: true }).catch(() => {});
+        }
+      }
       const r = await syncSeats(stripe, admin, dept, MIN_SEATS);
       // Someone joined past what the owner chose: billing grew. Tell the owner.
       if (r.billed !== null && r.before !== null && r.billed > r.before && r.seats > (dept.seats_paid ?? 0)) {
-        await alertOwners(admin, dept, user.id, r.billed).catch((e) => console.error("seat alert failed", e));
+        await alertOwners(admin, dept, user.id, r.billed, typeof body.member_id === "string" ? body.member_id : null).catch((e) => console.error("seat alert failed", e));
       }
       return json({ seats: r.seats, billed: r.billed });
     }

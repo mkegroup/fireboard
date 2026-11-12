@@ -399,3 +399,9 @@ Supabase > Edge Functions > Secrets:
 - `VAPID_PUBLIC_KEY` = the same value as `WEB_PUSH_KEY` in `web/js/config.js`
 - `VAPID_PRIVATE_KEY` = its private half (keep it secret; if it's ever lost, generate a new pair and update both)
 - `VAPID_SUBJECT` = `mailto:hello@mkegroup.ca`
+
+## 19. New people need approval
+
+Off by default. An owner or officer turns it on in **Department > Invite your crew**. Then anyone who uses the invite code waits as pending: they see nothing and use no seat. Owners and officers get a push, and owners get an email with the person's name and email. Approve or decline in Department. Declined people can't ask again unless an officer uses "Allow back". Requires migration `20261118000000_join_approval.sql`.
+
+On the iPhone app build that's in review, a pending person lands back on the join screen; trying again shows "waiting for an officer to approve". The next app build shows a proper waiting screen.

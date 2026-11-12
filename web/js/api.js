@@ -2,7 +2,7 @@
 import { CONFIG } from "./config.js";
 
 const DEPT_COLS =
-  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at, plan_amount, plan_custom, seats_paid, seats_billed";
+  "id, name, created_at, invite_code, scanner_url, scanner_label, settings, trial_ends_at, subscription_status, current_period_end, past_due_since, seat_count, plan_interval, plan_invoice, plan_cancel_at, plan_amount, plan_custom, seats_paid, seats_billed, join_approval";
 const MEMBER_COLS =
   "id, dept_id, user_id, role, active, name, rank, call_sign, crew, phone, radio, years, certifications, notes, ec_name, ec_rel, ec_phone, chat_alerts, created_at";
 
@@ -108,6 +108,16 @@ export function createApi() {
       api.syncSeats(id).catch(() => {});
       return id;
     },
+    // ---------------- join approval ----------------
+    async setJoinApproval(deptId, on) { must(await sb.rpc("set_join_approval", { p_dept: deptId, p_on: !!on })); },
+    async listJoinRequests(deptId) { return must(await sb.rpc("list_join_requests", { p_dept: deptId })) || []; },
+    async approveJoin(memberId, deptId) {
+      must(await sb.rpc("approve_join", { p_member: memberId }));
+      api.billing("sync-seats", deptId, { member_id: memberId }).catch(() => {});
+    },
+    async declineJoin(memberId) { must(await sb.rpc("decline_join", { p_member: memberId })); },
+    async myJoinRequests() { return must(await sb.rpc("my_join_requests")) || []; },
+    async cancelJoinRequest(deptId) { must(await sb.rpc("cancel_join_request", { p_dept: deptId })); },
     async leaveDepartment(deptId) {
       must(await sb.rpc("leave_department", { p_dept: deptId }));
       api.syncSeats(deptId).catch(() => {});

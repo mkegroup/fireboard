@@ -449,4 +449,59 @@ reset role;
 select t_eq((select count(*) from push_devices where user_id = '00000000-0000-0000-0000-0000000000f1')::int, 3, 'at most 3 phones per person');
 select t_eq((select count(*) from push_devices where token = repeat('a', 64))::int, 0, 'oldest phone dropped');
 
+-- ---------- join approval ----------
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000a1', 'ap1@x.io'), ('00000000-0000-0000-0000-0000000000a2', 'ap2@x.io'), ('00000000-0000-0000-0000-0000000000a3', 'ap3@x.io');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',false);
+set role authenticated;
+insert into ids select 'deptAp', public.create_department('Approve FD','Ann Owner','Chief')::text;
+reset role;
+insert into ids select 'codeAp', invite_code from departments where id = (select v::uuid from ids where k='deptAp');
+-- Off by default: joins straight in
+select t_eq((select join_approval from departments where id = (select v::uuid from ids where k='deptAp')), false, 'approval off by default');
+-- Crew can't turn it on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a3',false);
+set role authenticated;
+select public.join_department((select v from ids where k='codeAp'),'Carl Crew','Firefighter');
+select t_fail($$select public.set_join_approval((select v::uuid from ids where k='deptAp'), true)$$, 'not allowed');
+select t_fail($$select * from public.list_join_requests((select v::uuid from ids where k='deptAp'))$$, 'not allowed');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',false);
+set role authenticated;
+select public.set_join_approval((select v::uuid from ids where k='deptAp'), true);
+reset role;
+-- A new person waits
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',false);
+set role authenticated;
+select t_eq(public.join_department((select v from ids where k='codeAp'),'Pat Pending','Firefighter')::text, (select v from ids where k='deptAp'), 'join returns the department');
+select t_eq((select count(*) from departments)::int, 0, 'pending person sees no department');
+select t_eq((select count(*) from public.my_join_requests())::int, 1, 'pending person sees their request');
+select t_fail($$select public.join_department((select v from ids where k='codeAp'),'Pat Pending','Firefighter')$$, 'waiting for an officer');
+reset role;
+select t_eq((select seat_count from departments where id = (select v::uuid from ids where k='deptAp')), 2, 'pending person uses no seat');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',false);
+set role authenticated;
+select t_eq((select name || ',' || email from public.list_join_requests((select v::uuid from ids where k='deptAp'))), 'Pat Pending,ap2@x.io', 'owner sees the request with email');
+select public.approve_join((select id from public.list_join_requests((select v::uuid from ids where k='deptAp'))));
+reset role;
+select t_eq((select seat_count from departments where id = (select v::uuid from ids where k='deptAp')), 3, 'approved person uses a seat');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',false);
+set role authenticated;
+select t_eq((select count(*) from departments)::int, 1, 'approved person sees the department');
+reset role;
+-- Decline: can't ask again
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000a4', 'ap4@x.io');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a4',false);
+set role authenticated;
+select public.join_department((select v from ids where k='codeAp'),'Stranger Danger','Firefighter');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',false);
+set role authenticated;
+select public.decline_join((select id from public.list_join_requests((select v::uuid from ids where k='deptAp'))));
+select t_eq((select count(*) from public.list_join_requests((select v::uuid from ids where k='deptAp')))::int, 0, 'declined request gone');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a4',false);
+set role authenticated;
+select t_fail($$select public.join_department((select v from ids where k='codeAp'),'Stranger Danger','Firefighter')$$, 'removed from this department');
+reset role;
+
 \echo ALL_TESTS_PASSED

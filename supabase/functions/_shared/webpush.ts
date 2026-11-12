@@ -28,6 +28,7 @@ function urlFor(a: WebAlert): string {
   if (a.url) return a.url;
   if (a.kind === "admin") return "/#/admin";
   if (a.kind === "seats") return "/#/plan";
+  if (a.kind === "join") return "/#/dept";
   if (a.kind === "chat") return a.chat === "station" || !a.incident_id ? "/#/chat" : `/#/incident/${a.incident_id}?chat=1`;
   if (a.incident_id) return `/#/incident/${a.incident_id}`;
   return "/";

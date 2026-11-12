@@ -119,6 +119,16 @@ export const emails = {
     };
   },
 
+  joinRequest: (deptName: string, who: string, email: string) => (first: string): Built => ({
+    subject: `${who} asked to join ${deptName}`,
+    heading: `${first}, someone is waiting for approval`,
+    paras: [
+      `${who}${email ? ` (${email})` : ""} used your invite code to join ${deptName}. You have "New people need approval" turned on, so they can't see anything yet and they don't use a seat.`,
+      "Approve them if they're on your crew. If you don't know them, decline, then make a new invite code in Department so the old one stops working.",
+    ],
+    button: { label: "Review in Department", url: `${appUrl()}/#/dept` },
+  }),
+
   paymentFailed: (deptName: string, invoice: boolean) => (first: string): Built => ({
     subject: `Payment problem for ${deptName}`,
     heading: `${first}, a payment didn't go through`,
