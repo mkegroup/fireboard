@@ -1160,4 +1160,9 @@ export default {
   "Blocked by this browser. Allow notifications for this site in the browser's settings, then reload.": "Bloquées par ce navigateur. Autorisez les notifications pour ce site dans les paramètres du navigateur, puis rechargez.",
   "Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.": "Les alertes n'ont pas été activées. Si vous les avez bloquées, autorisez les notifications pour ce site dans les paramètres de votre navigateur.",
   "Call alerts are on for this device.": "Les alertes d'appel sont activées sur cet appareil.",
+  "@{m} a month or {y} a year per person, in {c}. Never more than {cap} a month for up to {p} people. Free for {d} days, no card needed.": "{m} par mois ou {y} par année par personne, en {c}. Jamais plus de {cap} par mois pour jusqu'à {p} personnes. Gratuit pendant {d} jours, sans carte.",
+  "Never more than {x} for up to {p} people": "Jamais plus de {x} pour jusqu'à {p} personnes",
+  "One price per person who signs in to the app, and never more than {b} paid seats for up to {p} people. People on your roster without the app are free.": "Un prix par personne qui se connecte à l'appli, et jamais plus de {b} places payantes pour jusqu'à {p} personnes. Les gens de votre effectif sans l'appli sont gratuits.",
+  "Yes. Up to {p} people, you never pay for more than {b} seats: {m} a month or {y} a year, plus tax. Bigger departments pay for {b} more seats for every {p} more people, or ask us for a quote.": "Oui. Jusqu'à {p} personnes, vous ne payez jamais plus de {b} places : {m} par mois ou {y} par année, plus taxes. Les plus grands services paient {b} places de plus pour chaque tranche de {p} personnes, ou demandent une soumission.",
+  "Past {b}, everyone else is free, up to {p} people.": "Au-delà de {b}, tous les autres sont gratuits, jusqu'à {p} personnes.",
 };

@@ -4,7 +4,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { layout, mailConfigured, sendMail } from "./mail.ts";
 import { appUrl } from "./util.ts";
-import { SEAT_CAP } from "./seats.ts";
+import { capFor } from "./seats.ts";
 
 type Dept = {
   id: string; name: string; invite_code: string; trial_ends_at: string; created_at: string;
@@ -47,8 +47,8 @@ export async function mailOwnersOnce(admin: SupabaseClient, deptId: string, kind
 }
 
 const priceLine = (people: number) => {
-  const n = Math.max(1, Math.min(people, SEAT_CAP));
-  return `With ${people} ${people === 1 ? "person" : "people"} signed in, that's ${money(n * MONTHLY)} a month or ${money(n * ANNUAL)} a year, plus tax. Never more than ${money(SEAT_CAP * MONTHLY)} a month for the whole department, however many people you have.`;
+  const n = Math.max(1, Math.min(people, capFor(people)));
+  return `With ${people} ${people === 1 ? "person" : "people"} signed in, that's ${money(n * MONTHLY)} a month or ${money(n * ANNUAL)} a year, plus tax.`;
 };
 
 // ---------------- the emails ----------------

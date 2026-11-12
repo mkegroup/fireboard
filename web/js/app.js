@@ -248,12 +248,17 @@ export function money(n) {
   return v.toLocaleString(loc, { style: "currency", currency: "CAD", currencyDisplay: "narrowSymbol", minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 });
 }
 
-/** What the department would pay per year right now. */
-/** What a roster of `seats` people costs. Never more than seatCap people are billed. */
-export function priceFor(seats) {
+/** Most seats billed for this many people: seatCap for up to capPer people, then seatCap more for each capPer more. */
+export function capFor(people) {
   const P = CONFIG.PRICING;
-  const n = Math.max(1, seats || 0);
-  const billed = Math.min(n, P.seatCap || n);
+  return P.seatCap * Math.max(1, Math.ceil((people || 0) / (P.capPer || Infinity)));
+}
+
+/** What a department costs with `used` people signed in and `chosen` seats picked. */
+export function priceFor(used, chosen = 0) {
+  const P = CONFIG.PRICING;
+  const n = Math.max(1, used || 0, chosen || 0);
+  const billed = Math.max(1, Math.min(n, capFor(used || 0)));
   return { n, billed, capped: billed < n, monthly: billed * P.monthly, annual: billed * P.annual };
 }
 
@@ -370,8 +375,8 @@ function renderAuth(mode = "email") {
   const P = CONFIG.PRICING;
   const code = mode === "code";
   const pw = mode === "password";
-  const priceLine = IS_NATIVE ? "" : `<p class="auth-price-line">${t("{m} a month or {y} a year per member, in {c}. Never more than {cap} a month for the whole department. Free for {d} days, no card needed.", {
-    m: `<b>${money(P.monthly)}</b>`, y: `<b>${money(P.annual)}</b>`, c: esc(P.currency), cap: money(P.seatCap * P.monthly), d: P.trialDays })}</p>`;
+  const priceLine = IS_NATIVE ? "" : `<p class="auth-price-line">${t("{m} a month or {y} a year per person, in {c}. Never more than {cap} a month for up to {p} people. Free for {d} days, no card needed.", {
+    m: `<b>${money(P.monthly)}</b>`, y: `<b>${money(P.annual)}</b>`, c: esc(P.currency), cap: money(P.seatCap * P.monthly), p: P.capPer, d: P.trialDays })}</p>`;
   const intro = !code && !pendingJoinCode;
   root.innerHTML = `
   <div class="auth">
@@ -1195,8 +1200,8 @@ function planView() {
     const used = Math.max(1, d.seat_count || 0);
     if (pick === null) pick = Math.min(P.seatCap, Math.max(used, d.seats_paid || 0, roster || 0, 1));
     pick = Math.min(P.seatCap, Math.max(1, pick));
-    const { n, billed, capped, monthly, annual } = priceFor(Math.max(pick, Math.min(used, P.seatCap)));
-    const seatsBilled = d.seats_billed || priceFor(d.seat_count).billed;
+    const { n, billed, capped, monthly, annual } = priceFor(used, pick);
+    const seatsBilled = d.seats_billed || priceFor(d.seat_count, d.seats_paid).billed;
     const capM = money(P.seatCap * P.monthly);
     const capY = money(P.seatCap * P.annual);
     const save = money(P.monthly * 12 - P.annual);
@@ -1257,9 +1262,9 @@ function planView() {
       return `<div class="plan-card ${isYear ? "best" : ""}">
         <div class="plan-top"><span class="plan-name">${isYear ? "Yearly" : "Monthly"}</span>${isYear ? `<span class="pill save">Save ${save} a member</span>` : ""}</div>
         <div class="plan-price"><b>${money(isYear ? P.annual : P.monthly)}</b><span>per member<br>${isYear ? "a year" : "a month"}</span></div>
-        <div class="plan-total">${t(n === 1 ? "1 seat:" : "{n} seats:", { n })} <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}</div>
+        <div class="plan-total">${t(billed === 1 ? "1 seat:" : "{n} seats:", { n: billed })} <b>${isYear ? `${money(annual)} a year` : `${money(monthly)} a month`}</b> ${esc(P.taxNote)}</div>
         <ul class="plan-list">
-          <li>${icon("check", "sm")}${t("Never more than {x} for the whole department", { x: isYear ? t("{x} a year", { x: capY }) : t("{x} a month", { x: capM }) })}</li>
+          <li>${icon("check", "sm")}${t("Never more than {x} for up to {p} people", { p: P.capPer, x: isYear ? t("{x} a year", { x: capY }) : t("{x} a month", { x: capM }) })}</li>
           ${isYear
             ? `<li>${icon("check", "sm")}Works out to ${money(perMonthYearly)} a member each month</li><li>${icon("check", "sm")}Pay by card, or by invoice for your treasurer</li>`
             : `<li>${icon("check", "sm")}Lowest cost to start</li><li>${icon("check", "sm")}Cancel any time</li>`}
@@ -1285,7 +1290,7 @@ function planView() {
         ${choose ? `
         <section class="section">
           <div class="section-head"><div class="h2">Choose a plan</div></div>
-          <p class="muted" style="margin:4px 0 14px">${t("One price per person who signs in to the app, and never more than {b} paid seats. People on your roster without the app are free.", { b: P.seatCap })}</p>
+          <p class="muted" style="margin:4px 0 14px">${t("One price per person who signs in to the app, and never more than {b} paid seats for up to {p} people. People on your roster without the app are free.", { b: P.seatCap, p: P.capPer })}</p>
           ${isOwner() ? seatPicker() : ""}
           <div class="plans">${planCard("annual")}${planCard("monthly")}</div>
           ${isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
@@ -1321,7 +1326,7 @@ function planView() {
           <div class="panel faq-list">
             ${faq("How do seats work?", "Choose how many people will sign in to the app. Each one uses a seat. Names you add to the roster for people without the app are free. Change the number any time in Plan.")}
             ${faq("What if more people join than we paid for?", "They get in right away. Nobody is ever locked out of the board. We add a seat to your plan, up to the limit, and let you know.")}
-            ${faq("Is there a limit on what we pay?", t("Yes. You never pay for more than {b} seats: {m} a month or {y} a year, plus tax, however many people you have.", { b: P.seatCap, m: capM, y: capY }))}
+            ${faq("Is there a limit on what we pay?", t("Yes. Up to {p} people, you never pay for more than {b} seats: {m} a month or {y} a year, plus tax. Bigger departments pay for {b} more seats for every {p} more people, or ask us for a quote.", { b: P.seatCap, p: P.capPer, m: capM, y: capY }))}
             ${faq("What happens when we add or remove seats?", "Added seats are charged for the rest of the current period on your next bill. Fewer seats lower your next bill. You can't go below the number of people signed in. Remove people in Department first.")}
             ${faq("Can we pay by cheque or EFT?", `Yes. Choose yearly, then Pay by invoice. We email a yearly invoice your treasurer can pay within 30 days.`)}
             ${faq("Is tax included?", `Prices are in ${esc(P.currency)}, plus tax where it applies.`)}
@@ -1359,7 +1364,7 @@ function planView() {
         </div>
       </div>
       <div class="seat-quick">${quick.map(([v, l]) => `<button type="button" class="chip ${pick === v ? "on" : ""}" data-act="seat-set" data-n="${v}">${esc(l)}</button>`).join("")}</div>
-      ${pick >= P.seatCap ? `<p class="faint small" style="margin-top:8px">${t("Past {b}, everyone is free.", { b: P.seatCap })}</p>` : ""}
+      ${pick >= P.seatCap ? `<p class="faint small" style="margin-top:8px">${t("Past {b}, everyone else is free, up to {p} people.", { b: P.seatCap, p: P.capPer })}</p>` : ""}
     </div>`;
   }
 
@@ -1368,17 +1373,17 @@ function planView() {
     const P = CONFIG.PRICING;
     const d = S.dept;
     const used = d.seat_count || 0;
-    const billed = d.seats_billed || priceFor(used).billed;
+    const billed = d.seats_billed || priceFor(used, d.seats_paid).billed;
     const chose = d.seats_paid || 0;
     const pct = Math.min(100, Math.round((Math.min(used, billed) / Math.max(1, billed)) * 100));
-    const extra = chose && used > chose ? Math.min(used, P.seatCap) - chose : 0;
+    const extra = chose && used > chose ? Math.min(used, capFor(used)) - chose : 0;
     return `<div class="panel">
       <div class="h3">Seats</div>
       ${d.plan_custom ? `<p class="muted small" style="margin:6px 0 14px">${t("Custom plan. {u} people signed in. Email us to change it.", { u: used })}</p>
         <a class="btn block" href="mailto:${CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(`Fire Ground seats: ${d.name}`)}">${icon("mail", "sm")} Email us</a>` : `
       <div class="seat-meter" role="img" aria-label="${used} of ${billed}"><i style="width:${pct}%"></i></div>
       <p class="small" style="margin:8px 0 2px"><b>${t("{u} of {b} seats in use", { u: Math.min(used, billed), b: billed })}</b></p>
-      <p class="muted small" style="margin:0 0 14px">${extra > 0 ? t("{x} joined after you chose {c}, so we added seats for them.", { x: extra, c: chose }) : used > P.seatCap ? t("Past {b}, everyone is free.", { b: P.seatCap }) : t("Anyone past that still gets in. We add a seat and let you know.")}</p>
+      <p class="muted small" style="margin:0 0 14px">${extra > 0 ? t("{x} joined after you chose {c}, so we added seats for them.", { x: extra, c: chose }) : used > billed ? t("Past {b}, everyone else is free, up to {p} people.", { b: billed, p: Math.ceil(used / P.capPer) * P.capPer }) : t("Anyone past that still gets in. We add a seat and let you know.")}</p>
       ${isOwner() ? `<button class="btn block" data-act="seats">${icon("user", "sm")} Change seats</button>` : ""}`}
       <a class="btn quiet block sm" href="#/dept" style="margin-top:8px">Manage people in Department</a>
     </div>`;
@@ -1389,7 +1394,7 @@ function planView() {
     const d = S.dept;
     const used = Math.min(d.seat_count || 0, P.seatCap);
     const min = Math.max(1, used);
-    const current = d.seats_billed || priceFor(d.seat_count).billed;
+    const current = d.seats_billed || priceFor(d.seat_count, d.seats_paid).billed;
     let v = Math.min(P.seatCap, Math.max(min, d.seats_paid || current));
     const yearly = d.plan_interval === "year";
     const each = yearly ? P.annual : P.monthly;

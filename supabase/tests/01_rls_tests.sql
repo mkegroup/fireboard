@@ -424,4 +424,29 @@ select t_fail($$select public.import_equipment((select v::uuid from ids where k=
 select t_fail($$select public.import_training((select v::uuid from ids where k='deptA'), '[{"title":"x"}]'::jsonb)$$, 'not allowed');
 reset role;
 
+-- ---------- fair use ----------
+-- A new person gets a full trial; a second department they make doesn't get a fresh one.
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000f1', 'f1@x.io');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000f1',false);
+set role authenticated;
+select public.create_department('Fair One', 'Fay', 'Chief');
+reset role;
+update departments set trial_ends_at = now() + interval '3 days' where name = 'Fair One';
+set role authenticated;
+select public.create_department('Fair Two', 'Fay', 'Chief');
+reset role;
+select t_eq((select round(extract(epoch from trial_ends_at - now()) / 86400)::int from departments where name = 'Fair Two'), 3, 'second department shares the first trial end');
+update departments set trial_ends_at = now() - interval '1 day' where name = 'Fair One';
+set role authenticated;
+select public.create_department('Fair Three', 'Fay', 'Chief');
+reset role;
+select t_eq((select trial_ends_at <= now() + interval '1 minute' from departments where name = 'Fair Three'), true, 'no fresh trial after one has ended');
+-- Alerts reach at most 3 phones per person
+set role authenticated;
+select public.register_push_device(repeat('a', 64)); select public.register_push_device(repeat('b', 64));
+select public.register_push_device(repeat('c', 64)); select public.register_push_device(repeat('d', 64));
+reset role;
+select t_eq((select count(*) from push_devices where user_id = '00000000-0000-0000-0000-0000000000f1')::int, 3, 'at most 3 phones per person');
+select t_eq((select count(*) from push_devices where token = repeat('a', 64))::int, 0, 'oldest phone dropped');
+
 \echo ALL_TESTS_PASSED

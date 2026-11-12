@@ -8,7 +8,7 @@ export const CONFIG = {
   SUPPORT_EMAIL: "hello@mkegroup.ca",
   // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
   APP_STORE_URL: "",
-  VERSION: "2.7.0",
+  VERSION: "2.7.1",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.
@@ -17,7 +17,8 @@ export const CONFIG = {
     annual: 99.99, // per member who uses the app, per year
     currency: "CAD",
     trialDays: 30,
-    seatCap: 20, // a department never pays for more than this many people. Keep in sync with SEAT_CAP.
+    seatCap: 20, // most seats billed for up to capPer people. Keep in sync with SEAT_CAP.
+    capPer: 60, // the cap goes up by seatCap for every this many more people. Keep in sync with PEOPLE_PER_CAP.
     quoteFrom: 60, // departments this size and counties are invited to ask for a quote
     taxNote: "plus tax",
   },

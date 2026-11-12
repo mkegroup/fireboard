@@ -1160,4 +1160,9 @@ export default {
   "Blocked by this browser. Allow notifications for this site in the browser's settings, then reload.": "Bloqueadas por este navegador. Permita las notificaciones de este sitio en la configuración del navegador y vuelva a cargar.",
   "Alerts weren't turned on. If you blocked them, allow notifications for this site in your browser settings.": "No se activaron las alertas. Si las bloqueó, permita las notificaciones de este sitio en la configuración de su navegador.",
   "Call alerts are on for this device.": "Las alertas de llamada están activadas en este dispositivo.",
+  "@{m} a month or {y} a year per person, in {c}. Never more than {cap} a month for up to {p} people. Free for {d} days, no card needed.": "{m} al mes o {y} al año por persona, en {c}. Nunca más de {cap} al mes para hasta {p} personas. Gratis por {d} días, sin tarjeta.",
+  "Never more than {x} for up to {p} people": "Nunca más de {x} para hasta {p} personas",
+  "One price per person who signs in to the app, and never more than {b} paid seats for up to {p} people. People on your roster without the app are free.": "Un precio por persona que entra a la app, y nunca más de {b} plazas pagadas para hasta {p} personas. Las personas de su plantilla sin la app son gratis.",
+  "Yes. Up to {p} people, you never pay for more than {b} seats: {m} a month or {y} a year, plus tax. Bigger departments pay for {b} more seats for every {p} more people, or ask us for a quote.": "Sí. Hasta {p} personas, nunca paga más de {b} plazas: {m} al mes o {y} al año, más impuestos. Los departamentos más grandes pagan {b} plazas más por cada {p} personas más, o piden una cotización.",
+  "Past {b}, everyone else is free, up to {p} people.": "Después de {b}, los demás son gratis, hasta {p} personas.",
 };
