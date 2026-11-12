@@ -63,7 +63,9 @@ async function googleMap(el) {
     mapTypeControl: true,
     mapTypeControlOptions: { mapTypeIds: ["roadmap", "hybrid"], style: g.MapTypeControlStyle.HORIZONTAL_BAR, position: g.ControlPosition.TOP_RIGHT },
     streetViewControl: false,
-    fullscreenControl: true,
+    // Google's own full screen breaks the page layout inside the iPhone app,
+    // so the board uses its own Expand button instead.
+    fullscreenControl: false,
     gestureHandling: "greedy",
     clickableIcons: false,
   });

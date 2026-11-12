@@ -100,6 +100,7 @@ export function settleViewport() {
   window.visualViewport?.addEventListener("resize", () => later(100));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { later(50); later(400); } });
   window.addEventListener("pageshow", () => later(50));
+  ["fullscreenchange", "webkitfullscreenchange", "orientationchange"].forEach((ev) => document.addEventListener(ev, () => { later(80); later(500); }));
   window.addEventListener("hashchange", () => later(60));
   if (IS_NATIVE) {
     const K = window.Capacitor?.Plugins?.Keyboard;

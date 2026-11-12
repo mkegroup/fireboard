@@ -8,7 +8,7 @@ export const CONFIG = {
   SUPPORT_EMAIL: "hello@mkegroup.ca",
   // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
   APP_STORE_URL: "",
-  VERSION: "2.6.3",
+  VERSION: "2.6.4",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.

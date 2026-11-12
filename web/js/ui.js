@@ -17,6 +17,8 @@ const PATHS = {
   radio: '<rect x="4" y="8" width="16" height="13" rx="2"/><path d="M8 8l8-5"/><circle cx="15" cy="14.5" r="2.5"/><path d="M7 13h3M7 16h3"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M5 21h14"/>',
+  expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
   copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   play: '<path d="M7 4l13 8-13 8z"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',

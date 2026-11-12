@@ -272,16 +272,38 @@ export function boardView(root, incidentId) {
   function sizeMap() {
     const el = root.querySelector("#map");
     if (!el) return;
+    if (el.closest(".map-wrap.full")) return;
     const vh = window.visualViewport?.height || window.innerHeight;
-    const head = root.querySelector(".topbar")?.getBoundingClientRect().height || 0;
-    const nav = document.querySelector(".bottomnav");
-    const navH = nav && getComputedStyle(nav).display !== "none" ? nav.getBoundingClientRect().height : 0;
-    const before = el.getBoundingClientRect().top + window.scrollY - (root.querySelector("#b-body")?.getBoundingClientRect().top + window.scrollY || 0);
-    const banners = root.querySelector("#b-banners")?.getBoundingClientRect().height || 0;
-    const h = Math.round(vh - head - banners - navH - Math.max(0, before) - 28);
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    const h = Math.round(vh - top - 16);
     el.style.setProperty("--map-h", `${Math.max(280, Math.min(h, 900))}px`);
   }
   const onResize = () => { if (tab === "map") { sizeMap(); if (map && map !== "loading") map.resize?.(); } };
+
+  // Full screen map that stays inside the page, so closing it can't leave
+  // the screen shifted.
+  let fullY = 0;
+  function setMapFull(on) {
+    const wrap = root.querySelector(".map-wrap");
+    if (!wrap) return;
+    const btn = wrap.querySelector(".map-expand");
+    if (on === wrap.classList.contains("full")) return;
+    if (on) {
+      fullY = window.scrollY;
+      wrap.classList.add("full");
+      document.documentElement.classList.add("map-open");
+      btn.innerHTML = icon("shrink");
+      btn.setAttribute("aria-label", "Close full screen map");
+    } else {
+      wrap.classList.remove("full");
+      document.documentElement.classList.remove("map-open");
+      btn.innerHTML = icon("expand");
+      btn.setAttribute("aria-label", "Full screen map");
+      sizeMap();
+      window.scrollTo(0, fullY);
+    }
+    if (map && map !== "loading") setTimeout(() => map.resize?.(), 60);
+  }
   window.addEventListener("resize", onResize);
 
   function paintMap(body) {
@@ -294,7 +316,10 @@ export function boardView(root, incidentId) {
           ${active() && hasAccess() ? `<button class="btn sm ${sharing ? "danger" : "primary"}" data-act="share-loc">${icon("pin", "sm")} ${sharing ? "Stop sharing" : "Share my location"}</button>` : ""}
         </div>
         ${dir ? `<div class="btn-row map-dir"><a class="btn sm" href="${esc(dir.apple)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Apple Maps</a><a class="btn sm" href="${esc(dir.google)}" target="_blank" rel="noopener noreferrer">${icon("pin", "sm")} Google Maps</a></div>` : ""}
-        <div id="map" role="application" aria-label="Map of crew positions"></div>
+        <div class="map-wrap">
+          <div id="map" role="application" aria-label="Map of crew positions"></div>
+          <button type="button" class="map-expand" data-act="map-full" aria-label="Full screen map">${icon("expand")}</button>
+        </div>
         <div id="map-list" class="section"></div>`;
       const el = body.querySelector("#map");
       sizeMap();
@@ -728,7 +753,7 @@ export function boardView(root, incidentId) {
 
   // ---------------- events ----------------
   const offClicks = bindActions(root, {
-    tab: (b) => { tab = b.dataset.tab; sessionStorage.setItem("fgb_board_tab", tab); window.scrollTo(0, 0); paint(); },
+    tab: (b) => { setMapFull(false); tab = b.dataset.tab; sessionStorage.setItem("fgb_board_tab", tab); window.scrollTo(0, 0); paint(); },
     filter: (b) => { filter = filter === b.dataset.s ? null : b.dataset.s; tab = "crew"; paint(); },
     menu: menuSheet,
     person: (b) => { const p = st.personnel.find((x) => x.id === b.dataset.id); if (p) personSheet(p); },
@@ -763,6 +788,7 @@ export function boardView(root, incidentId) {
       onSubmit: async (form) => { const { message } = formData(form); if (!message) throw new Error("Write something first."); await S.api.logNote(incidentId, message); },
     }),
     "share-loc": toggleLocation,
+    "map-full": () => setMapFull(!root.querySelector(".map-wrap")?.classList.contains("full")),
     fly: (b) => { if (mapReady()) { map.focus(b.dataset.uid, 18); window.scrollTo({ top: 0, behavior: "smooth" }); } },
     download: () => handlers.download(),
     print: () => window.print(),
@@ -833,6 +859,7 @@ export function boardView(root, incidentId) {
 
   return () => {
     alive = false;
+    document.documentElement.classList.remove("map-open");
     window.removeEventListener("resize", onResize);
     releaseScreen();
     offClicks();
