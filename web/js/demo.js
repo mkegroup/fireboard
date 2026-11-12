@@ -39,7 +39,7 @@ function seed() {
   };
 
   const roster = [
-    ["Jordan Kelley", "Captain", "owner", "Command", true, "C1"],
+    ["Jordan MacLeod", "Captain", "owner", "Command", true, "C1"],
     ["Tess MacDonald", "Lieutenant", "officer", "Alpha", true, "L2"],
     ["Sam Riopelle", "Firefighter", "member", "Alpha", true, ""],
     ["Mike Brown", "Engineer/Driver", "member", "Bravo", true, ""],
@@ -54,7 +54,7 @@ function seed() {
   ];
   for (const [name, rank, role, crew, hasAccount, cs] of roster) {
     db.members.push({
-      id: id("m"), dept_id: DEPT, user_id: name === "Jordan Kelley" ? ME : hasAccount ? id("u") : null,
+      id: id("m"), dept_id: DEPT, user_id: name === "Jordan MacLeod" ? ME : hasAccount ? id("u") : null,
       role, active: true, name, rank, call_sign: cs || null, crew, phone: hasAccount ? "613-555-01" + String(seq).padStart(2, "0") : null,
       radio: hasAccount ? String(100 + seq) : null, years: 2 + (seq % 15),
       certifications: name === "Sam Riopelle"
@@ -83,7 +83,7 @@ function seed() {
   db.mutualAid.push({ id: "ma-1", incident_id: inc.id, dept_id: DEPT, name: "Barry's Bay FD", status: "Responding", notes: "Tanker, ETA 10 min", created_at: inc.started_at });
 
   const onBoard = [
-    ["Jordan Kelley", "Staged", null, 22],
+    ["Jordan MacLeod", "Staged", null, 22],
     ["Tess MacDonald", "IN", e1.id, 18],
     ["Sam Riopelle", "IN", e1.id, 18],
     ["Mike Brown", "OUT", t2.id, 9],
@@ -101,11 +101,11 @@ function seed() {
   }
   const ev = (ago, actor, kind, message) => db.events.push({ id: seq++, incident_id: inc.id, dept_id: DEPT, at: new Date(now - ago * min).toISOString(), actor, kind, message });
   ev(23, "Dispatch", "incident", "Incident created from dispatch (Structure)");
-  ev(22, "Jordan Kelley", "personnel", "Jordan Kelley added to board (Staged)");
+  ev(22, "Jordan MacLeod", "personnel", "Jordan MacLeod added to board (Staged)");
   ev(18, "Tess MacDonald", "status", "Tess MacDonald: Staged to IN");
   ev(18, "Sam Riopelle", "status", "Sam Riopelle: Staged to IN");
   ev(9, "Mike Brown", "status", "Mike Brown: IN to OUT");
-  ev(5, "Jordan Kelley", "status", "Ana Tremblay: OUT to Rehab");
+  ev(5, "Jordan MacLeod", "status", "Ana Tremblay: OUT to Rehab");
   ev(3, "Dan Lafleur", "personnel", "Dan Lafleur added to board (Responding)");
 
   const msg = (ago, who, body) => {
@@ -119,7 +119,7 @@ function seed() {
     db.messages.push(row);
     return row;
   };
-  const pin = st(60 * 26, "Jordan Kelley", "Truck checks every Tuesday at 7 pm. Training is the second and fourth Thursday.", { pinned_at: new Date(now - 60 * 26 * min).toISOString(), pinned_by: "Jordan Kelley" });
+  const pin = st(60 * 26, "Jordan MacLeod", "Truck checks every Tuesday at 7 pm. Training is the second and fourth Thursday.", { pinned_at: new Date(now - 60 * 26 * min).toISOString(), pinned_by: "Jordan MacLeod" });
   const q = st(60 * 3, "Tess MacDonald", "Who can cover Saturday's open house at the station? Need two people from 10 to 2.");
   st(60 * 3 - 6, "Sam Riopelle", "I can do it.", { reply_to: q.id });
   st(60 * 2, "Mike Brown", "Engine 1 pump test done. Primer is sticking again, I left a note on the board.");
@@ -127,12 +127,12 @@ function seed() {
   const react = (msgRow, who, emoji) => db.reactions.push({ message_id: msgRow.id, user_id: m(who).user_id, emoji, name: who, dept_id: DEPT });
   react(pin, "Tess MacDonald", "👍");
   react(pin, "Sam Riopelle", "👍");
-  react(q, "Jordan Kelley", "✅");
+  react(q, "Jordan MacLeod", "✅");
   db.reads.push({ thread: "station", user_id: m("Tess MacDonald").user_id, name: "Tess MacDonald", read_at: new Date(now - 60 * min).toISOString() });
 
   msg(17, "Tess MacDonald", "Interior crew going in side A with a 1¾.");
   msg(10, "Mike Brown", "Tanker 2 dumped, heading to the fill site.");
-  msg(4, "Jordan Kelley", "Ana to rehab. Chris, check her vitals please.");
+  msg(4, "Jordan MacLeod", "Ana to rehab. Chris, check her vitals please.");
 
   const base = [45.4886, -77.6794];
   const loc = (who, dlat, dlng) => {
@@ -150,8 +150,8 @@ function seed() {
     const st = new Date(now - days * 86400000);
     const i = { id: id("inc"), dept_id: DEPT, name, address, call_type: null, status: "closed", source: "app", started_at: st.toISOString(), started_by: ME, closed_at: new Date(st.getTime() + mins * min).toISOString(), par_started_at: null, iocanc: null };
     db.incidents.push(i);
-    db.events.push({ id: seq++, incident_id: i.id, dept_id: DEPT, at: i.started_at, actor: "Jordan Kelley", kind: "incident", message: "Incident started by Jordan Kelley" });
-    db.events.push({ id: seq++, incident_id: i.id, dept_id: DEPT, at: i.closed_at, actor: "Jordan Kelley", kind: "incident", message: "Incident closed by Jordan Kelley" });
+    db.events.push({ id: seq++, incident_id: i.id, dept_id: DEPT, at: i.started_at, actor: "Jordan MacLeod", kind: "incident", message: "Incident started by Jordan MacLeod" });
+    db.events.push({ id: seq++, incident_id: i.id, dept_id: DEPT, at: i.closed_at, actor: "Jordan MacLeod", kind: "incident", message: "Incident closed by Jordan MacLeod" });
   };
   old(3, "Chimney fire", "88 Lake Rd", 41);
   old(8, "MVC, two vehicles", "Hwy 62 at Old Barry's Bay Rd", 74);
@@ -163,9 +163,9 @@ function seed() {
     db.training.push(s);
     for (const n of who) db.attendance.push({ session_id: s.id, member_id: m(n).id, dept_id: DEPT, self_marked: false, marked_at: s.created_at });
   };
-  tr(6, "Pump operations", "Pump Operations", 3, "Tess MacDonald", ["Jordan Kelley", "Tess MacDonald", "Mike Brown", "Bea Dumont", "Dan Lafleur"]);
-  tr(13, "Live fire, acquired structure", "Live Fire", 4, "OFM instructor", ["Jordan Kelley", "Tess MacDonald", "Sam Riopelle", "Ana Tremblay", "Dan Lafleur", "Pat Nolan"]);
-  tr(20, "Vehicle extrication refresher", "Vehicle Extrication", 2.5, "Jordan Kelley", ["Sam Riopelle", "Chris Walsh", "Mike Brown"]);
+  tr(6, "Pump operations", "Pump Operations", 3, "Tess MacDonald", ["Jordan MacLeod", "Tess MacDonald", "Mike Brown", "Bea Dumont", "Dan Lafleur"]);
+  tr(13, "Live fire, acquired structure", "Live Fire", 4, "OFM instructor", ["Jordan MacLeod", "Tess MacDonald", "Sam Riopelle", "Ana Tremblay", "Dan Lafleur", "Pat Nolan"]);
+  tr(20, "Vehicle extrication refresher", "Vehicle Extrication", 2.5, "Jordan MacLeod", ["Sam Riopelle", "Chris Walsh", "Mike Brown"]);
 
   const eq = (name, category, status, location, qty, next, serial) => db.equipment.push({
     id: id("eq"), dept_id: DEPT, name, category, status, serial: serial || null, qty, location, condition: "Good",

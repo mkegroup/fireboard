@@ -73,7 +73,7 @@ const KINDS = {
       ["years", "Years of service", ["years", "yearsofservice", "service"]],
       ["certs", "Certifications", ["certification", "certs", "qualifications"]],
     ],
-    example: [["Jordan Kelley", "Captain", "Alpha", "613-555-0101", "C1", "101", "12", "NFPA 1001 Level II; First Aid / CPR"], ["Sam Riopelle", "Firefighter", "Bravo", "613-555-0102", "", "102", "3", "NFPA 1001 Level I"]],
+    example: [["Jordan MacLeod", "Captain", "Alpha", "613-555-0101", "C1", "101", "12", "NFPA 1001 Level II; First Aid / CPR"], ["Sam Riopelle", "Firefighter", "Bravo", "613-555-0102", "", "102", "3", "NFPA 1001 Level I"]],
     row(r) {
       if (!r.name) return { skip: "No name" };
       const rank = pick(RANKS, r.rank) || (r.rank ? r.rank.slice(0, 40) : "");
@@ -99,7 +99,7 @@ const KINDS = {
       ["date", "Completed", ["date", "completed", "issued", "datecompleted"]],
       ["expiry", "Expires", ["expiry", "expires", "expirydate", "expiration", "renewal", "echeance", "vence", "vencimiento"]],
     ],
-    example: [["Jordan Kelley", "NFPA 1001 Level II", "2021-05-14", ""], ["Sam Riopelle", "First Aid / CPR", "2025-03-01", "2028-03-01"]],
+    example: [["Jordan MacLeod", "NFPA 1001 Level II", "2021-05-14", ""], ["Sam Riopelle", "First Aid / CPR", "2025-03-01", "2028-03-01"]],
     async prepare() { this.members = await S.api.listMembers(S.dept.id); },
     row(r) {
       if (!r.name || !r.cert) return { skip: !r.name ? "No name" : "No certification" };
@@ -140,7 +140,7 @@ const KINDS = {
       ["attendees", "Attendees", ["attendance", "present", "members", "who", "participants", "presents", "presences", "asistentes", "asistencia"]],
       ["notes", "Notes", ["description", "details", "comments", "remarques", "notas"]],
     ],
-    example: [["2026-10-07", "Pump operations", "Pump Operations", "3", "Station 1", "Capt. Kelley", "Jordan Kelley; Sam Riopelle", "Drafting from the dry hydrant"], ["2026-10-21", "Live fire, acquired structure", "Live Fire", "4", "123 Farm Rd", "", "Sam Riopelle", ""]],
+    example: [["2026-10-07", "Pump operations", "Pump Operations", "3", "Station 1", "Capt. MacLeod", "Jordan MacLeod; Sam Riopelle", "Drafting from the dry hydrant"], ["2026-10-21", "Live fire, acquired structure", "Live Fire", "4", "123 Farm Rd", "", "Sam Riopelle", ""]],
     row(r) {
       if (!r.title) return { skip: "No title" };
       const d = parseDate(r.date);

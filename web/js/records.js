@@ -319,7 +319,7 @@ function addPersonForm(onDone) {
       </form>
       <form data-many novalidate hidden>
         <p class="muted small" style="margin-bottom:12px">One person per line. Copy a column of names from Excel, a sign-in sheet or a group text. Rank, crew and phone after a comma are picked up too.</p>
-        ${field("People", textarea("list", "", 'rows="9" placeholder="Jordan Kelley, Captain\nTess MacDonald, Lieutenant\nSam Riopelle\nMike Brown, Engineer/Driver, Bravo"'))}
+        ${field("People", textarea("list", "", 'rows="9" placeholder="Jordan MacLeod, Captain\nTess MacDonald, Lieutenant\nSam Riopelle\nMike Brown, Engineer/Driver, Bravo"'))}
         <p class="hint" data-count>Nobody yet.</p>
         <div class="error-text" data-err2 hidden></div>
         <button class="btn primary block" style="margin-top:12px" data-many-btn disabled>Add people</button>

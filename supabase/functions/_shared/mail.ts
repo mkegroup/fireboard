@@ -61,8 +61,7 @@ export function layout(o: { heading: string; paras: string[]; button?: { label: 
     o.heading, "",
     ...o.paras.flatMap((p) => [p, ""]),
     ...(o.button ? [`${o.button.label}: ${o.button.url}`, ""] : []),
-    "Matt Kelley",
-    "Fire Ground Board, MKE Group Inc.",
+    "The Fire Ground Board team",
     "Reply to this email any time.",
     ...(o.footer ? ["", o.footer] : []),
   ].join("\n");
@@ -82,7 +81,7 @@ export function layout(o: { heading: string; paras: string[]; button?: { label: 
 <h1 style="font-size:22px;line-height:1.25;margin:0 0 16px">${esc(o.heading)}</h1>
 ${o.paras.map(para).join("\n")}
 ${o.button ? `<p style="margin:8px 0 24px"><a href="${esc(o.button.url)}" style="display:inline-block;background:#c8102e;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px">${esc(o.button.label)}</a></p>` : ""}
-<p style="margin:0;color:#555">Matt Kelley<br>Fire Ground Board, MKE Group Inc.<br>Reply to this email any time.</p>
+<p style="margin:0;color:#555">The Fire Ground Board team<br>Reply to this email any time.</p>
 </td></tr></table>
 ${o.footer ? `<p style="max-width:560px;color:#888;font-size:12px;margin:12px auto 0">${esc(o.footer)}</p>` : ""}
 </td></tr></table></body></html>`;
