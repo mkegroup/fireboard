@@ -1188,4 +1188,7 @@ export default {
   "How do we give a seat to someone else?": "¿Cómo damos una plaza a otra persona?",
   "Remove the person leaving in Department. Their seat frees up, and the next person who joins with your invite code takes it. Want to check everyone first? Turn on New people need approval in Department.": "Quite a la persona que se va en Departamento. Su plaza queda libre y la próxima persona que se una con su código la toma. ¿Quiere revisar a todos primero? Active Las personas nuevas necesitan aprobación en Departamento.",
   "Your request to join {x} is waiting for an officer to approve it.": "Su solicitud para unirse a {x} espera la aprobación de un oficial.",
+  "{n} people signed in. You get a custom plan.": "{n} personas conectadas. Recibe un plan personalizado.",
+  "Departments with {n} or more people get pricing set up with us, with one invoice for every station. The board keeps working while we sort it out.": "Los departamentos de {n} personas o más reciben un precio acordado con nosotros, con una sola factura para todas las estaciones. El tablero sigue funcionando mientras tanto.",
+  "Departments with {n} or more people get a custom plan. Tap Get a quote and we'll set it up.": "Los departamentos de {n} personas o más reciben un plan personalizado. Toque Pedir cotización y lo preparamos.",
 };

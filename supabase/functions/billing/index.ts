@@ -28,6 +28,7 @@ const PRICES: Record<string, string | undefined> = {
 // Stripe needs a quantity of at least 1. The owner always counts, so this never bills extra.
 const MIN_SEATS = Math.max(1, Number(Deno.env.get("MIN_SEATS") ?? "1"));
 const TAX = Deno.env.get("STRIPE_TAX") === "on";
+const QUOTE_FROM = Math.max(2, Number(Deno.env.get("QUOTE_FROM") ?? "60"));
 const LIVE = ["active", "trialing", "past_due"];
 
 const clean = (v: unknown, max = 120) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -192,6 +193,10 @@ Deno.serve(lockedCors(async (req) => {
 
     // The owner picks how many people to pay for. Never less than who's already signed in.
     const used = await countSeats(admin, dept_id);
+    // Big departments and counties get a custom plan from us instead of self-serve.
+    if (used >= QUOTE_FROM) {
+      return json({ error: `Departments with ${QUOTE_FROM} or more people get a custom plan. Tap Get a quote and we'll set it up.`, quote: true }, 400);
+    }
     const chosen = seatsFrom(body.seats) ?? dept.seats_paid ?? Math.max(1, Math.min(used, SEAT_CAP));
     const seats = targetSeats(used, chosen, MIN_SEATS);
     await admin.from("departments").update({ seats_paid: chosen }).eq("id", dept_id);

@@ -1326,6 +1326,7 @@ function planView() {
     };
 
     const choose = !subscribed || status === "canceled";
+    const bigDept = (d.seat_count || 0) >= P.quoteFrom && !d.plan_custom;
     root.innerHTML = `
     ${demoStrip()}
     <div class="screen with-nav">
@@ -1341,9 +1342,16 @@ function planView() {
         <section class="section">
           <div class="section-head"><div class="h2">Choose a plan</div></div>
           <p class="muted" style="margin:4px 0 14px">${t("One price per person who signs in to the app, and never more than {b} paid seats for up to {p} people. People on your roster without the app are free.", { b: P.seatCap, p: P.capPer })}</p>
+          ${bigDept ? `<div class="quote panel" style="border-left-color:var(--gold)">
+            <div class="grow">
+              <div class="h3">${t("{n} people signed in. You get a custom plan.", { n: d.seat_count })}</div>
+              <p class="muted small">${t("Departments with {n} or more people get pricing set up with us, with one invoice for every station. The board keeps working while we sort it out.", { n: P.quoteFrom })}</p>
+            </div>
+            ${isOwner() ? `<button class="btn primary" data-act="quote">${icon("mail", "sm")} Get a quote</button>` : ""}
+          </div>` : `
           ${isOwner() ? seatPicker() : ""}
-          <div class="plans">${planCard("annual")}${planCard("monthly")}</div>
-          ${isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
+          <div class="plans">${planCard("annual")}${planCard("monthly")}</div>`}
+          ${bigDept ? "" : isOwner() ? `<p class="secure">${icon("lock", "sm")}<span>Secure checkout by Stripe. ${inTrial ? `Nothing is charged until your trial ends on ${dateLabel(d.trial_ends_at)}.` : "You're charged today."} Cancel any time.</span></p>`
             : `<div class="banner" style="margin-top:14px">${icon("user")}<div class="grow">Only ${esc(ownerName)} can choose the plan. Send them this page.</div></div>`}
         </section>` : `
         <section class="section">
@@ -1361,7 +1369,7 @@ function planView() {
           </div>
         </section>`}
 
-        <section class="section">
+        ${bigDept && choose ? "" : `<section class="section">
           <div class="quote panel">
             <div class="grow">
               <div class="h3">${t("County, regional service or {n}+ members?", { n: P.quoteFrom })}</div>
@@ -1369,7 +1377,7 @@ function planView() {
             </div>
             <button class="btn" data-act="quote">${icon("mail", "sm")} Get a quote</button>
           </div>
-        </section>
+        </section>`}
 
         <section class="section" style="margin-bottom:40px">
           <div class="section-head"><div class="h2">Questions</div></div>

@@ -47,6 +47,7 @@ export async function mailOwnersOnce(admin: SupabaseClient, deptId: string, kind
 }
 
 const priceLine = (people: number) => {
+  if (people >= 60) return `With ${people} people signed in, your department gets a custom plan from us. Reply to this email or tap Get a quote on the Plan page and we'll set it up.`;
   const n = Math.max(1, Math.min(people, capFor(people)));
   return `With ${people} ${people === 1 ? "person" : "people"} signed in, that's ${money(n * MONTHLY)} a month or ${money(n * ANNUAL)} a year, plus tax.`;
 };

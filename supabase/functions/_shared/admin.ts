@@ -2,6 +2,7 @@
 // Everything worth knowing lands in platform_events. Events marked notify are
 // pushed to every platform admin's iPhone, and posted to ADMIN_WEBHOOK_URL
 // (Slack, Discord, Teams or Google Chat) when that secret is set.
+import { layout, mailConfigured, sendMail } from "./mail.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { pushTo } from "./push.ts";
 import { chatBody, safeWebhook } from "./chat.ts";
@@ -66,6 +67,16 @@ export async function sweepAdminEvents(admin: SupabaseClient): Promise<{ sent: n
         });
         const r = await pushTo(admin, null, [a.user_id], payload, { collapse: `admin-${g[0].id}`, ttl: 86400, quiet: one?.kind !== "payment" && one?.kind !== "quote" });
         sent += r.sent;
+      }
+    }
+
+    // Quote requests and departments that need a quote also come by email.
+    const quotes = events.filter((e) => e.kind === "quote");
+    if (quotes.length && mailConfigured()) {
+      const to = Deno.env.get("ADMIN_EMAIL")?.trim() || "hello@mkegroup.ca";
+      for (const q of quotes) {
+        const { text, html } = layout({ heading: q.title, paras: [q.detail || "Open Admin for details."], button: { label: "Open Admin", url: `${appUrl()}/#/admin` } });
+        await sendMail({ to, subject: q.title, text, html });
       }
     }
 

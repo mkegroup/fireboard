@@ -1,6 +1,6 @@
 {
   "name": "fire-ground-board",
-  "version": "2.7.2",
+  "version": "2.7.3",
   "private": true,
   "description": "Live PAR accountability for fire departments.",
   "scripts": {
