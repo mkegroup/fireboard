@@ -1,6 +1,7 @@
 import { CONFIG, HAS_BACKEND, IS_NATIVE } from "./config.js";
 import { createApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
+import { initTrack, track } from "./track.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
@@ -50,6 +51,7 @@ async function boot() {
   applyTheme();
   startTranslating();
   const params = new URLSearchParams(location.search);
+  initTrack(params);
   const joinMatch = location.hash.match(/^#\/join\/([A-Za-z0-9]{4,10})/);
   if (joinMatch) pendingJoinCode = joinMatch[1].toUpperCase();
   if (params.get("join")) pendingJoinCode = params.get("join").toUpperCase();
@@ -91,6 +93,14 @@ async function startDemo() {
   sessionStorage.setItem("fgb_demo", "1");
   document.documentElement.classList.add("is-demo");
   S.api = createDemoApi();
+  track("demo", "opened the demo");
+  for (const [m, ev, what] of [["startIncident", "demo_incident", "started an incident"], ["startPar", "demo_par", "ran a PAR"],
+    ["sendChat", "demo_chat", "used incident chat"], ["addApparatus", "demo_apparatus", "added apparatus"], ["addRosterEntry", "demo_roster", "added someone to the roster"]]) {
+    const f = S.api[m];
+    if (f) S.api[m] = (...a) => { track(ev, what); return f.apply(S.api, a); };
+  }
+  const up = S.api.updatePersonnel;
+  if (up) S.api.updatePersonnel = (pid, patch) => { if (String(patch?.status || "").toUpperCase() === "MISSING") track("demo_missing", "set off a Missing alarm"); return up.apply(S.api, [pid, patch]); };
   const session = await S.api.getSession();
   S.user = session.user;
   await afterSignIn();
@@ -210,6 +220,7 @@ function route() {
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   window.scrollTo(0, 0);
   const h = location.hash || "#/";
+  if (h.startsWith("#/plan")) track("plan", "looked at plans and pricing");
   let m;
   if ((m = h.match(/^#\/incident\/([\w-]+)/))) cleanup = boardView(root, m[1]);
   else if ((m = h.match(/^#\/records(?:\/(\w+))?/))) cleanup = recordsView(root, m[1] || "roster");
@@ -462,6 +473,7 @@ function renderAuth(mode = "email") {
       if (pw) await S.api.signIn(email, f.password);
       else {
         await S.api.sendCode(email);
+        track("email", email);
         authEmail = email;
         resendAt = Date.now() + 60000;
         renderAuth("code");
@@ -618,6 +630,7 @@ async function renderOnboarding(code = "") {
     if (!f.dept || f.dept.length < 2) throw new Error("Enter your department name.");
     if (!f.name) throw new Error("Enter your name.");
     const deptId = await S.api.createDepartment(f.dept, f.name, f.rank || "Chief");
+    track("dept", f.dept);
     localStorage.setItem("fgb_dept", deptId);
     location.hash = "#/";
     await afterSignIn();
