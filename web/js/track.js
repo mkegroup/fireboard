@@ -7,10 +7,10 @@ const sent = new Set();
 
 export function initTrack(params) {
   try {
-    const r = params.get("fgb_ref");
+    const r = params.get("fgb_ref") || params.get("r");
     if (r && /^[\w-]{6,40}$/.test(r)) {
       localStorage.setItem(KEY, r);
-      params.delete("fgb_ref");
+      params.delete("fgb_ref"); params.delete("r");
       const q = params.toString();
       history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
       ref = r;
