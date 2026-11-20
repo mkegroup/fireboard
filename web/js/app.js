@@ -422,6 +422,7 @@ function renderAuth(mode = "email") {
       ${code ? "" : `<button class="btn block auth-demo" id="try-demo">Try the demo department</button>`}
       <div class="auth-fine">
         ${intro ? priceLine : ""}
+        ${!IS_NATIVE && CONFIG.APP_STORE_URL ? `<p class="auth-price-line"><a href="${CONFIG.APP_STORE_URL}" target="_blank" rel="noopener">${t("Crew on iPhone? Get the free app on the App Store.")}</a></p>` : ""}
         <p><button data-act="help">Trouble signing in?</button><span class="sep">|</span>${pw ? '<button data-mode="email">Use an email code</button>' : '<button data-mode="password">Password sign-in</button>'}</p>
         <p><a href="privacy.html">Privacy</a><span class="sep">|</span><a href="terms.html">Terms</a><span class="sep">|</span><a href="support.html">Support</a></p>
         <div class="lang-pick" role="group" aria-label="Language" data-notr>${LANGS.map(([k, l]) => `<button data-lang="${k}" class="${getLang() === k ? "on" : ""}" lang="${k}">${l}</button>`).join("")}</div>
