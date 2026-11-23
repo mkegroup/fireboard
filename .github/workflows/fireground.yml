@@ -180,7 +180,17 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: web
+      # GitHub sometimes takes a few seconds before a just-uploaded artifact can be found. Wait, then deploy;
+      # if it still can't find it, wait longer and try once more.
       - if: steps.ready.outputs.go == 'yes'
+        run: sleep 20
+      - if: steps.ready.outputs.go == 'yes'
+        id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.ready.outputs.go == 'yes' && steps.deploy1.outcome == 'failure'
+        run: sleep 60
+      - if: steps.ready.outputs.go == 'yes' && steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
   reconcile-seats:
