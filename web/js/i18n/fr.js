@@ -1192,4 +1192,8 @@ export default {
   "Departments with {n} or more people get pricing set up with us, with one invoice for every station. The board keeps working while we sort it out.": "Les services de {n} personnes ou plus obtiennent un prix établi avec nous, avec une seule facture pour toutes les casernes. Le tableau continue de fonctionner entre-temps.",
   "Departments with {n} or more people get a custom plan. Tap Get a quote and we'll set it up.": "Les services de {n} personnes ou plus obtiennent un forfait sur mesure. Touchez Obtenir une soumission et nous nous en occupons.",
   "Crew on iPhone? Get the free app on the App Store.": "Équipe sur iPhone? Téléchargez l'application gratuite sur l'App Store.",
+  "Full getting started guide": "Guide complet pour commencer",
+  "Full guide": "Guide complet",
+  "Getting started guide": "Guide pour commencer",
+  "What to do first, step by step": "Quoi faire en premier, étape par étape",
 };

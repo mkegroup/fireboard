@@ -1004,3 +1004,4 @@ html.map-open .fab, html.map-open .chat-fab { visibility: hidden; }
 .seat-meter i { display: block; height: 100%; background: var(--gold); }
 .seat-sum { text-align: center; padding: 12px; }
 .plan-page .cols .col > .panel { margin-bottom: 12px; }
+@media print { .guide .no-print, .bottom-nav, .demo-strip { display: none !important; } .guide .panel { break-inside: avoid; } }

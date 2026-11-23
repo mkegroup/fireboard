@@ -2,6 +2,7 @@ import { CONFIG, HAS_BACKEND, IS_NATIVE } from "./config.js";
 import { createApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
 import { initTrack, track } from "./track.js";
+import { guideView } from "./guide.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
@@ -229,6 +230,7 @@ function route() {
   else if (h.startsWith("#/plan") && !IS_NATIVE) cleanup = planView();
   else if (h.startsWith("#/connections")) cleanup = connectionsView(root);
   else if (h.startsWith("#/chat")) cleanup = stationChatView();
+  else if (h.startsWith("#/guide")) cleanup = guideView(root);
   else cleanup = homeView();
 }
 S.rerender = route;
@@ -738,7 +740,7 @@ function homeView() {
           <span class="grow"><b>${t}</b><small>${m}</small></span>
           ${href && !ok ? `<span class="chev">${icon("chev", "sm")}</span>` : ""}
         </${href && !ok ? "a" : "div"}>`).join("")}</div>
-      <button class="btn quiet sm" data-act="dismiss" data-k="setup">Hide this</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="#/guide">${icon("book", "sm")} Full getting started guide</a><button class="btn quiet sm" data-act="dismiss" data-k="setup">Hide this</button></div>
     </div>`;
   }
 
@@ -767,7 +769,7 @@ function homeView() {
         <div class="setup-step"><span class="tick num">2</span><span class="grow"><b>On scene</b><small>Tap your name to change your status. Command sees it right away.</small></span></div>
         <div class="setup-step"><span class="tick num">3</span><span class="grow"><b>PAR called</b><small>Your phone sounds. Tap I'm accounted for.</small></span></div>
       </div>
-      <button class="btn quiet sm" data-act="dismiss" data-k="howto">Got it</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="#/guide">${icon("book", "sm")} Full guide</a><button class="btn quiet sm" data-act="dismiss" data-k="howto">Got it</button></div>
     </div>`;
   }
 
@@ -1669,6 +1671,7 @@ function meView() {
       <div class="list section">
         <a class="row" href="privacy.html"><div class="grow"><div class="title">Privacy policy</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <a class="row" href="terms.html"><div class="grow"><div class="title">Terms of use</div></div><span class="chev">${icon("chev", "sm")}</span></a>
+        <a class="row" href="#/guide"><div class="grow"><div class="title">Getting started guide</div><div class="meta">What to do first, step by step</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <button class="row" data-act="help"><div class="grow"><div class="title">Help</div><div class="meta">Sign-in codes, new phones, alarms, billing</div></div><span class="chev">${icon("chev", "sm")}</span></button>
       </div>
 
