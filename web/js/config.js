@@ -8,8 +8,8 @@ export const CONFIG = {
   SUPPORT_EMAIL: "hello@mkegroup.ca",
   // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
   APP_STORE_URL: "https://apps.apple.com/app/fire-ground-board/id6833654518",
-  META_PIXEL_ID: "1908263757009822", // Meta Events Manager dataset ID; empty = no pixel
-  VERSION: "2.7.8",
+  META_PIXEL_ID: "2678746722562802", // Meta Events Manager dataset ID; empty = no pixel
+  VERSION: "2.7.9",
 
   // Pricing shown in the app. The real prices live in Stripe; keep these in sync
   // with the two Stripe prices on the billing function.
