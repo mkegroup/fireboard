@@ -52,8 +52,12 @@ export async function sendMail(m: Mail): Promise<boolean> {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
+const SITE = "https://fire.mkegroup.ca";
+const APP_STORE = "https://apps.apple.com/app/fire-ground-board/id6833654518";
+
 /**
- * A plain, readable email: heading, short paragraphs, one button, sign-off.
+ * The Fire Ground Board email: dark like the app, logo on top, one red button.
+ * Built dark on purpose so Gmail and Apple Mail dark mode leave it alone instead of washing it out.
  * Paragraphs are plain text. Lines starting with "- " become a list.
  */
 export function layout(o: { heading: string; paras: string[]; button?: { label: string; url: string }; footer?: string }): { text: string; html: string } {
@@ -66,24 +70,37 @@ export function layout(o: { heading: string; paras: string[]; button?: { label: 
     ...(o.footer ? ["", o.footer] : []),
   ].join("\n");
 
+  const F = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
   const para = (p: string) => {
     const lines = p.split("\n");
     if (lines.every((l) => l.startsWith("- "))) {
-      return `<ul style="margin:0 0 16px;padding-left:20px">${lines.map((l) => `<li style="margin:0 0 6px">${esc(l.slice(2))}</li>`).join("")}</ul>`;
+      return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 18px">${lines.map((l) => `<tr><td valign="top" style="padding:0 10px 8px 0;color:#e5332a;font:700 16px/1.5 ${F}">&#9632;</td><td style="padding:0 0 8px;color:#d6d2ca;font:16px/1.5 ${F}">${esc(l.slice(2))}</td></tr>`).join("")}</table>`;
     }
-    return `<p style="margin:0 0 16px">${esc(p).replace(/\n/g, "<br>")}</p>`;
+    return `<p style="margin:0 0 18px;color:#d6d2ca;font:16px/1.6 ${F}">${esc(p).replace(/\n/g, "<br>")}</p>`;
   };
-  const html = `<!doctype html><html><body style="margin:0;background:#f2f1ee;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17181a">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
-<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden" cellspacing="0" cellpadding="0">
-<tr><td style="background:#1d1e21;padding:18px 24px;border-bottom:5px solid #c8102e"><span style="color:#e3b24f;font-weight:800;font-size:18px;letter-spacing:1px">FIRE GROUND BOARD</span></td></tr>
-<tr><td style="padding:24px;font-size:16px;line-height:1.5">
-<h1 style="font-size:22px;line-height:1.25;margin:0 0 16px">${esc(o.heading)}</h1>
-${o.paras.map(para).join("\n")}
-${o.button ? `<p style="margin:8px 0 24px"><a href="${esc(o.button.url)}" style="display:inline-block;background:#c8102e;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px">${esc(o.button.label)}</a></p>` : ""}
-<p style="margin:0;color:#555">The Fire Ground Board team<br>Reply to this email any time.</p>
+  const pre = esc((o.paras[0] || "").replace(/\s+/g, " ").slice(0, 140));
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>${esc(o.heading)}</title>
+<style>:root{color-scheme:dark;supported-color-schemes:dark}a{color:#ff6b5f}@media (max-width:600px){.pad{padding-left:22px!important;padding-right:22px!important}.h1{font-size:23px!important}}</style></head>
+<body style="margin:0;padding:0;background:#0f1012" bgcolor="#0f1012">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#0f1012">${pre}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#0f1012" style="background:#0f1012"><tr><td align="center" style="padding:28px 12px 32px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px">
+<tr><td bgcolor="#17181a" style="background:#17181a;border-radius:16px 16px 0 0;padding:22px 32px 18px" class="pad">
+  <a href="${SITE}" style="text-decoration:none"><img src="${SITE}/img/email-logo.png" width="208" height="70" alt="Fire Ground Board" style="display:block;border:0;width:208px;height:auto;color:#f3efe8;font:800 20px ${F}"></a></td></tr>
+<tr><td bgcolor="#e5332a" style="background:#e5332a;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>
+<tr><td bgcolor="#1d1e21" style="background:#1d1e21;border-radius:0 0 16px 16px;padding:30px 32px 30px" class="pad">
+  <h1 class="h1" style="margin:0 0 18px;color:#ffffff;font:800 26px/1.25 ${F};letter-spacing:-.01em">${esc(o.heading)}</h1>
+  ${o.paras.map(para).join("\n  ")}
+  ${o.button ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:8px 0 26px"><tr><td bgcolor="#e5332a" style="background:#e5332a;border-radius:10px">
+    <a href="${esc(o.button.url)}" style="display:inline-block;padding:15px 28px;color:#ffffff;text-decoration:none;font:800 16px ${F};border-radius:10px">${esc(o.button.label)} &rarr;</a></td></tr></table>` : ""}
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="border-top:1px solid #2e2f33;padding-top:18px;color:#f3efe8;font:700 15px/1.5 ${F}">The Fire Ground Board team
+    <div style="color:#8f8b84;font-weight:400;font-size:14px">Reply to this email any time. A real person reads it.</div></td></tr></table>
+</td></tr>
+<tr><td align="center" style="padding:20px 24px 0;color:#77746e;font:13px/1.6 ${F}">
+  <a href="${SITE}" style="color:#a9a59d;text-decoration:none">fire.mkegroup.ca</a> &nbsp;&middot;&nbsp; <a href="${APP_STORE}" style="color:#a9a59d;text-decoration:none">Get the iPhone app</a>
+  ${o.footer ? `<div style="margin-top:8px">${esc(o.footer)}</div>` : ""}
 </td></tr></table>
-${o.footer ? `<p style="max-width:560px;color:#888;font-size:12px;margin:12px auto 0">${esc(o.footer)}</p>` : ""}
 </td></tr></table></body></html>`;
   return { text, html };
 }
