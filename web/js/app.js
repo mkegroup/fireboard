@@ -3,6 +3,7 @@ import { createApi } from "./api.js";
 import { createDemoApi } from "./demo.js";
 import { initTrack, track } from "./track.js";
 import { guideView } from "./guide.js";
+import { setupView, setupDone } from "./setup.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
@@ -231,6 +232,8 @@ function route() {
   else if (h.startsWith("#/connections")) cleanup = connectionsView(root);
   else if (h.startsWith("#/chat")) cleanup = stationChatView();
   else if (h.startsWith("#/guide")) cleanup = guideView(root);
+  else if (h.startsWith("#/setup")) cleanup = setupView(root, "chief");
+  else if (h.startsWith("#/welcome")) cleanup = setupView(root, "crew");
   else cleanup = homeView();
 }
 S.rerender = route;
@@ -627,7 +630,7 @@ async function renderOnboarding(code = "") {
     localStorage.setItem("fgb_dept", deptId);
     location.hash = "#/";
     await afterSignIn();
-    toast(`Welcome to ${S.dept?.name || "the department"}.`);
+    go("#/welcome");
   });
   handle("#create-form", async (f) => {
     if (!f.dept || f.dept.length < 2) throw new Error("Enter your department name.");
@@ -637,7 +640,7 @@ async function renderOnboarding(code = "") {
     localStorage.setItem("fgb_dept", deptId);
     location.hash = "#/";
     await afterSignIn();
-    toast("Department created. Next, invite your crew.");
+    go("#/setup");
   });
 }
 
@@ -734,6 +737,7 @@ function homeView() {
     if (done === steps.length) return "";
     return `<div class="panel setup">
       <div style="display:flex;align-items:center;gap:10px"><div class="h3" style="flex:1">Get your department ready</div><span class="muted small">${done} of ${steps.length}</span></div>
+      ${setupDone() ? "" : `<a class="btn primary block" href="#/setup" style="margin:10px 0 4px">${icon("chev", "sm")} Continue guided setup</a>`}
       <div class="setup-steps">${steps.map(([t, m, ok, href]) => `
         <${href && !ok ? `a href="${href}"` : "div"} class="setup-step ${ok ? "ok" : ""}">
           <span class="tick">${ok ? icon("check", "sm") : ""}</span>
