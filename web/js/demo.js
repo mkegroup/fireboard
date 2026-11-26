@@ -18,7 +18,7 @@ function seed() {
         equipment_locations: ["Station"],
         apparatus: [{ name: "Engine 1", kind: "Engine" }, { name: "Tanker 2", kind: "Tanker" }, { name: "Rescue 3", kind: "Rescue" }, { name: "Brush 4", kind: "Brush" }],
       },
-      trial_ends_at: new Date(now + 5 * 86400000).toISOString(), subscription_status: "none",
+      trial_ends_at: new Date(now + 24 * 86400000).toISOString(), subscription_status: "none",
       current_period_end: null, past_due_since: null, seat_count: 9,
       plan_interval: null, plan_invoice: false, plan_cancel_at: null, plan_amount: null, plan_custom: false,
     }],
@@ -73,7 +73,7 @@ function seed() {
   const inc = {
     id: "demo-inc", dept_id: DEPT, name: "Structure fire", address: "142 Mill Street", call_type: "Structure",
     status: "active", source: "dispatch", started_at: new Date(now - 23 * min).toISOString(), started_by: ME,
-    closed_at: null, par_started_at: null, iocanc: null, lat: 45.4884, lng: -77.6797,
+    closed_at: null, par_started_at: null, iocanc: null, lat: 44.3405, lng: -76.6612,
   };
   db.incidents.push(inc);
   const e1 = { id: "app-e1", incident_id: inc.id, dept_id: DEPT, name: "Engine 1", kind: "Engine", status: "On Scene", created_at: inc.started_at };
@@ -134,7 +134,7 @@ function seed() {
   msg(10, "Mike Brown", "Tanker 2 dumped, heading to the fill site.");
   msg(4, "Jordan MacLeod", "Ana to rehab. Chris, check her vitals please.");
 
-  const base = [45.4886, -77.6794];
+  const base = [44.3407, -76.6609];
   const loc = (who, dlat, dlng) => {
     const mem = m(who);
     db.locations.push({ incident_id: inc.id, user_id: mem.user_id, dept_id: DEPT, name: who, lat: base[0] + dlat, lng: base[1] + dlng, accuracy: 8, updated_at: new Date(now - 1 * min).toISOString() });
@@ -155,7 +155,7 @@ function seed() {
   };
   old(3, "Chimney fire", "88 Lake Rd", 41);
   old(8, "MVC, two vehicles", "Concession 4 at Lakeshore Rd", 74);
-  old(15, "Grass fire", "Kamaniskeg Lake Rd", 55);
+  old(15, "Grass fire", "Lakeshore Rd", 55);
 
   // Training
   const tr = (daysAgo, title, kind, hours, instructor, who) => {

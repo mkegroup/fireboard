@@ -4,6 +4,7 @@ import { createDemoApi } from "./demo.js";
 import { initTrack, track } from "./track.js";
 import { guideView } from "./guide.js";
 import { setupView, setupDone } from "./setup.js";
+import { startTour } from "./tour.js";
 import { S, RANKS, CREWS, CALL_TYPES, APP_KINDS, isOfficer, isOwner, hasAccess, planLabel, go } from "./state.js";
 import { esc, initials, colorFor, dateTime, dateLabel, elapsed, ago, daysUntil, download, csv, todayISO, formData, copyText, friendlyError, applyTheme, getTheme, setTheme, soundOn, setSound, alertTone } from "./util.js";
 import { icon, toast, openSheet, confirmSheet, field, input, select, textarea } from "./ui.js";
@@ -106,6 +107,18 @@ async function startDemo() {
   const session = await S.api.getSession();
   S.user = session.user;
   await afterSignIn();
+  let seen = false;
+  try { seen = sessionStorage.getItem("fgb_tour_seen") === "1"; } catch { /* private mode */ }
+  if (!seen) setTimeout(runTour, 700);
+}
+
+function runTour() {
+  try { sessionStorage.setItem("fgb_tour_seen", "1"); } catch { /* private mode */ }
+  if (!/^#\/?$/.test(location.hash || "#/")) go("#/");
+  startTour({
+    onEvent: (e) => track(e, e === "tour_trial" ? "tapped Start my free trial in the tour" : e === "tour_done" ? "finished the demo tour" : e === "tour_skipped" ? "skipped the demo tour" : "demo tour step"),
+    onFinish: (how) => { if (how === "trial") exitDemo(); },
+  });
 }
 
 function exitDemo() {
@@ -306,7 +319,7 @@ export function appStoreCard(dismissed) {
 
 export function demoStrip() {
   if (!S.api?.isDemo) return "";
-  return `<div class="demo-strip">Demo department. Nothing here is saved. <button data-act="exit-demo">Exit demo</button></div>`;
+  return `<div class="demo-strip">Demo department. Nothing here is saved. <button data-act="tour">Guided tour</button> <button data-act="exit-demo">Exit demo</button></div>`;
 }
 
 /** Does the plan need the owner's attention? Shows a dot on the Plan tab. */
@@ -371,7 +384,7 @@ function bindActions(el, handlers) {
   const onClick = (e) => {
     const t = e.target.closest("[data-act]");
     if (!t || !el.contains(t)) return;
-    const fn = handlers[t.dataset.act] || (t.dataset.act === "exit-demo" ? exitDemo : null);
+    const fn = handlers[t.dataset.act] || (t.dataset.act === "exit-demo" ? exitDemo : t.dataset.act === "tour" ? () => { S.api.reset?.(); go("#/"); setTimeout(runTour, 300); } : null);
     if (fn) { e.preventDefault(); fn(t, e); }
   };
   el.addEventListener("click", onClick);
@@ -403,6 +416,11 @@ function renderAuth(mode = "email") {
       <p>${code ? `We sent a 6-digit code to <b class="text">${esc(authEmail)}</b>. It works for 10 minutes.`
         : pendingJoinCode ? "Enter your email to join your department's board. No password needed."
         : "Live PAR accountability for volunteer and career fire departments."}</p>
+      ${intro ? `<div class="auth-demo-cta">
+        <button class="btn hivis" id="hero-demo">${icon("play", "sm")} See it on a real call</button>
+        <button class="btn ghost" id="hero-video">Watch the 1-minute video</button>
+        <span class="auth-demo-fine">No sign-up. Try it right in your browser.</span>
+      </div>` : ""}
       ${intro ? `<ul class="auth-points">
         <li><i>${icon("user", "sm")}</i><div><b>Every firefighter, live</b><span>Responding, staged, inside and out, on every phone and screen.</span></div></li>
         <li><i>${icon("radio", "sm")}</i><div><b>PAR in seconds</b><span>Call a PAR and watch each confirmation come in. Missing sounds the alarm.</span></div></li>
@@ -436,6 +454,16 @@ function renderAuth(mode = "email") {
   </div>`;
   root.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAuth(b.dataset.mode)));
   root.querySelector("#try-demo")?.addEventListener("click", startDemo);
+  root.querySelector("#hero-demo")?.addEventListener("click", () => { track("hero_demo", "tapped See it on a real call"); startDemo(); });
+  root.querySelector("#hero-video")?.addEventListener("click", () => {
+    track("hero_video", "watched the walkthrough video");
+    openSheet({
+      title: "Fire Ground Board in one minute",
+      body: `<video class="walkthrough" src="assets/demo/fgb-walkthrough.mp4" poster="assets/demo/fgb-walkthrough.jpg" controls autoplay playsinline preload="metadata"></video>
+        <button class="btn hivis block" style="margin-top:14px" data-try>Try it yourself</button>`,
+      onOpen: (el, close) => el.querySelector("[data-try]").addEventListener("click", () => { close(); startDemo(); }),
+    });
+  });
   root.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   root.querySelector('[data-act="help"]').addEventListener("click", () => helpSheet());
   const err = root.querySelector("#auth-err");

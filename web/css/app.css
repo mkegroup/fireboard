@@ -1005,3 +1005,12 @@ html.map-open .fab, html.map-open .chat-fab { visibility: hidden; }
 .seat-sum { text-align: center; padding: 12px; }
 .plan-page .cols .col > .panel { margin-bottom: 12px; }
 @media print { .guide .no-print, .bottom-nav, .demo-strip { display: none !important; } .guide .panel { break-inside: avoid; } }
+
+/* Front page: the demo comes first */
+.auth-demo-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.auth-demo-cta .btn { min-height: 48px; }
+.auth-demo-cta .btn.hivis { font-size: 18px; padding-left: 20px; padding-right: 22px; }
+.auth-demo-cta .btn.ghost { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.18); }
+.auth-demo-fine { flex-basis: 100%; color: var(--muted); font-size: 14px; }
+.walkthrough { width: 100%; max-height: 70vh; border-radius: 12px; background: #000; display: block; }
+@media (max-width: 380px) { .auth-demo-cta .btn { flex: 1 1 100%; } }
