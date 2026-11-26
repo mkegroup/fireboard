@@ -31,7 +31,7 @@ export async function logInbox(
 
 const SUFFIX: Record<string, string> = { street: "st", road: "rd", avenue: "ave", av: "ave", drive: "dr", lane: "ln", crescent: "cres", court: "ct", crt: "ct", boulevard: "blvd", highway: "hwy", place: "pl", concession: "conc", trail: "trl", parkway: "pkwy", circle: "cir", terrace: "ter", terr: "ter" };
 
-/** "142 Mill Street, Combermere" and "142 MILL ST" give the same key. */
+/** "142 Mill Street, Pine Ridge" and "142 MILL ST" give the same key. */
 export function streetKey(address: string | null | undefined): string {
   if (!address) return "";
   return address.split(/[,(]/)[0].toLowerCase().replace(/[.']/g, "").split(/\s+/).filter(Boolean)

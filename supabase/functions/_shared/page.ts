@@ -1,7 +1,7 @@
 // Reads a dispatch page (email, text message, CAD message) and pulls out
 // the call type, address, units and notes. Pages come in every shape:
-//   "CALL: STRUCTURE FIRE ADDR: 142 MILL ST CITY: COMBERMERE UNITS: E1,T2"
-//   "Structure Fire - 142 Mill Street, Combermere. Units E1 T2"
+//   "CALL: STRUCTURE FIRE ADDR: 142 MILL ST CITY: PINE RIDGE UNITS: E1,T2"
+//   "Structure Fire - 142 Mill Street, Pine Ridge. Units E1 T2"
 //   forwarded Gmail messages with headers and signatures
 // so this works from labels first, then falls back to spotting a street address.
 

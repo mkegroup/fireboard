@@ -207,7 +207,7 @@ export async function reverseGeocode(pt) {
   } catch { return null; }
 }
 
-/** "142 Mill St, Combermere, ON K0J 1L0, Canada" -> "142 Mill St, Combermere, ON" */
+/** "142 Mill St, Pine Ridge, ON K0A 1A0, Canada" -> "142 Mill St, Pine Ridge, ON" */
 function shortAddress(a) {
   return (a || "").replace(/,\s*(Canada|USA|United States|Mexico|France|España|Spain)$/i, "").replace(/\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/, "").replace(/\s+\d{5}(-\d{4})?$/, "").trim();
 }

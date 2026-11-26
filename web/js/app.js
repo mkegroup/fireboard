@@ -562,7 +562,7 @@ async function renderOnboarding(code = "") {
       <form class="panel section" id="create-form" novalidate style="margin-bottom:24px">
         <div class="h3">I'm setting up my department</div>
         <p class="muted small" style="margin:4px 0 12px">For chiefs and officers.${IS_NATIVE ? " You'll get an invite code for your crew." : ` Free for ${P.trialDays} days, no card needed. Then ${money(P.monthly)} a month or ${money(P.annual)} a year per member with the app.`}</p>
-        ${field("Department name", input("dept", "", 'placeholder="e.g. Madawaska Valley Fire" autocapitalize="words"'))}
+        ${field("Department name", input("dept", "", 'placeholder="e.g. Pine Ridge Fire" autocapitalize="words"'))}
         ${field("Your name", input("name", "", 'autocomplete="name" autocapitalize="words"'))}
         <details class="more"><summary class="muted small">Your rank (optional)</summary><div style="margin-top:10px">${field("Rank", select("rank", RANKS, "Chief"))}</div></details>
         <div class="error-text" data-err hidden></div>
