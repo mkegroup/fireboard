@@ -131,6 +131,15 @@ jobs:
           supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
           # Deploys every function in supabase/functions (folders starting with _ are shared code).
           supabase functions deploy --project-ref "$PROJECT_REF"
+      - if: steps.ready.outputs.go == 'yes'
+        name: Sign-in code email design
+        run: |
+          # The 6-digit code email (Magic Link and Confirm signup templates). Best effort: never fails the deploy.
+          body=$(python3 -c 'import json;h=open("supabase/templates/code.html").read();s="{{ .Token }} is your Fire Ground Board code";print(json.dumps({"mailer_subjects_magic_link":s,"mailer_templates_magic_link_content":h,"mailer_subjects_confirmation":s,"mailer_templates_confirmation_content":h}))')
+          code=$(curl -s -o /tmp/auth.out -w "%{http_code}" -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data "$body")
+          echo "Auth email templates: HTTP $code"
+          if [ "$code" != "200" ]; then echo "::warning::Couldn't update the sign-in email template (HTTP $code)"; head -c 300 /tmp/auth.out; fi
 
   deploy-web:
     needs: [unpack, test-database, test-code]

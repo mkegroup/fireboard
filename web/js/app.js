@@ -121,6 +121,15 @@ function runTour() {
   });
 }
 
+function watchVideo() {
+  openSheet({
+    title: "Fire Ground Board in one minute",
+    body: `<video class="walkthrough" src="assets/demo/fgb-walkthrough.mp4" poster="assets/demo/fgb-walkthrough.jpg" controls autoplay playsinline preload="metadata"></video>
+      ${S.api?.isDemo || S.user ? "" : `<button class="btn hivis block" style="margin-top:14px" data-try>Try it yourself</button>`}`,
+    onOpen: (el, close) => el.querySelector("[data-try]")?.addEventListener("click", () => { close(); startDemo(); }),
+  });
+}
+
 function exitDemo() {
   sessionStorage.removeItem("fgb_demo");
   location.href = location.pathname;
@@ -455,15 +464,7 @@ function renderAuth(mode = "email") {
   root.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => renderAuth(b.dataset.mode)));
   root.querySelector("#try-demo")?.addEventListener("click", startDemo);
   root.querySelector("#hero-demo")?.addEventListener("click", () => { track("hero_demo", "tapped See it on a real call"); startDemo(); });
-  root.querySelector("#hero-video")?.addEventListener("click", () => {
-    track("hero_video", "watched the walkthrough video");
-    openSheet({
-      title: "Fire Ground Board in one minute",
-      body: `<video class="walkthrough" src="assets/demo/fgb-walkthrough.mp4" poster="assets/demo/fgb-walkthrough.jpg" controls autoplay playsinline preload="metadata"></video>
-        <button class="btn hivis block" style="margin-top:14px" data-try>Try it yourself</button>`,
-      onOpen: (el, close) => el.querySelector("[data-try]").addEventListener("click", () => { close(); startDemo(); }),
-    });
-  });
+  root.querySelector("#hero-video")?.addEventListener("click", () => { track("hero_video", "watched the walkthrough video"); watchVideo(); });
   root.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
   root.querySelector('[data-act="help"]').addEventListener("click", () => helpSheet());
   const err = root.querySelector("#auth-err");
@@ -1703,6 +1704,8 @@ function meView() {
       <div class="list section">
         <a class="row" href="privacy.html"><div class="grow"><div class="title">Privacy policy</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <a class="row" href="terms.html"><div class="grow"><div class="title">Terms of use</div></div><span class="chev">${icon("chev", "sm")}</span></a>
+        ${S.api.isDemo ? "" : `<button class="row" data-act="see-demo"><div class="grow"><div class="title">See a real call (guided demo)</div><div class="meta">One minute, in a practice department. Nothing touches your real one</div></div><span class="chev">${icon("chev", "sm")}</span></button>`}
+        <button class="row" data-act="watch-video"><div class="grow"><div class="title">Watch the 1-minute video</div></div><span class="chev">${icon("chev", "sm")}</span></button>
         <a class="row" href="#/guide"><div class="grow"><div class="title">Getting started guide</div><div class="meta">What to do first, step by step</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <button class="row" data-act="help"><div class="grow"><div class="title">Help</div><div class="meta">Sign-in codes, new phones, alarms, billing</div></div><span class="chev">${icon("chev", "sm")}</span></button>
       </div>
@@ -1774,6 +1777,8 @@ function meView() {
     switch: () => switchDeptSheet(),
     join: () => renderOnboarding(),
     signout: async () => { if (S.api.isDemo) return exitDemo(); await S.api.signOut(); },
+    "see-demo": () => { try { sessionStorage.removeItem("fgb_tour_seen"); } catch { /* private mode */ } startDemo(); },
+    "watch-video": () => watchVideo(),
     help: () => helpSheet(),
     "signout-all": async () => {
       if (!(await confirmSheet({ title: "Sign out everywhere?", message: "Every phone and computer signed in to your account is signed out. Use this if a device was lost.", confirmLabel: "Sign out everywhere" }))) return;

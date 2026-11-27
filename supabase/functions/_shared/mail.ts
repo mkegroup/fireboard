@@ -74,31 +74,35 @@ export function layout(o: { heading: string; paras: string[]; button?: { label: 
   const para = (p: string) => {
     const lines = p.split("\n");
     if (lines.every((l) => l.startsWith("- "))) {
-      return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 18px">${lines.map((l) => `<tr><td valign="top" style="padding:0 10px 8px 0;color:#e5332a;font:700 16px/1.5 ${F}">&#9632;</td><td style="padding:0 0 8px;color:#d6d2ca;font:16px/1.5 ${F}">${esc(l.slice(2))}</td></tr>`).join("")}</table>`;
+      return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 20px">${lines.map((l, i) => `<tr><td valign="top" style="padding:0 12px 12px 0"><div style="width:24px;height:24px;border-radius:12px;background:#c8102e;color:#ffffff;font:700 13px/24px ${F};text-align:center">${i + 1}</div></td><td style="padding:2px 0 12px;color:#33363c;font:16px/1.5 ${F}">${esc(l.slice(2))}</td></tr>`).join("")}</table>`;
     }
-    return `<p style="margin:0 0 18px;color:#d6d2ca;font:16px/1.6 ${F}">${esc(p).replace(/\n/g, "<br>")}</p>`;
+    return `<p style="margin:0 0 18px;color:#33363c;font:16px/1.6 ${F}">${esc(p).replace(/\n/g, "<br>")}</p>`;
   };
   const pre = esc((o.paras[0] || "").replace(/\s+/g, " ").slice(0, 140));
+  const btn = o.button ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:6px 0 26px"><tr><td align="center" bgcolor="#c8102e" style="background:#c8102e;border-radius:10px">
+    <a href="${esc(o.button.url)}" target="_blank" style="display:block;padding:15px 30px;background:#c8102e;border-radius:10px;color:#ffffff;text-decoration:none;font:700 16px ${F}">${esc(o.button.label)}</a></td></tr></table>
+  <p style="margin:-14px 0 24px;color:#7a7d84;font:13px/1.5 ${F}">Button not working? Go to <a href="${esc(o.button.url)}" style="color:#c8102e">${esc(o.button.url.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a> or open the iPhone app.</p>` : "";
+  // Light on purpose: Gmail on phones "inverts" dark emails into washed-out grey. A white card with a dark logo band
+  // reads cleanly in light mode and Gmail's dark mode turns it into a proper dark email by itself.
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>${esc(o.heading)}</title>
-<style>:root{color-scheme:dark;supported-color-schemes:dark}a{color:#ff6b5f}@media (max-width:600px){.pad{padding-left:22px!important;padding-right:22px!important}.h1{font-size:23px!important}}</style></head>
-<body style="margin:0;padding:0;background:#0f1012" bgcolor="#0f1012">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#0f1012">${pre}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#0f1012" style="background:#0f1012"><tr><td align="center" style="padding:28px 12px 32px">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px">
-<tr><td bgcolor="#17181a" style="background:#17181a;border-radius:16px 16px 0 0;padding:22px 32px 18px" class="pad">
-  <a href="${SITE}" style="text-decoration:none"><img src="${SITE}/img/email-logo.png" width="208" height="70" alt="Fire Ground Board" style="display:block;border:0;width:208px;height:auto;color:#f3efe8;font:800 20px ${F}"></a></td></tr>
-<tr><td bgcolor="#e5332a" style="background:#e5332a;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>
-<tr><td bgcolor="#1d1e21" style="background:#1d1e21;border-radius:0 0 16px 16px;padding:30px 32px 30px" class="pad">
-  <h1 class="h1" style="margin:0 0 18px;color:#ffffff;font:800 26px/1.25 ${F};letter-spacing:-.01em">${esc(o.heading)}</h1>
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(o.heading)}</title>
+<style>a{color:#c8102e}@media (max-width:600px){.pad{padding-left:22px!important;padding-right:22px!important}.h1{font-size:24px!important}}</style></head>
+<body style="margin:0;padding:0;background:#f1efeb" bgcolor="#f1efeb">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${pre}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#f1efeb" style="background:#f1efeb"><tr><td align="center" style="padding:24px 12px 32px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border-radius:14px;overflow:hidden;background:#ffffff" bgcolor="#ffffff">
+<tr><td bgcolor="#141517" style="background:#141517;padding:18px 28px" class="pad">
+  <a href="${SITE}" style="text-decoration:none"><img src="${SITE}/img/email-logo.png" width="180" alt="Fire Ground Board" style="display:block;border:0;width:180px;height:auto;color:#ffffff;font:800 18px ${F}"></a></td></tr>
+<tr><td bgcolor="#c8102e" style="background:#c8102e;height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>
+<tr><td bgcolor="#ffffff" style="background:#ffffff;padding:30px 32px 28px" class="pad">
+  <h1 class="h1" style="margin:0 0 16px;color:#141517;font:800 26px/1.25 ${F};letter-spacing:-.01em">${esc(o.heading)}</h1>
   ${o.paras.map(para).join("\n  ")}
-  ${o.button ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:8px 0 26px"><tr><td bgcolor="#e5332a" style="background:#e5332a;border-radius:10px">
-    <a href="${esc(o.button.url)}" style="display:inline-block;padding:15px 28px;color:#ffffff;text-decoration:none;font:800 16px ${F};border-radius:10px">${esc(o.button.label)} &rarr;</a></td></tr></table>` : ""}
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="border-top:1px solid #2e2f33;padding-top:18px;color:#f3efe8;font:700 15px/1.5 ${F}">The Fire Ground Board team
-    <div style="color:#8f8b84;font-weight:400;font-size:14px">Reply to this email any time. A real person reads it.</div></td></tr></table>
-</td></tr>
-<tr><td align="center" style="padding:20px 24px 0;color:#77746e;font:13px/1.6 ${F}">
-  <a href="${SITE}" style="color:#a9a59d;text-decoration:none">fire.mkegroup.ca</a> &nbsp;&middot;&nbsp; <a href="${APP_STORE}" style="color:#a9a59d;text-decoration:none">Get the iPhone app</a>
+  ${btn}
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="border-top:1px solid #e6e3dd;padding-top:16px;color:#141517;font:700 15px/1.5 ${F}">The Fire Ground Board team
+    <div style="color:#7a7d84;font-weight:400;font-size:14px">Reply to this email any time. A real person reads it.</div></td></tr></table>
+</td></tr></table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px"><tr><td align="center" style="padding:18px 24px 0;color:#8a8780;font:13px/1.6 ${F}">
+  <a href="${SITE}" style="color:#6b6862;text-decoration:none">fire.mkegroup.ca</a> &nbsp;&middot;&nbsp; <a href="${APP_STORE}" style="color:#6b6862;text-decoration:none">Get the iPhone app</a>
   ${o.footer ? `<div style="margin-top:8px">${esc(o.footer)}</div>` : ""}
 </td></tr></table>
 </td></tr></table></body></html>`;

@@ -3,7 +3,6 @@
 // out once, even if two sweeps run at the same time.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { layout, mailConfigured, sendMail } from "./mail.ts";
-import { appUrl } from "./util.ts";
 import { capFor } from "./seats.ts";
 
 type Dept = {
@@ -56,19 +55,18 @@ const priceLine = (people: number) => {
 export const emails = {
   welcome: (d: Dept) => (first: string): Built => ({
     subject: `${d.name} is set up on Fire Ground Board`,
-    heading: `Welcome, ${first}. ${d.name} is ready.`,
+    heading: `${d.name} is ready`,
     paras: [
-      `Your free trial runs until ${day(d.trial_ends_at)}. No card needed until then.`,
-      "Three things to do this week so your crew sees it work on a real call:",
+      `Hi ${first}, welcome aboard. Your free trial runs until ${day(d.trial_ends_at)}, and there's no card needed until then.`,
+      "Three quick steps so your crew sees it work on a real call:",
       [
-        "- Add your trucks: Department, Trucks. They become one-tap choices on every call.",
-        "- Bring in your roster: Records, then the upload arrow. There's a spreadsheet template.",
-        `- Send your crew the invite code ${d.invite_code}. They sign in and enter it once.`,
+        "- Add your trucks under Department. They become one-tap choices on every call.",
+        "- Bring in your roster under Records. Paste names or upload the spreadsheet template.",
+        `- Send your crew the invite code ${d.invite_code}. They get the free app, sign in and enter it once.`,
       ].join("\n"),
-      "Then run your next call or training night on the board and call a PAR from your phone. That's when it clicks.",
-      "Stuck on anything? Reply here and we'll help you set it up.",
+      "Then run your next call or training night on the board and call a PAR. That's when it clicks.",
     ],
-    button: { label: "Open Fire Ground Board", url: appUrl() },
+    button: { label: "Open Fire Ground Board", url: "https://fire.mkegroup.ca/" },
   }),
 
   trialSoon: (d: Dept) => (first: string): Built => ({
@@ -80,7 +78,7 @@ export const emails = {
       "Paying by cheque or EFT? Choose yearly, then Pay by invoice, and we'll email your treasurer an invoice due in 30 days.",
       "Need more time to get it approved? Reply and let us know.",
     ],
-    button: { label: "Choose a plan", url: `${appUrl()}/#/plan` },
+    button: { label: "Choose a plan", url: `https://fire.mkegroup.ca/#/plan` },
   }),
 
   trialLast: (d: Dept) => (first: string): Built => ({
@@ -90,7 +88,7 @@ export const emails = {
       `After ${day(d.trial_ends_at)}, ${d.name} can't start new incidents until a plan is chosen. Your records stay safe and readable.`,
       priceLine(d.seat_count ?? 1),
     ],
-    button: { label: "Choose a plan", url: `${appUrl()}/#/plan` },
+    button: { label: "Choose a plan", url: `https://fire.mkegroup.ca/#/plan` },
   }),
 
   trialEnded: (d: Dept) => (first: string): Built => ({
@@ -102,7 +100,7 @@ export const emails = {
       priceLine(d.seat_count ?? 1),
       "If it wasn't the right fit, we'd really like to know why. Just reply.",
     ],
-    button: { label: "Choose a plan", url: `${appUrl()}/#/plan` },
+    button: { label: "Choose a plan", url: `https://fire.mkegroup.ca/#/plan` },
   }),
 
   seatAdded: (deptName: string, who: string, billed: number, interval: string | null) => (first: string): Built => {
@@ -116,7 +114,7 @@ export const emails = {
         `Your plan now covers ${billed} ${billed === 1 ? "seat" : "seats"}: ${cost}, plus tax. The extra seat is charged for the rest of this period on your next bill.`,
         "Not expected? Remove people in Department, then lower your seats in Plan.",
       ],
-      button: { label: "Review seats", url: `${appUrl()}/#/plan` },
+      button: { label: "Review seats", url: `https://fire.mkegroup.ca/#/plan` },
     };
   },
 
@@ -127,7 +125,7 @@ export const emails = {
       `${who}${email ? ` (${email})` : ""} used your invite code to join ${deptName}. You have "New people need approval" turned on, so they can't see anything yet and they don't use a seat.`,
       "Approve them if they're on your crew. If you don't know them, decline, then make a new invite code in Department so the old one stops working.",
     ],
-    button: { label: "Review in Department", url: `${appUrl()}/#/dept` },
+    button: { label: "Review in Department", url: `https://fire.mkegroup.ca/#/dept` },
   }),
 
   paymentFailed: (deptName: string, invoice: boolean) => (first: string): Built => ({
@@ -138,7 +136,7 @@ export const emails = {
       "The board keeps working for 14 days. After that, new incidents pause until it's paid. Records are never deleted.",
       invoice ? "Pay the invoice from the email Stripe sent, or open billing to see it." : "Open billing to update your card or pay the open invoice.",
     ],
-    button: { label: "Open billing", url: `${appUrl()}/#/plan` },
+    button: { label: "Open billing", url: `https://fire.mkegroup.ca/#/plan` },
   }),
 };
 

@@ -1350,6 +1350,8 @@ ROWS = [
 ("No sign-up. Try it right in your browser.", "Sans inscription. Essayez-le dans votre navigateur.", "Sin registro. Pruébelo en su navegador."),
 ("Fire Ground Board in one minute", "Fire Ground Board en une minute", "Fire Ground Board en un minuto"),
 ("Try it yourself", "Essayez-le vous-même", "Pruébelo usted mismo"),
+("See a real call (guided demo)", "Voir un vrai appel (démo guidée)", "Ver una llamada real (demo guiada)"),
+("One minute, in a practice department. Nothing touches your real one", "Une minute, dans un service d'exercice. Rien ne touche votre vrai service", "Un minuto, en un departamento de práctica. Nada afecta al suyo"),
 ]
 
 import json, os, re

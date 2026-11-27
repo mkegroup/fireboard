@@ -1308,4 +1308,6 @@ export default {
   "No sign-up. Try it right in your browser.": "Sin registro. Pruébelo en su navegador.",
   "Fire Ground Board in one minute": "Fire Ground Board en un minuto",
   "Try it yourself": "Pruébelo usted mismo",
+  "See a real call (guided demo)": "Ver una llamada real (demo guiada)",
+  "One minute, in a practice department. Nothing touches your real one": "Un minuto, en un departamento de práctica. Nada afecta al suyo",
 };
