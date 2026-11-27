@@ -18,3 +18,7 @@ His read on the market: start small (volunteer and composite departments), then 
 
 ## From Reddit (r/Firefighting), Nov 26, 2026
 - "Too much reliance on phones." Answer: it doesn't replace the radio or tags; command can confirm members without a phone; the board runs on a tablet at command.
+
+## From Reddit (r/firefighter), Nov 27, 2026
+- A career FF/EMT described SCBA telemetry (Scott packs): command sees each member's air level and PASS alarms on a tablet. Idea: integrate with pack telemetry later. Reality: proprietary, needs a partnership with the maker (Scott, MSA, Dräger), and only departments that already own the hardware benefit. Long-term, not now.
+- His concern: interior crews don't look at phones. Answer: command runs the board on a tablet. Matt's point: on wildland, rural and long-duration calls people DO use phones, and spread-out crews make the live map and location sharing matter. Worth a wildland angle in marketing.
