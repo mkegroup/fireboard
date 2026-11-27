@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Security and privacy questions, Fire Ground Board</title><link rel="stylesheet" href="legal.css">
+<style>
+.qa{border:1px solid #2b3038;border-radius:12px;padding:14px 18px;margin:12px 0;background:#181c22}
+.qa h3{font:700 19px/1.25 "Barlow Condensed","Arial Narrow",sans-serif;margin:0 0 6px;color:#eceff3;letter-spacing:.2px}
+.qa p{margin:6px 0}.qa ul{margin:6px 0;padding-left:20px}
+.tag{display:inline-block;font:700 12px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#d4f53a;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:15px;margin:8px 0}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #2b3038;vertical-align:top}th{color:#eceff3;font-weight:700}td{color:#c9cfd8}
+.top{border-top:4px solid #c8102e;padding-top:18px}
+@media print{body{background:#fff;color:#111}main{max-width:none;padding:0 10mm}p,li,td{color:#222}h1,h2,.qa h3,th{color:#111}.qa{background:#fff;border-color:#ccc;break-inside:avoid}.tag{color:#8a1020}.noprint{display:none}a{color:#111}}
+</style></head><body><main>
+<p class="noprint"><a href="./"><img src="img/logo-dark.png" alt="Fire Ground Board" width="220" style="display:block;margin-bottom:14px"></a><a href="./">Back to the app</a></p>
+<div class="top">
+<span class="tag">For chiefs, councils and IT</span>
+<h1>Security and privacy questions</h1>
+<p class="muted">Last updated November 26, 2026. Answers to the questions departments and municipalities usually ask before using Fire Ground Board. To save a copy, use your browser's Print and choose Save as PDF. More detail is in our <a href="privacy.html">privacy policy</a> and <a href="terms.html">terms</a>.</p>
+</div>
+
+<h2>The basics</h2>
+<div class="qa"><h3>Who provides Fire Ground Board?</h3><p>MKE Group Inc., a federally incorporated Canadian company. Fire Ground Board is a web app (fire.mkegroup.ca) and an iPhone app for crew.</p></div>
+<div class="qa"><h3>Where is our data stored?</h3><p>Department records, incidents, chat, files and sign-in are stored with Supabase in its <b>Canada (Central)</b> region. A few services we use for specific jobs, listed below, may process limited data in the United States.</p></div>
+<div class="qa"><h3>Is the data encrypted?</h3><p>Yes. Every connection to the app uses HTTPS (encrypted in transit), and data is encrypted at rest by our hosting provider.</p></div>
+<div class="qa"><h3>Do you sell our data or use it for advertising?</h3><p>No. Department data is never sold and never used for advertising. Our public website uses the Meta pixel to measure our own ads, but it never runs inside the app or on department data.</p></div>
+
+<h2>Access and sign-in</h2>
+<div class="qa"><h3>Can another department see our information?</h3><p>No. Every record is tied to its department, and the database itself only returns rows for departments a person belongs to. This is enforced on the server, not just in the app, and it's covered by automated tests.</p></div>
+<div class="qa"><h3>Who in our department can see what?</h3><ul><li><b>Owner and officers:</b> manage the roster, incidents, records, invites and billing.</li><li><b>Members:</b> see the board, chat and their own records.</li><li><b>Medical details and emergency contacts:</b> visible only to the member and the department's officers.</li></ul></div>
+<div class="qa"><h3>How do people sign in?</h3><p>With a one-time code sent to their email, valid for 10 minutes. Most accounts have no password, so there's no password to reuse, guess or leak. New members join only with your department's invite code, which an officer can replace at any time, and officers can remove anyone instantly.</p></div>
+<div class="qa"><h3>Can your staff see our records?</h3><p>A small number of administrators can see account, billing and usage information to provide support and keep the service running. We don't browse department records, and we only look further when you ask for help or to investigate a security issue.</p></div>
+
+<h2>What we collect</h2>
+<div class="qa"><h3>What information is in the app?</h3><ul><li>Member email, name, rank, crew, phone, radio number, certifications and training</li><li>Optional emergency contact and medical details, entered by the department</li><li>Incidents: names, addresses, status changes, apparatus, mutual aid and the activity log</li><li>Station and incident chat, including photos and voice notes</li></ul></div>
+<div class="qa"><h3>Do you track firefighters' locations?</h3><p>Only when a member taps "Share my location" on an incident, and only while that screen is open. Locations are deleted when the incident closes.</p></div>
+<div class="qa"><h3>What happens with our dispatch pages?</h3><p>If you forward dispatch pages, we read them to start the incident and alert the crew. We keep the last 50 (sender, subject and a short excerpt) so officers can see what happened to each one.</p></div>
+<div class="qa"><h3>Do you handle card numbers?</h3><p>No. Billing is handled by Stripe. We never see or store card numbers.</p></div>
+
+<h2>Service providers</h2>
+<table><tr><th>Provider</th><th>What it does</th></tr>
+<tr><td>Supabase (Canada)</td><td>Database, files and sign-in</td></tr>
+<tr><td>Stripe</td><td>Billing</td></tr>
+<tr><td>Apple</td><td>Push alerts on iPhone</td></tr>
+<tr><td>Google Workspace</td><td>Sending sign-in emails</td></tr>
+<tr><td>Google Maps</td><td>Maps and address lookup</td></tr>
+<tr><td>Cloudflare</td><td>Receiving forwarded dispatch emails</td></tr></table>
+<p class="muted">Optional: if your owner connects a group chat (Slack, Teams, Discord or Google Chat), it receives a short alert with the incident name and address.</p>
+
+<h2>Retention, deletion and incidents</h2>
+<div class="qa"><h3>How long do you keep our data?</h3><p>For as long as your department uses the service. Members can delete their own account in the app (Me, Delete my account). A department can ask us to delete all of its data at any time.</p></div>
+<div class="qa"><h3>Can we get our data out?</h3><p>Yes. Incident reports can be downloaded and printed from the app, and you can ask us for an export of your department's records.</p></div>
+<div class="qa"><h3>What if there's a security incident?</h3><p>We'll notify affected departments promptly and report it as Canadian privacy law (PIPEDA) requires.</p></div>
+<div class="qa"><h3>Which privacy law applies?</h3><p>Fire Ground Board follows Canada's PIPEDA. If your municipality has its own requirements, such as MFIPPA in Ontario, contact us and we'll walk through them with you.</p></div>
+
+<h2>On the fire ground</h2>
+<div class="qa"><h3>What happens if cell service or the internet drops?</h3><p>Fire Ground Board is an aid to your accountability system, not a replacement. Keep running your radio, your tags or passport system, and your SOGs. If the connection drops, the app can't update until it's back. When it reconnects, everyone sees the current board again.</p></div>
+<div class="qa"><h3>Does it depend on everyone having a phone?</h3><p>No. Command can add anyone to the board, mark them "No radio", and confirm their PAR for them. The board also runs on a tablet or laptop at the command post.</p></div>
+
+<h2>Questions</h2>
+<p>Email <a href="mailto:team@firegroundboard.ca">team@firegroundboard.ca</a> and we'll answer anything your chief, council or IT team needs.</p>
+</main></body></html>
