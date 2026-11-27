@@ -1,6 +1,6 @@
 // Caches the app shell so the board opens even with weak signal.
 // Data always comes from the network. Bump VERSION on every release.
-const VERSION = "fgb-2.8.3";
+const VERSION = "fgb-2.8.4";
 const SHELL = [
   "./", "index.html", "css/app.css", "manifest.json",
   "js/app.js", "js/api.js", "js/connections.js", "js/i18n.js", "js/maps.js", "js/chat.js", "js/admin.js", "js/importer.js", "js/i18n/fr.js", "js/i18n/es.js", "js/native.js", "js/demo.js", "js/board.js", "js/records.js", "js/state.js", "js/ui.js", "js/util.js", "js/config.js", "js/track.js", "js/guide.js", "js/setup.js", "js/tour.js",
@@ -26,6 +26,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return; // API, tiles, Stripe: straight to network
+  if (url.pathname.endsWith(".mp4")) return; // videos stream with range requests; never cache them
   // Network first so updates land right away, cache as the fallback for bad signal.
   e.respondWith(
     fetch(e.request)

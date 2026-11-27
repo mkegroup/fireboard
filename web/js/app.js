@@ -121,12 +121,22 @@ function runTour() {
   });
 }
 
+const WALK_CHAPTERS = [["Start a call", 2.8], ["The board", 30.4], ["PAR and Missing", 63.8], ["Trucks and mutual aid", 101], ["Map", 116.6], ["Log and chat", 126.7], ["Close and report", 142.5], ["Station chat", 157.9], ["Records", 165.9], ["Department", 190.4], ["Your settings", 209.2]];
+
 function watchVideo() {
+  // The iPhone app streams it from the site so the 70 MB file isn't bundled into the app.
+  const base = IS_NATIVE ? "https://fire.mkegroup.ca/" : "";
   openSheet({
-    title: "Fire Ground Board in one minute",
-    body: `<video class="walkthrough" src="assets/demo/fgb-walkthrough.mp4" poster="assets/demo/fgb-walkthrough.jpg" controls autoplay playsinline preload="metadata"></video>
+    title: t("Full walkthrough"),
+    body: `<video class="walkthrough" src="${base}assets/demo/fgb-full-walkthrough.mp4" poster="${base}assets/demo/fgb-full-walkthrough.jpg" controls autoplay playsinline preload="metadata"></video>
+      <div class="label" style="margin-top:14px">${esc(t("Jump to a chapter"))}</div>
+      <div class="choice-grid walk-chapters">${WALK_CHAPTERS.map(([n, s], i) => `<button type="button" class="btn sm" data-seek="${s}">${i + 1}. ${esc(t(n))}</button>`).join("")}</div>
       ${S.api?.isDemo || S.user ? "" : `<button class="btn hivis block" style="margin-top:14px" data-try>Try it yourself</button>`}`,
-    onOpen: (el, close) => el.querySelector("[data-try]")?.addEventListener("click", () => { close(); startDemo(); }),
+    onOpen: (el, close) => {
+      const v = el.querySelector("video");
+      el.querySelectorAll("[data-seek]").forEach((b) => b.addEventListener("click", () => { v.currentTime = Number(b.dataset.seek); v.play().catch(() => {}); v.scrollIntoView({ block: "nearest" }); }));
+      el.querySelector("[data-try]")?.addEventListener("click", () => { close(); startDemo(); });
+    },
   });
 }
 
@@ -427,7 +437,7 @@ function renderAuth(mode = "email") {
         : "Live PAR accountability for volunteer and career fire departments."}</p>
       ${intro ? `<div class="auth-demo-cta">
         <button class="btn hivis" id="hero-demo">${icon("play", "sm")} See it on a real call</button>
-        <button class="btn ghost" id="hero-video">Watch the 1-minute video</button>
+        <button class="btn ghost" id="hero-video">Watch the full walkthrough</button>
         <span class="auth-demo-fine">No sign-up. Try it right in your browser.</span>
       </div>` : ""}
       ${intro ? `<ul class="auth-points">
@@ -1705,7 +1715,7 @@ function meView() {
         <a class="row" href="privacy.html"><div class="grow"><div class="title">Privacy policy</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <a class="row" href="terms.html"><div class="grow"><div class="title">Terms of use</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         ${S.api.isDemo ? "" : `<button class="row" data-act="see-demo"><div class="grow"><div class="title">See a real call (guided demo)</div><div class="meta">One minute, in a practice department. Nothing touches your real one</div></div><span class="chev">${icon("chev", "sm")}</span></button>`}
-        <button class="row" data-act="watch-video"><div class="grow"><div class="title">Watch the 1-minute video</div></div><span class="chev">${icon("chev", "sm")}</span></button>
+        <button class="row" data-act="watch-video"><div class="grow"><div class="title">Watch the full walkthrough</div><div class="meta">4 minutes, every feature, in chapters</div></div><span class="chev">${icon("chev", "sm")}</span></button>
         <a class="row" href="#/guide"><div class="grow"><div class="title">Getting started guide</div><div class="meta">What to do first, step by step</div></div><span class="chev">${icon("chev", "sm")}</span></a>
         <button class="row" data-act="help"><div class="grow"><div class="title">Help</div><div class="meta">Sign-in codes, new phones, alarms, billing</div></div><span class="chev">${icon("chev", "sm")}</span></button>
       </div>

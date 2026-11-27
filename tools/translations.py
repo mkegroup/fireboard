@@ -1352,6 +1352,17 @@ ROWS = [
 ("Try it yourself", "Essayez-le vous-même", "Pruébelo usted mismo"),
 ("See a real call (guided demo)", "Voir un vrai appel (démo guidée)", "Ver una llamada real (demo guiada)"),
 ("One minute, in a practice department. Nothing touches your real one", "Une minute, dans un service d'exercice. Rien ne touche votre vrai service", "Un minuto, en un departamento de práctica. Nada afecta al suyo"),
+("Watch the full walkthrough", "Regarder la visite complète", "Ver el recorrido completo"),
+("4 minutes, every feature, in chapters", "4 minutes, toutes les fonctions, en chapitres", "4 minutos, todas las funciones, por capítulos"),
+("Full walkthrough", "Visite complète", "Recorrido completo"),
+("Jump to a chapter", "Aller à un chapitre", "Ir a un capítulo"),
+("Start a call", "Lancer un appel", "Iniciar una llamada"),
+("The board", "Le tableau", "El tablero"),
+("PAR and Missing", "PAR et disparus", "PAR y desaparecidos"),
+("Trucks and mutual aid", "Camions et entraide", "Camiones y ayuda mutua"),
+("Log and chat", "Journal et clavardage", "Registro y chat"),
+("Close and report", "Fermer et rapport", "Cerrar e informe"),
+("Your settings", "Vos réglages", "Sus ajustes"),
 ]
 
 import json, os, re

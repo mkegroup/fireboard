@@ -48,6 +48,8 @@ workflows:
       - name: Install and copy the app into Xcode
         script: |
           npm install --no-audit --no-fund
+          # Big videos stream from the site instead of riding inside the app.
+          rm -f web/assets/demo/*.mp4
           npx cap sync ios
       - name: Signing
         script: |
