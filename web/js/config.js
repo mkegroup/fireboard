@@ -9,18 +9,20 @@ export const CONFIG = {
   // The App Store link once the iPhone app is live. Empty hides the "Get the iPhone app" card.
   APP_STORE_URL: "https://apps.apple.com/app/fire-ground-board/id6833654518",
   META_PIXEL_ID: "2678746722562802", // Meta Events Manager dataset ID; empty = no pixel
-  VERSION: "2.8.4",
+  VERSION: "2.9.0",
 
-  // Pricing shown in the app. The real prices live in Stripe; keep these in sync
-  // with the two Stripe prices on the billing function.
+  // Pricing shown on the website (never in the iPhone app). One flat price per department, by size.
+  // The real prices live in Stripe; keep these in sync with PLANS in supabase/functions/_shared/seats.ts.
   PRICING: {
-    monthly: 9.99, // per member who uses the app, per month
-    annual: 99.99, // per member who uses the app, per year
+    plans: [
+      { key: "volunteer", name: "Volunteer", max: 25, year: 799, month: 79 },
+      { key: "department", name: "Department", max: 50, year: 1299, month: 129 },
+      { key: "large", name: "Large", max: 100, year: 1999, month: 199 },
+    ],
     currency: "CAD",
     trialDays: 30,
-    seatCap: 20, // most seats billed for up to capPer people. Keep in sync with SEAT_CAP.
-    capPer: 60, // the cap goes up by seatCap for every this many more people. Keep in sync with PEOPLE_PER_CAP.
-    quoteFrom: 60, // departments this size and counties are invited to ask for a quote
+    quoteFrom: 101, // more people than the largest plan: custom quote
+    foundingUntil: "2027-03-31", // sign up by then and the price is locked for 3 years
     taxNote: "plus tax",
   },
 

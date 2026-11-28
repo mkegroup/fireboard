@@ -41,7 +41,7 @@ English, French and Spanish. Table in `tools/translations.py`.
 ## How billing works
 
 - Every new department gets 30 days free. No card needed.
-- After that it's $9.99 CAD a month or $99.99 CAD a year per member, no minimum. Only people who use the app count. Roster-only names are free.
+- After that it's one flat price per department, by people who use the app: $799 a year (or $79 a month) up to 25, $1,299 ($129) up to 50, $1,999 ($199) up to 100, CAD plus tax. Over 100 and counties get a quote. Roster-only names are free.
 - Capped at 20 paid members ($199.80 a month or $1,999.80 a year). Everyone after 20 is free. Change with the `SEAT_CAP` secret and `seatCap` in `web/js/config.js`.
 - Counties and big departments use Get a quote on the Plan page. To set up a custom deal: in Stripe make a price for the deal, create a subscription for the department's customer with that price and metadata `dept_id` = the department id from the quote email. The webhook links it, shows "Custom plan" with the real amount, and seat syncing leaves it alone.
 - The owner picks a plan on the Plan page and pays on the web by card (monthly or yearly), or yearly by emailed invoice (net 30) for departments that pay by cheque or EFT.

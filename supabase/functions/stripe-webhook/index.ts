@@ -2,7 +2,7 @@
 import Stripe from "npm:stripe@17";
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, env } from "../_shared/util.ts";
-import { standardPrices } from "../_shared/seats.ts";
+import { PLANS, planOfPrice } from "../_shared/seats.ts";
 import { logError, logEvent, sweepAdminEvents } from "../_shared/admin.ts";
 import { emails, mailOwnersOnce } from "../_shared/owner-mail.ts";
 
@@ -27,16 +27,17 @@ function planDetails(sub: Stripe.Subscription) {
   // deno-lint-ignore no-explicit-any
   const items: any[] = s.items?.data ?? [];
   const cents = items.reduce((t, i) => t + (Number(i.price?.unit_amount ?? i.plan?.amount ?? 0) * Number(i.quantity ?? 1)), 0);
-  const std = standardPrices();
-  const custom = s.metadata?.seats === "fixed" || items.some((i) => (i.price?.id ?? i.plan?.id) && !std.includes(i.price?.id ?? i.plan?.id));
+  const plans = items.map((i) => planOfPrice(i.price));
+  const custom = s.metadata?.seats === "fixed" || plans.some((p) => !p);
+  const size = plans[0] ? PLANS.find((p) => p.key === plans[0]!.key)?.max ?? null : null;
   return {
     plan_interval: interval === "month" || interval === "year" ? interval : null,
     plan_amount: items.length ? Math.round(cents) / 100 : null,
-    plan_custom: std.length > 0 && custom,
+    plan_custom: items.length > 0 && custom,
     plan_invoice: s.collection_method === "send_invoice",
     plan_cancel_at: cancelTs && sub.status !== "canceled" ? new Date(cancelTs * 1000).toISOString() : null,
-    // How many seats Stripe bills, and how many the owner chose (kept in metadata).
-    seats_billed: items.length ? Number(items[0].quantity ?? 1) : null,
+    // The plan size Stripe bills (25, 50 or 100 people), and the size the owner picked (kept in metadata).
+    seats_billed: size,
     ...(Number.isInteger(Number(s.metadata?.seats_paid)) && Number(s.metadata.seats_paid) > 0 ? { seats_paid: Number(s.metadata.seats_paid) } : {}),
   };
 }

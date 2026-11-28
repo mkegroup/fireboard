@@ -66,8 +66,8 @@ Use **test mode** first. Switch to live mode only after a full test run (step 8)
 ### Product and prices
 
 1. **Product catalog > Add product**. Name: `Fire Ground Board`.
-2. Add a price: **Recurring, Per unit, Monthly, $9.99 CAD**, tax behaviour **exclusive**.
-3. Add a second price on the same product: **Recurring, Per unit, Yearly, $99.99 CAD**, tax behaviour **exclusive**.
+2. Add a price: **Recurring, Monthly**, tax behaviour **exclusive** (any amount; it's only used to find the product). Since Nov 28, 2026 the billing function makes the six department plan prices itself (lookup keys `fgb_volunteer_year` and so on) the first time someone checks out.
+3. Put that price's ID in `STRIPE_PRICE_MONTHLY` (and optionally `STRIPE_PRODUCT` with the product ID).
 4. Copy both price IDs (`price_...`).
 
 No minimum. A department with 3 people using the app pays for 3.
@@ -277,7 +277,7 @@ The new app doesn't use Firebase at all. Departments on the old version make a f
 
 ## 11. Things to decide before you charge
 
-- **Price.** $9.99 CAD a month or $99.99 CAD a year per member with the app, no minimum, 7 day trial. It lives in Stripe and in `PRICING` in `web/js/config.js`. The trial length is in `supabase/migrations/20261023000000_pricing.sql` and `trialDays` in config. Change them together.
+- **Price.** One flat price per department (up to 25, 50 or 100 people with the app): $799/$1,299/$1,999 a year or $79/$129/$199 a month, CAD plus tax. It lives in `PLANS` in `supabase/functions/_shared/seats.ts` and `PRICING.plans` in `web/js/config.js`. To change a price, change both and give the Stripe lookup key a new name (old subscriptions keep their old price). The trial length is in `supabase/migrations/20261023000000_pricing.sql` and `trialDays` in config. Change them together.
 - **Terms and privacy.** `web/terms.html` and `web/privacy.html` are written for MKE Group Inc. in Ontario. Have a lawyer read them once. Pay attention to the safety disclaimer: this is an aid to accountability, not a replacement for a department's own PAR procedure.
 - **Pilot first.** Run one real department (Combermere or similar) for a few weeks of real calls before selling to anyone else.
 

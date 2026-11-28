@@ -621,6 +621,17 @@ details.more { margin-top: 12px; }
 .plan-list .icon { stroke: var(--st-out); margin-top: 1px; }
 .plan-card .btn.quiet { min-height: 40px; margin-top: -6px; white-space: normal; text-align: center; line-height: 1.2; }
 .plan-card .btn.block:not(.quiet) { margin-top: auto; }
+/* Department plan sizes (Nov 2026): three tappable cards, then the buy buttons. */
+.plan-card.size { text-align: left; color: var(--text); font: inherit; cursor: pointer; gap: 10px; padding: 16px; }
+.plan-card.size .plan-name { font-size: 22px; }
+.plan-card.size .plan-price b { font-size: 46px; }
+.plan-card.size .pill { height: 26px; padding: 0 10px; font-size: 13px; background: var(--ink); border: 1px solid var(--line); color: var(--muted); }
+.plan-card.size:disabled { opacity: .45; cursor: not-allowed; }
+.plan-card.size:not(:disabled):hover { border-color: var(--muted); }
+.plan-card.size.on .pill { border-color: var(--red); color: var(--text); }
+.plan-list.included { margin: 14px 2px 0; }
+.banner.founding { margin-top: 14px; border-color: rgba(212, 245, 58, .4); background: rgba(212, 245, 58, .07); }
+.plan-buy { margin-top: 14px; gap: 10px; }
 .secure { display: flex; gap: 8px; align-items: flex-start; color: var(--faint); font-size: 13px; margin-top: 14px; }
 .secure .icon { flex: none; margin-top: 1px; }
 .faq-list { padding: 4px 16px 14px; }
@@ -636,6 +647,7 @@ details.more { margin-top: 12px; }
 
 @media (min-width: 640px) {
   .plans { grid-template-columns: 1fr 1fr; align-items: stretch; }
+  .plans.sizes { grid-template-columns: 1fr 1fr 1fr; }
 }
 @media (min-width: 900px) {
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; align-items: start; }

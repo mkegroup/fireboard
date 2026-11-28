@@ -3,7 +3,7 @@
 // out once, even if two sweeps run at the same time.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { layout, mailConfigured, sendMail } from "./mail.ts";
-import { capFor } from "./seats.ts";
+import { PLANS, QUOTE_ABOVE, planFor } from "./seats.ts";
 
 type Dept = {
   id: string; name: string; invite_code: string; trial_ends_at: string; created_at: string;
@@ -11,8 +11,7 @@ type Dept = {
 };
 type Built = { subject: string; heading: string; paras: string[]; button?: { label: string; url: string } };
 
-const MONTHLY = 9.99, ANNUAL = 99.99;
-const money = (n: number) => `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Toronto" });
 
 /** Email addresses of the department's owners. */
@@ -46,9 +45,9 @@ export async function mailOwnersOnce(admin: SupabaseClient, deptId: string, kind
 }
 
 const priceLine = (people: number) => {
-  if (people >= 60) return `With ${people} people signed in, your department gets a custom plan from us. Reply to this email or tap Get a quote on the Plan page and we'll set it up.`;
-  const n = Math.max(1, Math.min(people, capFor(people)));
-  return `With ${people} ${people === 1 ? "person" : "people"} signed in, that's ${money(n * MONTHLY)} a month or ${money(n * ANNUAL)} a year, plus tax.`;
+  if (people > QUOTE_ABOVE) return `With ${people} people signed in, your department gets a custom plan from us. Reply to this email or tap Get a quote on the Plan page and we'll set it up.`;
+  const p = planFor(people);
+  return `For a department your size (up to ${p.max} people), it's one flat price: ${money(p.year)} a year or ${money(p.month)} a month, plus tax. Everyone on the crew is included.`;
 };
 
 // ---------------- the emails ----------------
@@ -103,18 +102,18 @@ export const emails = {
     button: { label: "Choose a plan", url: `https://fire.mkegroup.ca/#/plan` },
   }),
 
-  seatAdded: (deptName: string, who: string, billed: number, interval: string | null) => (first: string): Built => {
-    const each = interval === "year" ? ANNUAL : MONTHLY;
-    const cost = `${money(billed * each)} ${interval === "year" ? "a year" : "a month"}`;
+  seatAdded: (deptName: string, who: string, size: number, interval: string | null) => (first: string): Built => {
+    const p = PLANS.find((x) => x.max === size) ?? PLANS[PLANS.length - 1];
+    const cost = interval === "year" ? `${money(p.year)} a year` : `${money(p.month)} a month`;
     return {
       subject: `${who} joined ${deptName}`,
-      heading: `${first}, a seat was added`,
+      heading: `${first}, ${deptName} grew`,
       paras: [
-        `${who} joined ${deptName} on Fire Ground Board. You now have more people signed in than the seats you chose, so we added a seat. Nobody gets locked out of the board.`,
-        `Your plan now covers ${billed} ${billed === 1 ? "seat" : "seats"}: ${cost}, plus tax. The extra seat is charged for the rest of this period on your next bill.`,
-        "Not expected? Remove people in Department, then lower your seats in Plan.",
+        `${who} joined ${deptName} on Fire Ground Board. You now have more people signed in than your plan size covers. Nobody gets locked out of the board.`,
+        `From your next renewal, your plan moves up to the size for up to ${size} people: ${cost}, plus tax. Nothing extra is charged before then.`,
+        "Not expected? Remove people who've left in Department before your renewal date.",
       ],
-      button: { label: "Review seats", url: `https://fire.mkegroup.ca/#/plan` },
+      button: { label: "Review your plan", url: `https://fire.mkegroup.ca/#/plan` },
     };
   },
 
@@ -122,7 +121,7 @@ export const emails = {
     subject: `${who} asked to join ${deptName}`,
     heading: `${first}, someone is waiting for approval`,
     paras: [
-      `${who}${email ? ` (${email})` : ""} used your invite code to join ${deptName}. You have "New people need approval" turned on, so they can't see anything yet and they don't use a seat.`,
+      `${who}${email ? ` (${email})` : ""} used your invite code to join ${deptName}. You have "New people need approval" turned on, so they can't see anything yet.`,
       "Approve them if they're on your crew. If you don't know them, decline, then make a new invite code in Department so the old one stops working.",
     ],
     button: { label: "Review in Department", url: `https://fire.mkegroup.ca/#/dept` },

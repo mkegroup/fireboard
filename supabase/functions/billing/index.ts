@@ -1,48 +1,40 @@
 // Billing for departments. Called by the web app with the user's session.
-// Per member who uses the app: monthly or yearly. No minimum, capped at SEAT_CAP (20) paid users.
+// One flat price per department, by size (up to 25, 50 or 100 people who use the app), monthly or yearly.
 // Actions:
 //   checkout   (owner)  -> Stripe Checkout URL to pay by card.
 //   invoice    (owner)  -> yearly plan billed by emailed invoice (net 30),
 //                         for departments that pay by cheque or EFT.
 //   portal     (owner)  -> Stripe customer portal URL (card, invoices, cancel).
-//   seats      (owner)  -> changes how many seats the department pays for.
-//   sync-seats (member) -> pushes the current seat count to Stripe. When someone
-//                         joins past what the owner chose, billing grows on its
-//                         own and the owner gets an alert.
-// The owner picks a number of seats (a floor). Billing is the larger of that and
-// the people actually signed in, never more than SEAT_CAP.
+//   seats      (owner)  -> changes the plan size (25, 50 or 100), from the next renewal.
+//   sync-seats (member) -> recounts people. When a department outgrows its plan,
+//                         it moves up a size at the next renewal and the owner gets an alert.
+// The owner picks a plan size (a floor). Billing uses the larger of that and the
+// size that fits the people actually signed in. Over 100 people: custom quote.
 // If the free trial is still running, billing starts when it ends.
 import { makeStripe } from "../_shared/stripe.ts";
 import { adminClient, appUrl as cleanAppUrl, corsHeaders, lockedCors, countSeats, env, getUser, json, membership } from "../_shared/util.ts";
-import { SEAT_CAP, isCustom, syncSeats, targetSeats } from "../_shared/seats.ts";
+import { PLANS, QUOTE_ABOVE, isCustom, planBySize, planOfPrice, priceFor, syncSeats, targetPlan } from "../_shared/seats.ts";
 import { pushTo } from "../_shared/push.ts";
 import { emails, mailOwnersOnce } from "../_shared/owner-mail.ts";
 import { logError } from "../_shared/admin.ts";
 
 const stripe = makeStripe(env("STRIPE_SECRET_KEY"));
 
-const PRICES: Record<string, string | undefined> = {
-  monthly: Deno.env.get("STRIPE_PRICE_MONTHLY"),
-  annual: Deno.env.get("STRIPE_PRICE_ANNUAL"),
-};
 // Stripe needs a quantity of at least 1. The owner always counts, so this never bills extra.
 const MIN_SEATS = Math.max(1, Number(Deno.env.get("MIN_SEATS") ?? "1"));
 const TAX = Deno.env.get("STRIPE_TAX") === "on";
-const QUOTE_FROM = Math.max(2, Number(Deno.env.get("QUOTE_FROM") ?? "60"));
+const QUOTE_FROM = QUOTE_ABOVE + 1;
 const LIVE = ["active", "trialing", "past_due"];
 
 const clean = (v: unknown, max = 120) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-/** A seat count from the app: a whole number from 1 to the cap, or null. */
-const seatsFrom = (v: unknown): number | null => {
-  const n = Number(v);
-  return Number.isInteger(n) && n >= 1 && n <= SEAT_CAP ? n : null;
-};
+/** A plan size from the app (25, 50 or 100), or null. */
+const sizeFrom = (v: unknown): number | null => planBySize(v)?.max ?? null;
 
 type Admin = ReturnType<typeof adminClient>;
 const SEAT_WORDS = {
-  en: (who: string, n: number) => ({ title: "Seat added", body: `${who} joined. Your plan now covers ${n} people.` }),
-  fr: (who: string, n: number) => ({ title: "Place ajoutée", body: `${who} s'est joint. Votre forfait couvre maintenant ${n} personnes.` }),
-  es: (who: string, n: number) => ({ title: "Plaza agregada", body: `${who} se unió. Su plan ahora cubre ${n} personas.` }),
+  en: (who: string, n: number) => ({ title: "Plan size updated", body: `${who} joined. From your next renewal, your plan covers up to ${n} people.` }),
+  fr: (who: string, n: number) => ({ title: "Forfait mis à jour", body: `${who} s'est joint. À votre prochain renouvellement, votre forfait couvre jusqu'à ${n} personnes.` }),
+  es: (who: string, n: number) => ({ title: "Plan actualizado", body: `${who} se unió. Desde su próxima renovación, su plan cubre hasta ${n} personas.` }),
 };
 
 const JOIN_WORDS = {
@@ -132,7 +124,7 @@ Deno.serve(lockedCors(async (req) => {
       }
       const r = await syncSeats(stripe, admin, dept, MIN_SEATS);
       // Someone joined past what the owner chose: billing grew. Tell the owner.
-      if (r.billed !== null && r.before !== null && r.billed > r.before && r.seats > (dept.seats_paid ?? 0)) {
+      if (r.billed !== null && r.before !== null && r.billed > r.before) {
         await alertOwners(admin, dept, user.id, r.billed, typeof body.member_id === "string" ? body.member_id : null).catch((e) => console.error("seat alert failed", e));
       }
       return json({ seats: r.seats, billed: r.billed });
@@ -149,37 +141,36 @@ Deno.serve(lockedCors(async (req) => {
       return json({ url: session.url });
     }
 
-    // ---------- change seats ----------
+    // ---------- change plan size ----------
     if (action === "seats") {
       if (!dept.stripe_subscription_id || !LIVE.includes(dept.subscription_status)) {
         return json({ error: "Choose a plan first." }, 400);
       }
-      const chosen = seatsFrom(body.seats);
-      if (!chosen) return json({ error: `Pick between 1 and ${SEAT_CAP} seats.` }, 400);
+      const chosen = sizeFrom(body.seats);
+      if (!chosen) return json({ error: `Pick a plan size: ${PLANS.map((p) => p.max).join(", ")} people.` }, 400);
       const sub = await stripe.subscriptions.retrieve(dept.stripe_subscription_id);
-      if (isCustom(sub)) return json({ error: "You're on a custom plan. Email us and we'll change it for you." }, 400);
+      const cur = planOfPrice(sub.items.data[0]?.price);
+      if (isCustom(sub) || !cur) return json({ error: "You're on a custom plan. Email us and we'll change it for you." }, 400);
       const item = sub.items.data[0];
       const used = await countSeats(admin, dept_id);
-      const qty = targetSeats(used, chosen, MIN_SEATS);
-      if (item && (item.quantity !== qty || sub.metadata?.seats_paid !== String(chosen))) {
-        // More seats: charged for the rest of this period on the next bill.
-        // Fewer seats: no refund mid-period, the next bill is lower.
+      const want = targetPlan(used, chosen);
+      if (item && want.key !== cur.key) {
+        // Takes effect at the next renewal. No mid-term charge or refund.
         await stripe.subscriptions.update(sub.id, {
-          items: [{ id: item.id, quantity: qty }],
-          proration_behavior: qty > (item.quantity ?? 0) ? "create_prorations" : "none",
-          // Kept on the subscription so the webhook never puts back an old number.
-          metadata: { ...sub.metadata, seats_paid: String(chosen) },
+          items: [{ id: item.id, price: await priceFor(stripe, want.key, cur.interval), quantity: 1 }],
+          proration_behavior: "none",
+          metadata: { ...sub.metadata, seats_paid: String(chosen), plan_size: String(want.max) },
         });
+      } else if (sub.metadata?.seats_paid !== String(chosen)) {
+        await stripe.subscriptions.update(sub.id, { metadata: { ...sub.metadata, seats_paid: String(chosen) } });
       }
-      await admin.from("departments").update({ seats_paid: chosen, seats_billed: qty, seat_count: used }).eq("id", dept_id);
-      return json({ seats_paid: chosen, billed: qty, used });
+      await admin.from("departments").update({ seats_paid: chosen, seats_billed: want.max, seat_count: used }).eq("id", dept_id);
+      return json({ seats_paid: chosen, billed: want.max, used });
     }
 
     if (action !== "checkout" && action !== "invoice") return json({ error: "Unknown action" }, 400);
     // Invoices are yearly only. Monthly invoices for a few dollars aren't worth anyone's time.
-    const plan = action === "invoice" ? "annual" : body.plan === "monthly" ? "monthly" : "annual";
-    const PRICE = PRICES[plan];
-    if (!PRICE) return json({ error: "Billing is not set up yet. Contact support." }, 500);
+    const interval = action === "invoice" ? "year" : body.plan === "monthly" ? "month" : "year";
 
     // Already subscribed: send them to the portal instead of a second subscription.
     if (dept.stripe_subscription_id && LIVE.includes(dept.subscription_status)) {
@@ -191,14 +182,18 @@ Deno.serve(lockedCors(async (req) => {
       return json({ url: session.url });
     }
 
-    // The owner picks how many people to pay for. Never less than who's already signed in.
+    // The owner picks a plan size. Never smaller than the people already signed in.
     const used = await countSeats(admin, dept_id);
     // Big departments and counties get a custom plan from us instead of self-serve.
     if (used >= QUOTE_FROM) {
-      return json({ error: `Departments with ${QUOTE_FROM} or more people get a custom plan. Tap Get a quote and we'll set it up.`, quote: true }, 400);
+      return json({ error: `Departments with more than ${QUOTE_ABOVE} people get a custom plan. Tap Get a quote and we'll set it up.`, quote: true }, 400);
     }
-    const chosen = seatsFrom(body.seats) ?? dept.seats_paid ?? Math.max(1, Math.min(used, SEAT_CAP));
-    const seats = targetSeats(used, chosen, MIN_SEATS);
+    const plan = targetPlan(used, sizeFrom(body.seats) ?? dept.seats_paid);
+    const chosen = plan.max;
+    const PRICE = await priceFor(stripe, plan.key, interval);
+    // Founding price: departments that start a plan by Mar 31, 2027 keep it for 3 years. Recorded on the subscription.
+    const lock: Record<string, string> = Date.now() <= Date.parse("2027-03-31T23:59:59-04:00")
+      ? { price_lock_until: new Date(Date.now() + 3 * 365.25 * 86400000).toISOString().slice(0, 10) } : {};
     await admin.from("departments").update({ seats_paid: chosen }).eq("id", dept_id);
     // Stripe needs trial_end at least 48h out. Inside that window we bill now.
     const trialEnd = Math.floor(new Date(dept.trial_ends_at).getTime() / 1000);
@@ -235,10 +230,10 @@ Deno.serve(lockedCors(async (req) => {
 
       const sub = await stripe.subscriptions.create({
         customer,
-        items: [{ price: PRICE, quantity: seats }],
+        items: [{ price: PRICE, quantity: 1 }],
         collection_method: "send_invoice",
         days_until_due: 30,
-        metadata: { dept_id, seats_paid: String(chosen) },
+        metadata: { dept_id, seats_paid: String(chosen), plan_size: String(chosen), ...lock },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
         ...(TAX ? { automatic_tax: { enabled: true } } : {}),
       });
@@ -247,7 +242,7 @@ Deno.serve(lockedCors(async (req) => {
         stripe_subscription_id: sub.id,
         subscription_status: sub.status,
         seat_count: used,
-        seats_billed: seats,
+        seats_billed: chosen,
       }).eq("id", dept_id);
       return json({ ok: true, status: sub.status });
     }
@@ -268,12 +263,12 @@ Deno.serve(lockedCors(async (req) => {
       mode: "subscription",
       customer,
       client_reference_id: dept_id,
-      line_items: [{ price: PRICE, quantity: seats }],
+      line_items: [{ price: PRICE, quantity: 1 }],
       allow_promotion_codes: true,
       billing_address_collection: "required",
       ...(TAX ? { automatic_tax: { enabled: true }, customer_update: { address: "auto", name: "auto" } } : {}),
       subscription_data: {
-        metadata: { dept_id, seats_paid: String(chosen) },
+        metadata: { dept_id, seats_paid: String(chosen), plan_size: String(chosen), ...lock },
         ...(keepTrial ? { trial_end: trialEnd } : {}),
       },
       success_url: `${appUrl}/?billing=success`,
