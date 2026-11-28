@@ -64,6 +64,8 @@ async function boot() {
     else pendingJoinCode = localStorage.getItem("fgb_join");
   } catch { /* private mode */ }
 
+  // ?video (from emails and posts) opens the full walkthrough over whatever screen loads.
+  if (params.has("video")) setTimeout(() => { track("video_link", "opened the walkthrough from a link"); watchVideo(); }, 1200);
   const wantDemo = params.has("demo") || sessionStorage.getItem("fgb_demo") === "1";
   if (wantDemo || !HAS_BACKEND) {
     if (wantDemo) return startDemo();
